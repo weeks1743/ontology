@@ -65,63 +65,143 @@ export function assembleYaml(ontologyId: number): YamlBundle {
   };
 
   // ── objects.yaml ─────────────────────────────────────────────────────────────
-  const objectsDoc = rawObjects.map((o) => ({
-    code: o['code'],
-    name: o['name'],
-    description: o['description'] || '',
-    lifecycle: parseJson<string[]>(o['lifecycle'], []),
-    attributes: parseJson<unknown[]>(o['attributes'], []),
-    relations_detail: parseJson<unknown[]>(o['relations_detail'], []),
-  }));
+  const objectsDoc = rawObjects.map((o) => {
+    const attributes = parseJson<any[]>(o['attributes'], []);
+    const relations = parseJson<any[]>(o['relations_detail'], []);
+
+    return {
+      code: o['code'],
+      name: o['name'],
+      display_name: o['name'], // 中文显示名称
+      description: o['description'] || '',
+      lifecycle: parseJson<string[]>(o['lifecycle'], []),
+      attributes: attributes.map((attr: any) => ({
+        name: attr.name,
+        display_name: attr.displayName || attr.name, // 属性中文名称
+        type: attr.type,
+        description: attr.description || '',
+        required: attr.required || false,
+        ...(attr.enum_values && { enum_values: attr.enum_values }),
+        ...(attr.default_value && { default_value: attr.default_value }),
+      })),
+      relations: relations.map((rel: any) => ({
+        name: rel.name,
+        display_name: rel.displayName || rel.name, // 关系中文名称
+        target_object: rel.target_object,
+        type: rel.type,
+        description: rel.description || '',
+      })),
+    };
+  });
 
   // ── behaviors.yaml ───────────────────────────────────────────────────────────
-  const behaviorsDoc = rawBehaviors.map((b) => ({
-    code: b['code'],
-    name: b['name'],
-    description: b['description'] || '',
-    owner_object: b['owner_object'],
-    trigger_type: b['trigger_type'],
-    required_inputs: parseJson<string[]>(b['required_inputs'], []),
-    referenced_rules: parseJson<string[]>(b['referenced_rules'], []),
-    emits_events: parseJson<string[]>(b['emits_events'], []),
-    writeback_targets: parseJson<string[]>(b['writeback_targets'], []),
-  }));
+  const behaviorsDoc = rawBehaviors.map((b) => {
+    const ownerObj = rawObjects.find((o) => o['code'] === b['owner_object']);
+    const triggerTypeLabels: Record<string, string> = {
+      USER_ACTION: '用户操作',
+      AI_OR_USER_ACTION: 'AI或用户操作',
+      SYSTEM_ACTION: '系统操作',
+      SYSTEM_OR_MANAGER_ACTION: '系统或管理员操作',
+    };
+
+    return {
+      code: b['code'],
+      name: b['name'],
+      display_name: b['name'], // 中文显示名称
+      description: b['description'] || '',
+      owner_object: b['owner_object'],
+      owner_object_name: ownerObj ? ownerObj['name'] : b['owner_object'], // 归属对象中文名
+      trigger_type: b['trigger_type'],
+      trigger_type_label: triggerTypeLabels[b['trigger_type'] as string] || b['trigger_type'], // 触发类型中文
+      required_inputs: parseJson<string[]>(b['required_inputs'], []),
+      referenced_rules: parseJson<string[]>(b['referenced_rules'], []),
+      emits_events: parseJson<string[]>(b['emits_events'], []),
+      writeback_targets: parseJson<string[]>(b['writeback_targets'], []),
+    };
+  });
 
   // ── rules.yaml ───────────────────────────────────────────────────────────────
-  const rulesDoc = rawRules.map((r) => ({
-    code: r['code'],
-    name: r['name'],
-    description: r['description'] || '',
-    type: r['type'],
-    applicable_objects: parseJson<string[]>(r['applicable_objects'], []),
-    applicable_behaviors: parseJson<string[]>(r['applicable_behaviors'], []),
-    expression: r['expression'] || '',
-    failure_message: r['failure_message'] || '',
-    severity: r['severity'],
-    escalation_target: r['escalation_target'] || '',
-  }));
+  const rulesDoc = rawRules.map((r) => {
+    const severityLabels: Record<string, string> = {
+      low: '低',
+      medium: '中',
+      high: '高',
+      critical: '严重',
+    };
+
+    return {
+      code: r['code'],
+      name: r['name'],
+      display_name: r['name'], // 中文显示名称
+      description: r['description'] || '',
+      type: r['type'],
+      applicable_objects: parseJson<string[]>(r['applicable_objects'], []),
+      applicable_behaviors: parseJson<string[]>(r['applicable_behaviors'], []),
+      expression: r['expression'] || '',
+      failure_message: r['failure_message'] || '',
+      severity: r['severity'],
+      severity_label: severityLabels[r['severity'] as string] || r['severity'], // 严重度中文
+      escalation_target: r['escalation_target'] || '',
+    };
+  });
 
   // ── events.yaml ──────────────────────────────────────────────────────────────
-  const eventsDoc = rawEvents.map((e) => ({
-    code: e['code'],
-    name: e['name'],
-    description: e['description'] || '',
-    producer_object: e['producer_object'],
-    producer_behavior: e['producer_behavior'],
-    subscribers: parseJson<string[]>(e['subscribers'], []),
-    impacted_objects: parseJson<string[]>(e['impacted_objects'], []),
-  }));
+  const eventsDoc = rawEvents.map((e) => {
+    const producerObj = rawObjects.find((o) => o['code'] === e['producer_object']);
+    const producerBeh = rawBehaviors.find((b) => b['code'] === e['producer_behavior']);
+
+    return {
+      code: e['code'],
+      name: e['name'],
+      display_name: e['name'], // 中文显示名称
+      description: e['description'] || '',
+      producer_object: e['producer_object'],
+      producer_object_name: producerObj ? producerObj['name'] : e['producer_object'], // 产生对象中文名
+      producer_behavior: e['producer_behavior'],
+      producer_behavior_name: producerBeh ? producerBeh['name'] : e['producer_behavior'], // 产生行为中文名
+      subscribers: parseJson<string[]>(e['subscribers'], []),
+      impacted_objects: parseJson<string[]>(e['impacted_objects'], []),
+    };
+  });
 
   // ── scenarios.yaml ───────────────────────────────────────────────────────────
-  const scenariosDoc = rawScenarios.map((s) => ({
-    code: s['code'],
-    name: s['name'],
-    description: s['description'] || '',
-    business_goal: s['business_goal'] || '',
-    involved_objects: parseJson<string[]>(s['involved_objects'], []),
-    steps: parseJson<unknown[]>(s['steps'], []),
-    success_criteria: parseJson<string[]>(s['success_criteria'], []),
-  }));
+  const scenariosDoc = rawScenarios.map((s) => {
+    const steps = parseJson<any[]>(s['steps'], []);
+
+    // 为每个步骤添加中文名称
+    const enrichedSteps = steps.map((step: any) => {
+      const enriched: any = { step: step.step };
+
+      if (step.behavior) {
+        const beh = rawBehaviors.find((b) => b['code'] === step.behavior);
+        enriched.behavior = step.behavior;
+        enriched.behavior_name = beh ? beh['name'] : step.behavior;
+      }
+
+      if (step.event) {
+        const evt = rawEvents.find((e) => e['code'] === step.event);
+        enriched.event = step.event;
+        enriched.event_name = evt ? evt['name'] : step.event;
+      }
+
+      if (step.decision_gate) {
+        enriched.decision_gate = step.decision_gate;
+      }
+
+      return enriched;
+    });
+
+    return {
+      code: s['code'],
+      name: s['name'],
+      display_name: s['name'], // 中文显示名称
+      description: s['description'] || '',
+      business_goal: s['business_goal'] || '',
+      involved_objects: parseJson<string[]>(s['involved_objects'], []),
+      steps: enrichedSteps,
+      success_criteria: parseJson<string[]>(s['success_criteria'], []),
+    };
+  });
 
   return {
     model: yaml.dump(modelDoc, { lineWidth: 120 }),

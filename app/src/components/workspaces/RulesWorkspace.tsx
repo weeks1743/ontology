@@ -323,10 +323,14 @@ function FormModal({ editing, ontologyId, objects, behaviors, onClose, onSaved }
             onChange={(codes) => set('applicable_objects', codes)}
           />
 
-          {/* applicable_behaviors */}
+          {/* applicable_behaviors - 只显示归属于已选对象的行为 */}
           <MultiSelectCheckboxes
             label="适用行为"
-            items={behaviors}
+            items={
+              form.applicable_objects.length > 0
+                ? behaviors.filter((b) => form.applicable_objects.includes(b.owner_object))
+                : behaviors
+            }
             selected={form.applicable_behaviors}
             onChange={(codes) => set('applicable_behaviors', codes)}
           />

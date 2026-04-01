@@ -33,15 +33,19 @@ router.post('/', (req: any, res: any) => {
         '',
         JSON.stringify(['新建', '待跟进', '跟进中', '已评估', '已转化', '已关闭']),
         JSON.stringify([
-          { name: 'title', type: 'string', required: true, description: '线索标题' },
-          { name: 'source', type: 'enum', enum_values: ['官网', '展会', '推荐', '广告', '电话'], description: '线索来源' },
-          { name: 'budget', type: 'number', description: '预算金额' },
-          { name: 'status', type: 'enum', enum_values: ['新建', '待跟进', '跟进中', '已评估', '已转化', '已关闭'], description: '当前状态' },
-          { name: 'owner', type: 'string', description: '负责人' },
-          { name: 'phone', type: 'string', description: '联系电话' },
-          { name: 'company', type: 'string', description: '所属公司' },
+          { name: 'title', displayName: '线索标题', type: 'string', required: true, description: '线索标题' },
+          { name: 'source', displayName: '线索来源', type: 'enum', enum_values: ['官网', '展会', '推荐', '广告', '电话'], description: '线索来源' },
+          { name: 'budget', displayName: '预算金额', type: 'number', description: '预算金额' },
+          { name: 'status', displayName: '当前状态', type: 'enum', enum_values: ['新建', '待跟进', '跟进中', '已评估', '已转化', '已关闭'], description: '当前状态' },
+          { name: 'owner', displayName: '负责人', type: 'string', description: '负责人' },
+          { name: 'phone', displayName: '联系电话', type: 'string', description: '联系电话' },
+          { name: 'company', displayName: '所属公司', type: 'string', description: '所属公司' },
         ]),
-        JSON.stringify([])
+        JSON.stringify([
+          { name: 'relatedCustomer', displayName: '关联客户', target_object: 'Customer', type: 'many-to-one', description: '关联的已有客户' },
+          { name: 'relatedContact', displayName: '关联联系人', target_object: 'Contact', type: 'many-to-one', description: '关联的已有联系人' },
+          { name: 'convertsToOpportunity', displayName: '转化为商机', target_object: 'Opportunity', type: 'one-to-many', description: '转化生成的商机' },
+        ])
       );
 
       // 2. Opportunity (商机)
@@ -56,16 +60,18 @@ router.post('/', (req: any, res: any) => {
         '',
         JSON.stringify(['识别', '初步接触', '需求分析', '方案提案', '报价谈判', '赢单', '输单']),
         JSON.stringify([
-          { name: 'name', type: 'string', required: true },
-          { name: 'amount', type: 'number', description: '预计金额' },
-          { name: 'probability', type: 'number', description: '赢单概率%' },
-          { name: 'closeDate', type: 'date', description: '预计关闭日期' },
-          { name: 'stage', type: 'enum', enum_values: ['识别', '初步接触', '需求分析', '方案提案', '报价谈判', '赢单', '输单'] },
-          { name: 'owner', type: 'string' },
+          { name: 'name', displayName: '商机名称', type: 'string', required: true },
+          { name: 'amount', displayName: '预计金额', type: 'number', description: '预计金额' },
+          { name: 'probability', displayName: '赢单概率%', type: 'number', description: '赢单概率%' },
+          { name: 'closeDate', displayName: '预计关闭日期', type: 'date', description: '预计关闭日期' },
+          { name: 'stage', displayName: '阶段', type: 'enum', enum_values: ['识别', '初步接触', '需求分析', '方案提案', '报价谈判', '赢单', '输单'] },
+          { name: 'owner', displayName: '负责人', type: 'string' },
         ]),
         JSON.stringify([
-          { name: 'fromLead', target_object: 'Lead', type: 'many-to-one', description: '来源线索' },
-          { name: 'hasQuotes', target_object: 'Quote', type: 'one-to-many', description: '关联报价' },
+          { name: 'belongsToCustomer', displayName: '所属客户', target_object: 'Customer', type: 'many-to-one', description: '所属客户' },
+          { name: 'primaryContact', displayName: '主要联系人', target_object: 'Contact', type: 'many-to-one', description: '主要联系人' },
+          { name: 'fromLead', displayName: '来源线索', target_object: 'Lead', type: 'many-to-one', description: '来源线索' },
+          { name: 'hasQuotes', displayName: '报价', target_object: 'Quote', type: 'one-to-many', description: '关联报价' },
         ])
       );
 
@@ -81,14 +87,16 @@ router.post('/', (req: any, res: any) => {
         '',
         JSON.stringify(['草稿', '待审批', '已批准', '已拒绝', '已发送', '已成交', '已失效']),
         JSON.stringify([
-          { name: 'quoteNo', type: 'string', required: true, description: '报价单号' },
-          { name: 'amount', type: 'number', required: true, description: '报价总金额' },
-          { name: 'validDays', type: 'number', description: '有效天数' },
-          { name: 'status', type: 'enum', enum_values: ['草稿', '待审批', '已批准', '已拒绝', '已发送', '已成交', '已失效'] },
-          { name: 'discount', type: 'number', description: '折扣率%' },
+          { name: 'quoteNo', displayName: '报价单号', type: 'string', required: true, description: '报价单号' },
+          { name: 'amount', displayName: '报价总金额', type: 'number', required: true, description: '报价总金额' },
+          { name: 'validDays', displayName: '有效天数', type: 'number', description: '有效天数' },
+          { name: 'status', displayName: '状态', type: 'enum', enum_values: ['草稿', '待审批', '已批准', '已拒绝', '已发送', '已成交', '已失效'] },
+          { name: 'discount', displayName: '折扣率%', type: 'number', description: '折扣率%' },
         ]),
         JSON.stringify([
-          { name: 'fromOpportunity', target_object: 'Opportunity', type: 'many-to-one', description: '来源商机' },
+          { name: 'fromOpportunity', displayName: '来源商机', target_object: 'Opportunity', type: 'many-to-one', description: '来源商机' },
+          { name: 'forCustomer', displayName: '客户', target_object: 'Customer', type: 'many-to-one', description: '报价客户' },
+          { name: 'primaryContact', displayName: '联系人', target_object: 'Contact', type: 'many-to-one', description: '主要联系人' },
         ])
       );
 
@@ -104,13 +112,17 @@ router.post('/', (req: any, res: any) => {
         '',
         JSON.stringify(['潜在', '活跃', '观察中', '冻结']),
         JSON.stringify([
-          { name: 'customerName', type: 'string', required: true, description: '客户名称' },
-          { name: 'industry', type: 'string', description: '所属行业' },
-          { name: 'region', type: 'string', description: '所属区域' },
-          { name: 'customerLevel', type: 'enum', enum_values: ['A', 'B', 'C', 'D'], description: '客户级别' },
-          { name: 'ownerSales', type: 'string', description: '负责销售' },
+          { name: 'customerName', displayName: '客户名称', type: 'string', required: true, description: '客户名称' },
+          { name: 'industry', displayName: '所属行业', type: 'string', description: '所属行业' },
+          { name: 'region', displayName: '所属区域', type: 'string', description: '所属区域' },
+          { name: 'customerLevel', displayName: '客户级别', type: 'enum', enum_values: ['A', 'B', 'C', 'D'], description: '客户级别' },
+          { name: 'ownerSales', displayName: '负责销售', type: 'string', description: '负责销售' },
         ]),
-        JSON.stringify([])
+        JSON.stringify([
+          { name: 'hasContacts', displayName: '联系人', target_object: 'Contact', type: 'one-to-many', description: '客户的联系人' },
+          { name: 'hasOpportunities', displayName: '商机', target_object: 'Opportunity', type: 'one-to-many', description: '客户的商机' },
+          { name: 'fromLeads', displayName: '来源线索', target_object: 'Lead', type: 'one-to-many', description: '转化来源的线索' },
+        ])
       );
 
       // 5. Contact (联系人)
@@ -125,13 +137,15 @@ router.post('/', (req: any, res: any) => {
         '',
         JSON.stringify(['活跃', '非活跃']),
         JSON.stringify([
-          { name: 'name', type: 'string', required: true },
-          { name: 'phone', type: 'string' },
-          { name: 'email', type: 'string' },
-          { name: 'role', type: 'string', description: '职位角色' },
+          { name: 'name', displayName: '姓名', type: 'string', required: true },
+          { name: 'phone', displayName: '电话', type: 'string' },
+          { name: 'email', displayName: '邮箱', type: 'string' },
+          { name: 'role', displayName: '职位角色', type: 'string', description: '职位角色' },
         ]),
         JSON.stringify([
-          { name: 'belongsTo', target_object: 'Customer', type: 'many-to-one', description: '所属客户' },
+          { name: 'belongsToCustomer', displayName: '所属客户', target_object: 'Customer', type: 'many-to-one', description: '所属客户' },
+          { name: 'relatedOpportunities', displayName: '相关商机', target_object: 'Opportunity', type: 'one-to-many', description: '相关的商机' },
+          { name: 'fromLeads', displayName: '来源线索', target_object: 'Lead', type: 'one-to-many', description: '关联的线索' },
         ])
       );
 

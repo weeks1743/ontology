@@ -214,57 +214,64 @@ function ObjectForm({ ontologyId, editing, allObjects, onClose, onSaved }: FormP
             ) : (
               <div className="space-y-2">
                 {attributes.map((attr, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-[1fr_140px_auto_auto] gap-2 items-center"
-                  >
-                    <input
-                      className={`${inputCls} w-full`}
-                      value={attr.name}
-                      onChange={(e) =>
-                        updateAttribute(i, { name: e.target.value })
-                      }
-                      placeholder="属性名"
-                    />
-                    <div className="relative">
-                      <select
-                        className={`${selectCls} w-full pr-7`}
-                        value={attr.type}
-                        onChange={(e) =>
-                          updateAttribute(i, {
-                            type: e.target.value as ObjectAttribute['type'],
-                          })
-                        }
-                      >
-                        {ATTRIBUTE_TYPES.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={13}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
-                      />
-                    </div>
-                    <label className="flex items-center gap-1.5 text-xs text-white/40 cursor-pointer select-none whitespace-nowrap">
+                  <div key={i} className="space-y-2">
+                    <div className="grid grid-cols-[1fr_1fr_140px_auto_auto] gap-2 items-center">
                       <input
-                        type="checkbox"
-                        checked={attr.required ?? false}
+                        className={`${inputCls} w-full`}
+                        value={attr.name}
                         onChange={(e) =>
-                          updateAttribute(i, { required: e.target.checked })
+                          updateAttribute(i, { name: e.target.value })
                         }
-                        className="accent-indigo-500"
+                        placeholder="属性名 (英文)"
                       />
-                      必填
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => removeAttribute(i)}
-                      className="text-white/25 hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                      <input
+                        className={`${inputCls} w-full`}
+                        value={attr.displayName ?? ''}
+                        onChange={(e) =>
+                          updateAttribute(i, { displayName: e.target.value })
+                        }
+                        placeholder="中文名称"
+                      />
+                      <div className="relative">
+                        <select
+                          className={`${selectCls} w-full pr-7`}
+                          value={attr.type}
+                          onChange={(e) =>
+                            updateAttribute(i, {
+                              type: e.target.value as ObjectAttribute['type'],
+                            })
+                          }
+                        >
+                          {ATTRIBUTE_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={13}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
+                        />
+                      </div>
+                      <label className="flex items-center gap-1.5 text-xs text-white/40 cursor-pointer select-none whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={attr.required ?? false}
+                          onChange={(e) =>
+                            updateAttribute(i, { required: e.target.checked })
+                          }
+                          className="accent-indigo-500"
+                        />
+                        必填
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => removeAttribute(i)}
+                        className="text-white/25 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -288,66 +295,73 @@ function ObjectForm({ ontologyId, editing, allObjects, onClose, onSaved }: FormP
             ) : (
               <div className="space-y-2">
                 {relations.map((rel, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-[1fr_140px_160px_auto] gap-2 items-center"
-                  >
-                    <input
-                      className={`${inputCls} w-full`}
-                      value={rel.name}
-                      onChange={(e) =>
-                        updateRelation(i, { name: e.target.value })
-                      }
-                      placeholder="关系名"
-                    />
-                    <div className="relative">
-                      <select
-                        className={`${selectCls} w-full pr-7`}
-                        value={rel.type}
+                  <div key={i} className="space-y-2">
+                    <div className="grid grid-cols-[1fr_1fr_140px_160px_auto] gap-2 items-center">
+                      <input
+                        className={`${inputCls} w-full`}
+                        value={rel.name}
                         onChange={(e) =>
-                          updateRelation(i, {
-                            type: e.target.value as ObjectRelation['type'],
-                          })
+                          updateRelation(i, { name: e.target.value })
                         }
-                      >
-                        {RELATION_TYPES.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={13}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
+                        placeholder="关系名 (英文)"
                       />
-                    </div>
-                    <div className="relative">
-                      <select
-                        className={`${selectCls} w-full pr-7`}
-                        value={rel.target_object}
+                      <input
+                        className={`${inputCls} w-full`}
+                        value={rel.displayName ?? ''}
                         onChange={(e) =>
-                          updateRelation(i, { target_object: e.target.value })
+                          updateRelation(i, { displayName: e.target.value })
                         }
-                      >
-                        <option value="">目标对象…</option>
-                        {otherObjects.map((o) => (
-                          <option key={o.code} value={o.code}>
-                            {o.name} ({o.code})
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={13}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
+                        placeholder="中文名称"
                       />
+                      <div className="relative">
+                        <select
+                          className={`${selectCls} w-full pr-7`}
+                          value={rel.type}
+                          onChange={(e) =>
+                            updateRelation(i, {
+                              type: e.target.value as ObjectRelation['type'],
+                            })
+                          }
+                        >
+                          {RELATION_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={13}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
+                        />
+                      </div>
+                      <div className="relative">
+                        <select
+                          className={`${selectCls} w-full pr-7`}
+                          value={rel.target_object}
+                          onChange={(e) =>
+                            updateRelation(i, { target_object: e.target.value })
+                          }
+                        >
+                          <option value="">目标对象…</option>
+                          {otherObjects.map((o) => (
+                            <option key={o.code} value={o.code}>
+                              {o.name} ({o.code})
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={13}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeRelation(i)}
+                        className="text-white/25 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeRelation(i)}
-                      className="text-white/25 hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
                   </div>
                 ))}
               </div>
@@ -472,11 +486,9 @@ export default function ObjectsWorkspace({ ontologyId }: Props) {
                   <th className="px-5 py-3.5 font-medium">代码</th>
                   <th className="px-5 py-3.5 font-medium">名称</th>
                   <th className="px-5 py-3.5 font-medium">描述</th>
-                  <th className="px-5 py-3.5 font-medium text-center">属性数</th>
-                  <th className="px-5 py-3.5 font-medium text-center">关系数</th>
-                  <th className="px-5 py-3.5 font-medium text-center">
-                    生命周期阶段数
-                  </th>
+                  <th className="px-5 py-3.5 font-medium">属性</th>
+                  <th className="px-5 py-3.5 font-medium">关系</th>
+                  <th className="px-5 py-3.5 font-medium">生命周期阶段</th>
                   <th className="px-5 py-3.5 font-medium text-right">操作</th>
                 </tr>
               </thead>
@@ -499,20 +511,55 @@ export default function ObjectsWorkspace({ ontologyId }: Props) {
                         <span className="text-white/20 italic">—</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span className="text-white/60 font-mono text-xs">
-                        {obj.attributes?.length ?? 0}
-                      </span>
+                    <td className="px-5 py-3.5">
+                      {obj.attributes && obj.attributes.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {obj.attributes.map((attr) => (
+                            <span
+                              key={attr.name}
+                              className="text-xs bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-white/60"
+                              title={attr.name}
+                            >
+                              {attr.displayName || attr.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-white/20 text-xs italic">—</span>
+                      )}
                     </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span className="text-white/60 font-mono text-xs">
-                        {obj.relations_detail?.length ?? 0}
-                      </span>
+                    <td className="px-5 py-3.5">
+                      {obj.relations_detail && obj.relations_detail.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {obj.relations_detail.map((rel) => (
+                            <span
+                              key={rel.name}
+                              className="text-xs bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-white/60"
+                              title={rel.name}
+                            >
+                              {rel.displayName || rel.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-white/20 text-xs italic">—</span>
+                      )}
                     </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span className="text-white/60 font-mono text-xs">
-                        {obj.lifecycle?.length ?? 0}
-                      </span>
+                    <td className="px-5 py-3.5">
+                      {obj.lifecycle && obj.lifecycle.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {obj.lifecycle.map((stage) => (
+                            <span
+                              key={stage}
+                              className="text-xs bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-white/60"
+                            >
+                              {stage}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-white/20 text-xs italic">—</span>
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

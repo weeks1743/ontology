@@ -161,11 +161,17 @@ export default function EventsWorkspace({ ontologyId }: Props) {
 
   // ── Derived option lists ────────────────────────────────────────────────
 
+  const selectedProducerObject = form.producer_object;
+
   const objectOptions = objects.map((o) => ({ value: o.code, label: `${o.name} - ${o.code}` }));
-  const behaviorOptions = behaviors.map((b) => ({
-    value: b.code,
-    label: `${b.name} - ${b.code}`,
-  }));
+
+  // 只显示归属于当前产生对象的行为
+  const behaviorOptions = behaviors
+    .filter((b) => !selectedProducerObject || b.owner_object === selectedProducerObject)
+    .map((b) => ({
+      value: b.code,
+      label: `${b.name} - ${b.code}`,
+    }));
 
   // ── Render ──────────────────────────────────────────────────────────────
 

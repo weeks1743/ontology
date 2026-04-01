@@ -11,6 +11,7 @@ export interface OntologyShell {
 
 export interface ObjectAttribute {
   name: string;
+  displayName?: string;
   type: 'string' | 'number' | 'boolean' | 'date' | 'enum' | 'reference' | 'array';
   description?: string;
   required?: boolean;
@@ -20,6 +21,7 @@ export interface ObjectAttribute {
 
 export interface ObjectRelation {
   name: string;
+  displayName?: string;
   target_object: string;
   type: 'one-to-one' | 'one-to-many' | 'many-to-many';
   description?: string;

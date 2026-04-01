@@ -431,8 +431,19 @@ export default function ScenariosWorkspace({ ontologyId }: Props) {
   // ── Derived option lists ───────────────────────────────────────────────────
 
   const objectOptions = objects.map((o) => ({ value: o.code, label: `${o.name} (${o.code})` }));
-  const behaviorOptions = behaviors.map((b) => ({ value: b.code, label: `${b.name} - ${b.code}` }));
-  const eventOptions = events.map((ev) => ({ value: ev.code, label: `${ev.name} - ${ev.code}` }));
+
+  // 根据涉及对象过滤行为和事件
+  const involvedObjects = form.involved_objects;
+
+  // 只显示归属于涉及对象的行为
+  const behaviorOptions = behaviors
+    .filter((b) => involvedObjects.length === 0 || involvedObjects.includes(b.owner_object))
+    .map((b) => ({ value: b.code, label: `${b.name} - ${b.code}` }));
+
+  // 只显示由涉及对象产生的事件
+  const eventOptions = events
+    .filter((ev) => involvedObjects.length === 0 || involvedObjects.includes(ev.producer_object))
+    .map((ev) => ({ value: ev.code, label: `${ev.name} - ${ev.code}` }));
 
   // ── Render ─────────────────────────────────────────────────────────────────
 

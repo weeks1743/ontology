@@ -114,9 +114,14 @@ function ObjectDetail({ obj }: { obj: ObjectDraft }) {
               <Tag size={12} className="mt-0.5 shrink-0 text-white/30" />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-white truncate">{attr.name}</span>
+                  <span className="text-sm text-white truncate">
+                    {attr.displayName || attr.name}
+                  </span>
                   <Badge>{attr.type}</Badge>
                 </div>
+                {attr.displayName && attr.name !== attr.displayName && (
+                  <span className="text-xs text-white/30 font-mono truncate">{attr.name}</span>
+                )}
                 {attr.description && (
                   <span className="text-xs text-white/40 truncate">{attr.description}</span>
                 )}
@@ -135,9 +140,14 @@ function ObjectDetail({ obj }: { obj: ObjectDraft }) {
               <ArrowRight size={12} className="mt-0.5 shrink-0 text-white/30" />
               <div className="flex flex-col gap-0.5 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-white truncate">{rel.name}</span>
+                  <span className="text-sm text-white truncate">
+                    {rel.displayName || rel.name}
+                  </span>
                   <Badge>{rel.type}</Badge>
                 </div>
+                {rel.displayName && rel.name !== rel.displayName && (
+                  <span className="text-xs text-white/30 font-mono truncate">{rel.name}</span>
+                )}
                 {rel.description && (
                   <span className="text-xs text-white/40 truncate">{rel.description}</span>
                 )}

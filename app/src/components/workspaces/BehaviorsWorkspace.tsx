@@ -248,8 +248,18 @@ export default function BehaviorsWorkspace({ ontologyId }: Props) {
 
   // ── Derived option lists ────────────────────────────────────────────────
 
-  const ruleOptions = rules.map((r) => ({ value: r.code, label: `${r.name} - ${r.code}` }));
-  const eventOptions = events.map((ev) => ({ value: ev.code, label: `${ev.name} - ${ev.code}` }));
+  // 根据选择的归属对象过滤规则和事件
+  const selectedOwnerObject = form.owner_object;
+
+  // 只显示适用于当前归属对象的规则
+  const ruleOptions = rules
+    .filter((r) => !selectedOwnerObject || r.applicable_objects.includes(selectedOwnerObject))
+    .map((r) => ({ value: r.code, label: `${r.name} - ${r.code}` }));
+
+  // 只显示由当前归属对象产生的事件
+  const eventOptions = events
+    .filter((ev) => !selectedOwnerObject || ev.producer_object === selectedOwnerObject)
+    .map((ev) => ({ value: ev.code, label: `${ev.name} - ${ev.code}` }));
 
   // ── Render ──────────────────────────────────────────────────────────────
 

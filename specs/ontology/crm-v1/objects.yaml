@@ -19,6 +19,8 @@ objects:
       - budgetHint
       - ownerSales
     relations:
+      - relatedToCustomer
+      - relatedToContact
       - convertsToCustomer
       - convertsToOpportunity
       - ownedBySales

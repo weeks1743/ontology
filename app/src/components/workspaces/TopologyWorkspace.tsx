@@ -89,31 +89,99 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
     // Build edges
     const edges: object[] = [];
 
+    // Object relations (solid cyan for direct object-to-object relationships)
+    objects.forEach((obj) => {
+      obj.relations_detail.forEach((rel) => {
+        if (rel.target_object) {
+          const relationLabel = rel.displayName || rel.name;
+          edges.push({
+            source: `obj_${obj.code}`,
+            target: `obj_${rel.target_object}`,
+            lineStyle: { color: 'rgba(34,211,238,0.5)', width: 1.5, type: 'solid' },
+            label: {
+              show: true,
+              formatter: relationLabel,
+              fontSize: 9,
+              color: 'rgba(34,211,238,0.8)',
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              padding: [2, 4],
+              borderRadius: 3,
+            },
+            tooltip: {
+              formatter: () => {
+                const desc = rel.description ? `<br/>${rel.description}` : '';
+                return `<strong>${obj.name}</strong> → <strong>${relationLabel}</strong> → <strong>${objects.find(o => o.code === rel.target_object)?.name || rel.target_object}</strong>${desc}`;
+              },
+            },
+          });
+        }
+      });
+    });
+
     behaviors.forEach((b) => {
       // owner_object → behavior (solid indigo)
       if (b.owner_object) {
+        const ownerObj = objects.find(o => o.code === b.owner_object);
         edges.push({
           source: `obj_${b.owner_object}`,
           target: `beh_${b.code}`,
           lineStyle: { color: 'rgba(99,102,241,0.6)', width: 2, type: 'solid' },
+          label: {
+            show: true,
+            formatter: '拥有行为',
+            fontSize: 9,
+            color: 'rgba(99,102,241,0.8)',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            padding: [2, 4],
+            borderRadius: 3,
+          },
+          tooltip: {
+            formatter: () => `<strong>${ownerObj?.name || b.owner_object}</strong> 拥有行为 <strong>${b.name}</strong>`,
+          },
         });
       }
 
       // behavior → emits_events (solid orange)
       b.emits_events.forEach((evtCode) => {
+        const evt = events.find(e => e.code === evtCode);
         edges.push({
           source: `beh_${b.code}`,
           target: `evt_${evtCode}`,
           lineStyle: { color: 'rgba(249,115,22,0.6)', width: 1.5, type: 'solid' },
+          label: {
+            show: true,
+            formatter: '触发事件',
+            fontSize: 9,
+            color: 'rgba(249,115,22,0.8)',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            padding: [2, 4],
+            borderRadius: 3,
+          },
+          tooltip: {
+            formatter: () => `<strong>${b.name}</strong> 触发事件 <strong>${evt?.name || evtCode}</strong>`,
+          },
         });
       });
 
       // behavior → referenced_rules (dashed amber)
       b.referenced_rules.forEach((ruleCode) => {
+        const rule = rules.find(r => r.code === ruleCode);
         edges.push({
           source: `beh_${b.code}`,
           target: `rule_${ruleCode}`,
           lineStyle: { color: 'rgba(245,158,11,0.5)', width: 1, type: 'dashed' },
+          label: {
+            show: true,
+            formatter: '引用规则',
+            fontSize: 9,
+            color: 'rgba(245,158,11,0.8)',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            padding: [2, 4],
+            borderRadius: 3,
+          },
+          tooltip: {
+            formatter: () => `<strong>${b.name}</strong> 引用规则 <strong>${rule?.name || ruleCode}</strong>`,
+          },
         });
       });
     });
@@ -121,10 +189,23 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
     // rule → applicable_objects (dotted amber)
     rules.forEach((r) => {
       r.applicable_objects.forEach((objCode) => {
+        const obj = objects.find(o => o.code === objCode);
         edges.push({
           source: `rule_${r.code}`,
           target: `obj_${objCode}`,
           lineStyle: { color: 'rgba(245,158,11,0.4)', width: 1, type: 'dotted' },
+          label: {
+            show: true,
+            formatter: '适用于',
+            fontSize: 9,
+            color: 'rgba(245,158,11,0.8)',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            padding: [2, 4],
+            borderRadius: 3,
+          },
+          tooltip: {
+            formatter: () => `<strong>${r.name}</strong> 适用于 <strong>${obj?.name || objCode}</strong>`,
+          },
         });
       });
     });
@@ -132,17 +213,43 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
     // event → impacted_objects (dotted orange)
     events.forEach((e) => {
       e.impacted_objects.forEach((objCode) => {
+        const obj = objects.find(o => o.code === objCode);
         edges.push({
           source: `evt_${e.code}`,
           target: `obj_${objCode}`,
           lineStyle: { color: 'rgba(249,115,22,0.4)', width: 1, type: 'dotted' },
+          label: {
+            show: true,
+            formatter: '影响对象',
+            fontSize: 9,
+            color: 'rgba(249,115,22,0.8)',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            padding: [2, 4],
+            borderRadius: 3,
+          },
+          tooltip: {
+            formatter: () => `<strong>${e.name}</strong> 影响对象 <strong>${obj?.name || objCode}</strong>`,
+          },
         });
       });
     });
 
     return {
       backgroundColor: 'transparent',
-      tooltip: { trigger: 'item', formatter: '{b}' },
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          if (params.dataType === 'edge') {
+            return params.data.tooltip?.formatter?.() || params.name || '';
+          }
+          return params.name || params.data?.name || '';
+        },
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        borderColor: 'rgba(255,255,255,0.2)',
+        borderWidth: 1,
+        textStyle: { color: '#fff', fontSize: 12 },
+        padding: [8, 12],
+      },
       legend: [
         {
           data: CATEGORIES.map((c) => c.name),

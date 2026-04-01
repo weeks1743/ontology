@@ -1,0 +1,152 @@
+behaviors:
+  - code: Lead.Create
+    name: 录入线索
+    owner_object: Lead
+    trigger_type: USER_ACTION
+    required_inputs:
+      - companyName
+      - contactName
+      - source
+    referenced_rules:
+      - Lead.RequiredInfo
+    emits_events:
+      - lead.created
+    writeback_targets:
+      - Lead
+
+  - code: Lead.Complete
+    name: 补全线索信息
+    owner_object: Lead
+    trigger_type: AI_OR_USER_ACTION
+    required_inputs:
+      - industry
+      - intentLevel
+      - ownerSales
+    referenced_rules:
+      - Lead.CompletionThreshold
+    emits_events:
+      - lead.completed
+    writeback_targets:
+      - Lead
+
+  - code: Lead.ConvertToOpportunity
+    name: 线索转商机
+    owner_object: Lead
+    trigger_type: USER_ACTION
+    required_inputs:
+      - customerName
+      - primaryContact
+      - opportunityName
+      - ownerSales
+    referenced_rules:
+      - Lead.ConvertibleCheck
+    emits_events:
+      - opportunity.created
+    writeback_targets:
+      - Customer
+      - Contact
+      - Opportunity
+
+  - code: Opportunity.AdvanceStage
+    name: 推进商机阶段
+    owner_object: Opportunity
+    trigger_type: USER_ACTION
+    required_inputs:
+      - targetStage
+    referenced_rules:
+      - Opportunity.StageGate
+      - Opportunity.ContactFreshness
+    emits_events:
+      - opportunity.stage.changed
+    writeback_targets:
+      - Opportunity
+
+  - code: Opportunity.GenerateQuote
+    name: 生成报价
+    owner_object: Opportunity
+    trigger_type: USER_ACTION
+    required_inputs:
+      - selectedProducts
+      - quoteAmount
+      - discountRate
+    referenced_rules:
+      - Quote.GenerationEligibility
+      - Quote.MarginGuard
+    emits_events:
+      - quote.generated
+    writeback_targets:
+      - Quote
+
+  - code: Quote.SubmitApproval
+    name: 提交报价审批
+    owner_object: Quote
+    trigger_type: USER_ACTION
+    required_inputs:
+      - quoteAmount
+      - discountRate
+      - grossMargin
+    referenced_rules:
+      - Quote.MarginGuard
+      - Quote.ValidityCheck
+    emits_events:
+      - quote.submitted
+    writeback_targets:
+      - Quote
+
+  - code: Quote.Approve
+    name: 批准报价
+    owner_object: Quote
+    trigger_type: SYSTEM_OR_MANAGER_ACTION
+    required_inputs:
+      - approvalDecision
+    referenced_rules:
+      - Quote.ApprovalAuthority
+    emits_events:
+      - quote.approved
+    writeback_targets:
+      - Quote
+
+  - code: Quote.GenerateContract
+    name: 由报价生成合同
+    owner_object: Quote
+    trigger_type: USER_ACTION
+    required_inputs:
+      - contractTemplate
+      - plannedSignDate
+    referenced_rules:
+      - Contract.SourceQuoteRequired
+      - Contract.ConsistencyCheck
+    emits_events:
+      - contract.created
+    writeback_targets:
+      - Contract
+
+  - code: Activity.LogFollowUp
+    name: 记录跟进
+    owner_object: Activity
+    trigger_type: USER_ACTION
+    required_inputs:
+      - activityType
+      - summary
+      - dueDate
+    referenced_rules:
+      - Activity.BasicIntegrity
+    emits_events:
+      - activity.logged
+    writeback_targets:
+      - Activity
+
+  - code: Opportunity.EscalateRisk
+    name: 风险升级
+    owner_object: Opportunity
+    trigger_type: SYSTEM_ACTION
+    required_inputs:
+      - riskReason
+      - escalationTarget
+    referenced_rules:
+      - Opportunity.StalledEscalation
+    emits_events:
+      - opportunity.risk.escalated
+    writeback_targets:
+      - Opportunity
+      - Activity

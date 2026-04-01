@@ -1,0 +1,97 @@
+events:
+  - code: lead.created
+    name: 线索已创建
+    producer_object: Lead
+    producer_behavior: Lead.Create
+    subscribers:
+      - Lead.Complete
+    impacted_objects:
+      - Lead
+
+  - code: lead.completed
+    name: 线索信息已补全
+    producer_object: Lead
+    producer_behavior: Lead.Complete
+    subscribers:
+      - Lead.ConvertToOpportunity
+    impacted_objects:
+      - Lead
+
+  - code: opportunity.created
+    name: 商机已创建
+    producer_object: Lead
+    producer_behavior: Lead.ConvertToOpportunity
+    subscribers:
+      - Activity.LogFollowUp
+    impacted_objects:
+      - Customer
+      - Contact
+      - Opportunity
+
+  - code: opportunity.stage.changed
+    name: 商机阶段已变化
+    producer_object: Opportunity
+    producer_behavior: Opportunity.AdvanceStage
+    subscribers:
+      - Opportunity.GenerateQuote
+      - Opportunity.EscalateRisk
+    impacted_objects:
+      - Opportunity
+
+  - code: quote.generated
+    name: 报价已生成
+    producer_object: Opportunity
+    producer_behavior: Opportunity.GenerateQuote
+    subscribers:
+      - Quote.SubmitApproval
+    impacted_objects:
+      - Quote
+      - Opportunity
+
+  - code: quote.submitted
+    name: 报价已提交审批
+    producer_object: Quote
+    producer_behavior: Quote.SubmitApproval
+    subscribers:
+      - Quote.Approve
+    impacted_objects:
+      - Quote
+
+  - code: quote.approved
+    name: 报价已批准
+    producer_object: Quote
+    producer_behavior: Quote.Approve
+    subscribers:
+      - Quote.GenerateContract
+    impacted_objects:
+      - Quote
+
+  - code: contract.created
+    name: 合同已创建
+    producer_object: Quote
+    producer_behavior: Quote.GenerateContract
+    subscribers:
+      - Activity.LogFollowUp
+    impacted_objects:
+      - Contract
+      - Quote
+      - Opportunity
+
+  - code: activity.logged
+    name: 跟进记录已记录
+    producer_object: Activity
+    producer_behavior: Activity.LogFollowUp
+    subscribers: []
+    impacted_objects:
+      - Activity
+      - Opportunity
+
+  - code: opportunity.risk.escalated
+    name: 商机风险已升级
+    producer_object: Opportunity
+    producer_behavior: Opportunity.EscalateRisk
+    subscribers:
+      - Activity.LogFollowUp
+    impacted_objects:
+      - Opportunity
+      - Activity

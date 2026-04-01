@@ -1,0 +1,63 @@
+ai_interaction_contract:
+  principles:
+    - AI 只能在本体允许的对象、行为和规则范围内行动
+    - AI 的每次建议必须带上来源对象和相关规则上下文
+    - AI 不能跳过阶段门槛直接写状态
+    - AI 输出必须可回放、可审计、可解释
+
+  intents:
+    create_lead:
+      description: 通过自然语言创建线索
+      required_object: Lead
+      required_behavior: Lead.Create
+      follow_up_behavior:
+        - Lead.Complete
+      missing_slot_strategy:
+        - companyName
+        - contactName
+        - source
+
+    create_opportunity:
+      description: 将已判定线索转为商机
+      required_object: Lead
+      required_behavior: Lead.ConvertToOpportunity
+      required_context:
+        - customerName
+        - primaryContact
+        - opportunityName
+        - ownerSales
+
+    explain_stage_gate:
+      description: 解释为什么商机不能推进
+      required_object: Opportunity
+      required_behavior: Opportunity.AdvanceStage
+      required_rules:
+        - Opportunity.StageGate
+        - Opportunity.ContactFreshness
+
+    generate_quote:
+      description: 从商机生成报价
+      required_object: Opportunity
+      required_behavior: Opportunity.GenerateQuote
+      required_rules:
+        - Quote.GenerationEligibility
+        - Quote.MarginGuard
+
+    generate_contract:
+      description: 从报价生成合同
+      required_object: Quote
+      required_behavior: Quote.GenerateContract
+      required_rules:
+        - Contract.SourceQuoteRequired
+        - Contract.ConsistencyCheck
+
+  ai_response_schema:
+    required_fields:
+      - intent
+      - target_object
+      - target_behavior
+      - missing_fields
+      - applied_rules
+      - explanation
+      - recommended_next_action
+      - trace_reference

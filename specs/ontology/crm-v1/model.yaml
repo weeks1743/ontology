@@ -1,0 +1,57 @@
+domain: crm
+version: 1.0.0
+display_name: CRM V1 本体
+positioning: B2B 项目型销售前链路样板间
+scope:
+  included:
+    - 线索
+    - 客户
+    - 联系人
+    - 商机
+    - 产品
+    - 报价
+    - 合同
+    - 销售人员
+    - 组织
+    - 任务与跟进记录
+  excluded:
+    - 发票
+    - 回款
+    - 售后服务
+    - 渠道分销结算
+
+meta_model:
+  layers:
+    model_layer:
+      includes:
+        - 对象
+        - 行为
+        - 规则
+        - 事件
+        - 场景
+    instance_layer:
+      includes:
+        - 对象实例
+        - 关系实例
+        - 生命周期状态
+        - 事件轨迹
+        - 行为执行结果
+
+design_principles:
+  - 对象、行为、规则显式解耦
+  - 事件驱动闭环
+  - 场景由模型装配
+  - 报价到合同必须保持继承与追溯
+  - AI 只在本体约束下行动
+
+personas:
+  - 业务架构师
+  - CRM 运营
+  - 销售人员
+  - 销售主管
+
+primary_scenarios:
+  - lead_capture_and_completion
+  - lead_to_opportunity_conversion
+  - opportunity_to_quote
+  - quote_to_contract

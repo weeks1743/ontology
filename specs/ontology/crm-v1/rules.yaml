@@ -1,0 +1,159 @@
+rules:
+  - code: Lead.RequiredInfo
+    name: 线索基础信息完整性校验
+    type: completeness
+    applicable_objects:
+      - Lead
+    applicable_behaviors:
+      - Lead.Create
+    expression: companyName != null and contactName != null and source != null
+    failure_message: 线索至少需要公司、联系人和来源信息
+    severity: high
+    escalation_target: 销售人员
+
+  - code: Lead.CompletionThreshold
+    name: 线索补全门槛
+    type: threshold
+    applicable_objects:
+      - Lead
+    applicable_behaviors:
+      - Lead.Complete
+    expression: industry != null and intentLevel != null and ownerSales != null
+    failure_message: 线索尚未达到可判定门槛，请补充行业、意向等级和负责人
+    severity: medium
+    escalation_target: 销售人员
+
+  - code: Lead.ConvertibleCheck
+    name: 线索可转商机校验
+    type: eligibility
+    applicable_objects:
+      - Lead
+    applicable_behaviors:
+      - Lead.ConvertToOpportunity
+    expression: completionScore >= 0.8 and ownerSales != null
+    failure_message: 线索未达到转商机条件，需先补全关键信息并明确负责人
+    severity: high
+    escalation_target: 销售人员
+
+  - code: Opportunity.StageGate
+    name: 商机阶段推进门槛
+    type: stage_gate
+    applicable_objects:
+      - Opportunity
+    applicable_behaviors:
+      - Opportunity.AdvanceStage
+    expression: >
+      if targetStage == "方案报价中" then budgetStatus == "已确认" and decisionChainStatus == "已识别"
+      else true
+    failure_message: 当前商机尚未满足下一阶段门槛，缺少预算确认或决策链信息
+    severity: high
+    escalation_target: 销售人员
+
+  - code: Opportunity.ContactFreshness
+    name: 最近跟进新鲜度校验
+    type: hygiene
+    applicable_objects:
+      - Opportunity
+    applicable_behaviors:
+      - Opportunity.AdvanceStage
+    expression: lastFollowUpWithinDays <= 7
+    failure_message: 最近 7 天没有有效跟进，建议先补充跟进记录再推进
+    severity: medium
+    escalation_target: 销售人员
+
+  - code: Quote.GenerationEligibility
+    name: 报价生成资格校验
+    type: eligibility
+    applicable_objects:
+      - Opportunity
+    applicable_behaviors:
+      - Opportunity.GenerateQuote
+    expression: stage in ["方案报价中", "商务谈判中"] and primaryContact != null
+    failure_message: 商机未处于可报价阶段或尚未明确关键联系人
+    severity: high
+    escalation_target: 销售人员
+
+  - code: Quote.MarginGuard
+    name: 报价毛利与折扣防线
+    type: pricing
+    applicable_objects:
+      - Quote
+    applicable_behaviors:
+      - Opportunity.GenerateQuote
+      - Quote.SubmitApproval
+    expression: grossMargin >= minAllowedMargin and discountRate <= maxAllowedDiscount
+    failure_message: 报价折扣或毛利超出允许范围，需要重新调整或走更高级审批
+    severity: high
+    escalation_target: 销售主管
+
+  - code: Quote.ValidityCheck
+    name: 报价有效期校验
+    type: validity
+    applicable_objects:
+      - Quote
+    applicable_behaviors:
+      - Quote.SubmitApproval
+    expression: expiryDate > today()
+    failure_message: 报价有效期必须晚于当前日期
+    severity: medium
+    escalation_target: 销售人员
+
+  - code: Quote.ApprovalAuthority
+    name: 报价审批权限校验
+    type: authority
+    applicable_objects:
+      - Quote
+    applicable_behaviors:
+      - Quote.Approve
+    expression: approverLevel >= requiredApprovalLevel
+    failure_message: 当前审批人权限不足，无法批准该报价
+    severity: high
+    escalation_target: 销售主管
+
+  - code: Contract.SourceQuoteRequired
+    name: 合同必须来源于已批准报价
+    type: traceability
+    applicable_objects:
+      - Contract
+    applicable_behaviors:
+      - Quote.GenerateContract
+    expression: sourceQuoteStatus == "已批准"
+    failure_message: 只能从已批准报价生成合同
+    severity: high
+    escalation_target: CRM运营
+
+  - code: Contract.ConsistencyCheck
+    name: 合同与报价一致性校验
+    type: consistency
+    applicable_objects:
+      - Contract
+    applicable_behaviors:
+      - Quote.GenerateContract
+    expression: contractAmount == quoteAmount and currency == quoteCurrency and customerId == quoteCustomerId
+    failure_message: 合同关键字段与来源报价不一致，请先修正
+    severity: high
+    escalation_target: CRM运营
+
+  - code: Activity.BasicIntegrity
+    name: 跟进记录基础校验
+    type: completeness
+    applicable_objects:
+      - Activity
+    applicable_behaviors:
+      - Activity.LogFollowUp
+    expression: activityType != null and summary != null and dueDate != null
+    failure_message: 跟进记录需包含类型、摘要和下一步日期
+    severity: low
+    escalation_target: 销售人员
+
+  - code: Opportunity.StalledEscalation
+    name: 商机停滞升级
+    type: risk_escalation
+    applicable_objects:
+      - Opportunity
+    applicable_behaviors:
+      - Opportunity.EscalateRisk
+    expression: daysInCurrentStage > standardDays * 1.5
+    failure_message: 商机阶段停留过久，需升级给主管处理
+    severity: critical
+    escalation_target: 销售主管

@@ -1,0 +1,119 @@
+scenarios:
+  - code: lead_capture_and_completion
+    name: 线索录入与补全
+    business_goal: 快速创建线索并补全到可判定状态
+    involved_objects:
+      - Lead
+      - SalesPerson
+    steps:
+      - step: 1
+        behavior: Lead.Create
+        decision_gate:
+          - Lead.RequiredInfo
+      - step: 2
+        event: lead.created
+      - step: 3
+        behavior: Lead.Complete
+        decision_gate:
+          - Lead.CompletionThreshold
+      - step: 4
+        event: lead.completed
+    success_criteria:
+      - Lead 状态进入已判定或可转化状态
+
+  - code: lead_to_opportunity_conversion
+    name: 线索转商机
+    business_goal: 从线索生成客户、联系人和商机，并保留来源追溯
+    involved_objects:
+      - Lead
+      - Customer
+      - Contact
+      - Opportunity
+    steps:
+      - step: 1
+        behavior: Lead.ConvertToOpportunity
+        decision_gate:
+          - Lead.ConvertibleCheck
+      - step: 2
+        event: opportunity.created
+      - step: 3
+        behavior: Activity.LogFollowUp
+    success_criteria:
+      - Customer、Contact、Opportunity 均创建成功
+      - Lead 与 Opportunity 存在追溯关系
+
+  - code: opportunity_to_quote
+    name: 商机到报价
+    business_goal: 在满足阶段门槛后生成可审批报价
+    involved_objects:
+      - Opportunity
+      - Quote
+      - Product
+      - Contact
+    steps:
+      - step: 1
+        behavior: Opportunity.AdvanceStage
+        decision_gate:
+          - Opportunity.StageGate
+          - Opportunity.ContactFreshness
+      - step: 2
+        event: opportunity.stage.changed
+      - step: 3
+        behavior: Opportunity.GenerateQuote
+        decision_gate:
+          - Quote.GenerationEligibility
+          - Quote.MarginGuard
+      - step: 4
+        event: quote.generated
+      - step: 5
+        behavior: Quote.SubmitApproval
+    success_criteria:
+      - Quote 创建成功并进入待审批状态
+
+  - code: quote_to_contract
+    name: 报价到合同
+    business_goal: 从已批准报价生成具备追溯关系的合同
+    involved_objects:
+      - Quote
+      - Contract
+      - Opportunity
+      - Customer
+    steps:
+      - step: 1
+        behavior: Quote.Approve
+        decision_gate:
+          - Quote.ApprovalAuthority
+      - step: 2
+        event: quote.approved
+      - step: 3
+        behavior: Quote.GenerateContract
+        decision_gate:
+          - Contract.SourceQuoteRequired
+          - Contract.ConsistencyCheck
+      - step: 4
+        event: contract.created
+      - step: 5
+        behavior: Activity.LogFollowUp
+    success_criteria:
+      - Contract 创建成功
+      - Contract 与 Quote、Opportunity 保持继承与追溯
+
+  - code: opportunity_risk_escalation
+    name: 商机风险升级
+    business_goal: 识别停滞商机并自动升级给主管
+    involved_objects:
+      - Opportunity
+      - Activity
+      - SalesPerson
+    steps:
+      - step: 1
+        behavior: Opportunity.EscalateRisk
+        decision_gate:
+          - Opportunity.StalledEscalation
+      - step: 2
+        event: opportunity.risk.escalated
+      - step: 3
+        behavior: Activity.LogFollowUp
+    success_criteria:
+      - 风险已标记
+      - 升级任务已创建

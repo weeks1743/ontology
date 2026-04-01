@@ -1,0 +1,148 @@
+instances:
+  objects:
+    - id: lead-001
+      type: Lead
+      display_name: 江苏智造集团国产替代线索
+      status: 已判定
+      attributes:
+        companyName: 江苏智造集团
+        contactName: 王海
+        source: 线下拜访
+        industry: 制造业
+        intentLevel: 高
+        budgetHint: 80万
+        ownerSales: sales-001
+
+    - id: customer-001
+      type: Customer
+      display_name: 江苏智造集团
+      status: 活跃
+      attributes:
+        industry: 制造业
+        region: 华东
+        ownerSales: sales-001
+
+    - id: contact-001
+      type: Contact
+      display_name: 王海
+      status: 活跃
+      attributes:
+        title: 信息化负责人
+        decisionRole: 关键影响者
+
+    - id: opp-001
+      type: Opportunity
+      display_name: 江苏智造集团国产替代项目
+      status: 方案报价中
+      attributes:
+        amount: 800000
+        expectedCloseDate: 2026-06-30
+        budgetStatus: 已确认
+        decisionChainStatus: 已识别
+        ownerSales: sales-001
+
+    - id: quote-001
+      type: Quote
+      display_name: 江苏智造集团一期报价单
+      status: 已批准
+      attributes:
+        quoteAmount: 760000
+        discountRate: 0.05
+        grossMargin: 0.38
+        approvalStatus: 已批准
+
+    - id: contract-001
+      type: Contract
+      display_name: 江苏智造集团一期合同
+      status: 草稿
+      attributes:
+        contractAmount: 760000
+        currency: CNY
+        contractStatus: 草稿
+
+    - id: sales-001
+      type: SalesPerson
+      display_name: 火亮
+      status: 在岗
+      attributes:
+        region: 华东
+        team: 制造业大客户组
+
+    - id: org-001
+      type: Organization
+      display_name: 华东销售一区
+      status: 有效
+      attributes:
+        manager: 晨路
+
+    - id: activity-001
+      type: Activity
+      display_name: 报价审批后合同跟进
+      status: 待处理
+      attributes:
+        activityType: 待办
+        summary: 与客户确认合同模板和签约时间
+        dueDate: 2026-04-05
+        owner: sales-001
+
+  relations:
+    - type: convertsToCustomer
+      source: lead-001
+      target: customer-001
+    - type: convertsToOpportunity
+      source: lead-001
+      target: opp-001
+    - type: hasContact
+      source: customer-001
+      target: contact-001
+    - type: belongsToCustomer
+      source: opp-001
+      target: customer-001
+    - type: hasPrimaryContact
+      source: opp-001
+      target: contact-001
+    - type: hasQuote
+      source: opp-001
+      target: quote-001
+    - type: derivedFromQuote
+      source: contract-001
+      target: quote-001
+    - type: derivedFromOpportunity
+      source: contract-001
+      target: opp-001
+    - type: assignedToSales
+      source: activity-001
+      target: sales-001
+    - type: belongsToOrg
+      source: sales-001
+      target: org-001
+
+  event_trace:
+    - order: 1
+      event: lead.created
+      object: lead-001
+      produced_by: Lead.Create
+    - order: 2
+      event: lead.completed
+      object: lead-001
+      produced_by: Lead.Complete
+    - order: 3
+      event: opportunity.created
+      object: opp-001
+      produced_by: Lead.ConvertToOpportunity
+    - order: 4
+      event: opportunity.stage.changed
+      object: opp-001
+      produced_by: Opportunity.AdvanceStage
+    - order: 5
+      event: quote.generated
+      object: quote-001
+      produced_by: Opportunity.GenerateQuote
+    - order: 6
+      event: quote.approved
+      object: quote-001
+      produced_by: Quote.Approve
+    - order: 7
+      event: contract.created
+      object: contract-001
+      produced_by: Quote.GenerateContract

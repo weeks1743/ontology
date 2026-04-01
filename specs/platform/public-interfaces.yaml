@@ -1,0 +1,109 @@
+version: 1.0.0
+platform: enterprise-semantic-operating-system
+description: >
+  面向上层应用工厂、AI Copilot 和领域模板的统一接口契约。
+  这些接口是平台级语义接口，不等同于具体技术协议。
+
+interfaces:
+  object_interface:
+    purpose: 暴露对象的统一语义视图，供页面、AI 与场景编排使用
+    required_fields:
+      - object_type
+      - object_id
+      - display_name
+      - primary_attributes
+      - status
+      - lifecycle_stage
+      - upstream_relations
+      - downstream_relations
+      - ownership
+      - trace_context
+    supports:
+      - 查询对象核心信息
+      - 查询对象上下游关系
+      - 查询对象当前状态与生命周期
+      - 注入 AI 上下文
+
+  behavior_interface:
+    purpose: 暴露对象可执行行为及其输入输出约束
+    required_fields:
+      - behavior_code
+      - behavior_name
+      - owner_object_type
+      - trigger_type
+      - required_inputs
+      - preconditions
+      - referenced_rules
+      - result_schema
+      - writeback_targets
+      - emitted_events
+    supports:
+      - 执行动作前校验
+      - 动态生成动作表单
+      - 返回动作执行结果
+      - 记录动作追溯链
+
+  rule_interface:
+    purpose: 暴露规则定义与解释信息，让系统可校验、可提示、可升级
+    required_fields:
+      - rule_code
+      - rule_name
+      - rule_type
+      - applicable_objects
+      - applicable_behaviors
+      - input_context
+      - evaluation_expression
+      - failure_message
+      - severity
+      - escalation_target
+      - next_actions
+    supports:
+      - 结构化规则校验
+      - 失败原因解释
+      - 风险升级
+      - 管理分析统计
+
+  event_interface:
+    purpose: 暴露业务事件链，使对象、规则与场景解耦
+    required_fields:
+      - event_code
+      - event_name
+      - producer_behavior
+      - producer_object
+      - payload_schema
+      - subscribers
+      - propagation_conditions
+      - impacted_objects
+      - triggered_behaviors
+      - trace_policy
+    supports:
+      - 事件传播
+      - 订阅执行
+      - 影响链追踪
+      - 场景模拟
+
+  scenario_interface:
+    purpose: 将对象、行为、规则、事件编排成业务可执行场景
+    required_fields:
+      - scenario_code
+      - scenario_name
+      - business_goal
+      - start_conditions
+      - involved_objects
+      - step_definitions
+      - decision_points
+      - success_criteria
+      - rollback_or_compensation
+      - observability_metrics
+    supports:
+      - 场景执行编排
+      - 场景模拟
+      - 阶段断点分析
+      - 运营配置和复用
+
+design_constraints:
+  - 任意上层应用必须通过统一接口消费本体资产，不能直接绕过模型定义。
+  - 任意 AI 动作必须能够映射到 object_interface 与 behavior_interface。
+  - 任意规则判断必须返回结构化解释，不能只返回布尔值。
+  - 任意事件必须保留生产者、订阅者和影响对象。
+  - 任意场景必须保留步骤、规则门槛和可追溯的执行记录。

@@ -1,0 +1,212 @@
+objects:
+  - code: Lead
+    name: 线索
+    description: 尚未完成业务资格判断的潜在线索
+    lifecycle:
+      - 新建
+      - 待补全
+      - 已判定
+      - 已转客户
+      - 已作废
+    primary_attributes:
+      - leadName
+      - source
+      - companyName
+      - contactName
+      - contactPhone
+      - industry
+      - intentLevel
+      - budgetHint
+      - ownerSales
+    relations:
+      - convertsToCustomer
+      - convertsToOpportunity
+      - ownedBySales
+      - belongsToOrg
+
+  - code: Customer
+    name: 客户
+    description: 已确认存在业务机会的企业客户主体
+    lifecycle:
+      - 新建
+      - 活跃
+      - 观察中
+      - 冻结
+    primary_attributes:
+      - customerName
+      - industry
+      - region
+      - customerLevel
+      - currentSystems
+      - ownerSales
+      - organizationUnit
+    relations:
+      - hasContact
+      - hasOpportunity
+      - ownedBySales
+      - belongsToOrg
+
+  - code: Contact
+    name: 联系人
+    description: 客户侧关键联系人或决策参与人
+    lifecycle:
+      - 新建
+      - 活跃
+      - 失效
+    primary_attributes:
+      - contactName
+      - title
+      - phone
+      - email
+      - influenceLevel
+      - decisionRole
+    relations:
+      - belongsToCustomer
+      - relatedToOpportunity
+
+  - code: Opportunity
+    name: 商机
+    description: 销售推进的核心业务对象
+    lifecycle:
+      - 已创建
+      - 已资格确认
+      - 需求确认中
+      - 方案报价中
+      - 商务谈判中
+      - 赢单
+      - 输单
+      - 暂停
+    primary_attributes:
+      - opportunityName
+      - amount
+      - expectedCloseDate
+      - stage
+      - budgetStatus
+      - competitorStatus
+      - decisionChainStatus
+      - ownerSales
+    relations:
+      - belongsToCustomer
+      - hasPrimaryContact
+      - hasProduct
+      - hasQuote
+      - hasActivity
+      - ownedBySales
+
+  - code: Product
+    name: 产品
+    description: 商机、报价与合同中引用的我方产品或方案单元
+    lifecycle:
+      - 有效
+      - 停售
+    primary_attributes:
+      - productName
+      - category
+      - listPrice
+      - billingMode
+      - standardDiscountFloor
+    relations:
+      - belongsToOpportunity
+      - usedInQuote
+      - usedInContract
+
+  - code: Quote
+    name: 报价
+    description: 基于商机生成的商务报价对象
+    lifecycle:
+      - 草稿
+      - 待校验
+      - 待审批
+      - 已批准
+      - 已作废
+    primary_attributes:
+      - quoteNumber
+      - quoteAmount
+      - discountRate
+      - grossMargin
+      - expiryDate
+      - approvalStatus
+    relations:
+      - belongsToOpportunity
+      - referencesCustomer
+      - referencesContact
+      - includesProduct
+      - generatesContract
+
+  - code: Contract
+    name: 合同
+    description: 由已批准报价生成的合同对象
+    lifecycle:
+      - 草稿
+      - 待法审
+      - 待签署
+      - 已签署
+      - 已作废
+    primary_attributes:
+      - contractNumber
+      - contractAmount
+      - currency
+      - signDate
+      - effectiveDate
+      - contractStatus
+    relations:
+      - derivedFromQuote
+      - derivedFromOpportunity
+      - referencesCustomer
+      - referencesContact
+      - includesProduct
+
+  - code: SalesPerson
+    name: 销售人员
+    description: 负责线索、商机、报价和合同推进的一线角色
+    lifecycle:
+      - 在岗
+      - 离岗
+    primary_attributes:
+      - salesName
+      - employeeId
+      - region
+      - team
+      - roleLevel
+    relations:
+      - belongsToOrg
+      - ownsLead
+      - ownsCustomer
+      - ownsOpportunity
+
+  - code: Organization
+    name: 组织
+    description: 销售组织或经营单元
+    lifecycle:
+      - 有效
+      - 调整中
+      - 停用
+    primary_attributes:
+      - orgName
+      - orgType
+      - region
+      - manager
+    relations:
+      - hasSalesPerson
+      - managesCustomer
+
+  - code: Activity
+    name: 任务与跟进记录
+    description: 记录跟进、待办、会议、承诺事项等活动对象
+    lifecycle:
+      - 待处理
+      - 进行中
+      - 已完成
+      - 已逾期
+    primary_attributes:
+      - activityType
+      - activityDate
+      - summary
+      - nextAction
+      - dueDate
+      - owner
+    relations:
+      - belongsToOpportunity
+      - belongsToQuote
+      - belongsToContract
+      - assignedToSales

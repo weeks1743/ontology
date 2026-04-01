@@ -1,0 +1,63 @@
+workbenches:
+  - role: 销售人员
+    name: 销售工作台
+    primary_panels:
+      - 我的线索
+      - 我的商机
+      - 待补全信息
+      - 待报价事项
+      - 今日待跟进
+    key_ai_actions:
+      - 创建线索
+      - 创建商机
+      - 补全缺失字段
+      - 解释阶段门槛
+      - 自然语言筛选列表
+
+  - role: 销售主管
+    name: 主管工作台
+    primary_panels:
+      - 高风险商机
+      - 阶段停滞列表
+      - 本月目标差距
+      - 团队跟进质量
+      - 需主管介入事项
+    key_ai_actions:
+      - 查询风险链
+      - 查看阶段超时原因
+      - 按区域/团队筛选问题商机
+      - 生成干预清单
+
+  - role: CRM运营
+    name: 运营工作台
+    primary_panels:
+      - 场景配置状态
+      - 规则命中统计
+      - 模型发布影响
+      - 异常动作审计
+      - 场景覆盖率
+    key_ai_actions:
+      - 解释规则命中趋势
+      - 查询阻塞场景
+      - 比较版本差异
+      - 定位低质量配置
+
+interaction_primitives:
+  language_entry:
+    supports:
+      - 自然语言创建对象
+      - 自然语言筛选和排序
+      - 自然语言解释规则
+      - 自然语言查询影响链
+  headless_table:
+    supports:
+      - AI 控制字段显隐
+      - AI 控制排序过滤分组
+      - 行级推荐动作
+      - 状态与洞察并列展示
+  side_copilot:
+    supports:
+      - 追问
+      - 风险提示
+      - 推荐动作
+      - 跨对象查询

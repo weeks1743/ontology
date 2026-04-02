@@ -31,7 +31,18 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
   const currentStepInfo = useMemo(() => {
     if (!activeScenario || !isSimulating || currentStep < 0) return null;
 
-    const step = activeScenario.steps[currentStep];
+    // 步骤0是流程启动
+    if (currentStep === 0) {
+      return {
+        step: 0,
+        title: '流程启动',
+        description: `触发【${activeScenario.name}】流程，开始执行业务场景。`,
+      };
+    }
+
+    // 实际步骤从1开始，对应 steps[0]
+    const stepIndex = currentStep - 1;
+    const step = activeScenario.steps[stepIndex];
     if (!step) return null;
 
     let title = '';
@@ -49,7 +60,7 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
       description = `${obj?.name || '对象'}触发【${event?.name || step.event}】事件，等待后续处理。`;
     }
 
-    return { step: step.step, title, description };
+    return { step: currentStep, title, description };
   }, [activeScenario, isSimulating, currentStep, behaviors, objects, events]);
 
   // Compute the set of node IDs involved in the active scenario
@@ -57,14 +68,21 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
     if (!activeScenario) return new Set();
     const ids = new Set<string>();
 
-    // 如果处于模拟模式，只显示到当前步骤的节点
+    // 如果处于模拟模式
     if (isSimulating && currentStep >= 0) {
       // 添加场景节点本身
       ids.add(`scenario_${activeScenario.code}`);
 
-      // 只添加到当前步骤的节点
-      for (let i = 0; i <= currentStep; i++) {
-        const step = activeScenario.steps[i];
+      // 步骤0是流程启动，只显示场景节点
+      if (currentStep === 0) {
+        return ids;
+      }
+
+      // 实际步骤从1开始，对应 steps[0]
+      const stepIndex = currentStep - 1;
+      const step = activeScenario.steps[stepIndex];
+
+      if (step) {
         if (step.behavior) {
           ids.add(`beh_${step.behavior}`);
           // 添加行为的归属对象
@@ -75,6 +93,10 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
           // 添加行为引用的规则
           behavior?.referenced_rules.forEach(ruleCode => {
             ids.add(`rule_${ruleCode}`);
+          });
+          // 添加行为触发的事件
+          behavior?.emits_events.forEach(evtCode => {
+            ids.add(`evt_${evtCode}`);
           });
         }
         if (step.event) {
@@ -523,7 +545,7 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
           <span className="text-sm text-white/60 flex-1">点击【下一步】开始模拟</span>
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-xs text-white/50 font-mono">
-              0 / {activeScenario.steps.length}
+              0 / {activeScenario.steps.length + 1}
             </span>
             <button
               onClick={() => {
@@ -560,12 +582,12 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
               <span
                 className="px-2 py-0.5 rounded-full text-xs font-mono bg-violet-500/30 text-violet-300 border border-violet-500/50"
               >
-                {currentStep + 1} / {activeScenario.steps.length}
+                {currentStep + 1} / {activeScenario.steps.length + 1}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm text-white font-medium mb-1">
-                {currentStepInfo.step === 1 ? '① 流程启动' : `${['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'][Math.min(currentStepInfo.step - 1, 9)] || `⑩+${currentStepInfo.step - 10}`} ${currentStepInfo.title}`}
+                {currentStepInfo.step === 0 ? '① 流程启动' : `${['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'][Math.min(currentStepInfo.step, 9)] || `⑩+${currentStepInfo.step - 9}`} ${currentStepInfo.title}`}
               </div>
               <div className="text-xs text-white/60">
                 {currentStepInfo.description}
@@ -580,9 +602,9 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
                 上一步
               </button>
               <button
-                disabled={currentStep >= activeScenario.steps.length - 1}
+                disabled={currentStep >= activeScenario.steps.length}
                 onClick={() => {
-                  if (currentStep < activeScenario.steps.length - 1) {
+                  if (currentStep < activeScenario.steps.length) {
                     setCurrentStep((s) => s + 1);
                   }
                 }}

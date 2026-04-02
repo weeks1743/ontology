@@ -68,13 +68,18 @@ export function assembleYaml(ontologyId: number): YamlBundle {
   const objectsDoc = rawObjects.map((o) => {
     const attributes = parseJson<any[]>(o['attributes'], []);
     const relations = parseJson<any[]>(o['relations_detail'], []);
+    const lifecycleEnhanced = parseJson<any[]>(o['lifecycle_enhanced'], null);
+    const aliases = parseJson<string[]>(o['aliases'], []);
+    const nlExamples = parseJson<string[]>(o['nl_examples'], []);
+    const negativeExamples = parseJson<string[]>(o['negative_examples'], []);
 
-    return {
+    const result: any = {
       code: o['code'],
       name: o['name'],
       display_name: o['name'], // 中文显示名称
       description: o['description'] || '',
-      lifecycle: parseJson<string[]>(o['lifecycle'], []),
+      // Use enhanced lifecycle if available, otherwise fall back to simple array
+      lifecycle: lifecycleEnhanced || parseJson<string[]>(o['lifecycle'], []),
       attributes: attributes.map((attr: any) => ({
         name: attr.name,
         display_name: attr.displayName || attr.name, // 属性中文名称
@@ -83,6 +88,9 @@ export function assembleYaml(ontologyId: number): YamlBundle {
         required: attr.required || false,
         ...(attr.enum_values && { enum_values: attr.enum_values }),
         ...(attr.default_value && { default_value: attr.default_value }),
+        ...(attr.examples && { examples: attr.examples }),
+        ...(attr.aliases && { aliases: attr.aliases }),
+        ...(attr.validation && { validation: attr.validation }),
       })),
       relations: relations.map((rel: any) => ({
         name: rel.name,
@@ -90,8 +98,20 @@ export function assembleYaml(ontologyId: number): YamlBundle {
         target_object: rel.target_object,
         type: rel.type,
         description: rel.description || '',
+        ...(rel.cardinality && { cardinality: rel.cardinality }),
+        ...(rel.ownership && { ownership: rel.ownership }),
+        ...(rel.cascade_delete !== undefined && { cascade_delete: rel.cascade_delete }),
+        ...(rel.inverse_relation && { inverse_relation: rel.inverse_relation }),
       })),
     };
+
+    // Add enhanced fields if present
+    if (aliases.length > 0) result.aliases = aliases;
+    if (nlExamples.length > 0) result.nl_examples = nlExamples;
+    if (negativeExamples.length > 0) result.negative_examples = negativeExamples;
+    if (o['disambiguation_notes']) result.disambiguation_notes = o['disambiguation_notes'];
+
+    return result;
   });
 
   // ── behaviors.yaml ───────────────────────────────────────────────────────────
@@ -104,7 +124,15 @@ export function assembleYaml(ontologyId: number): YamlBundle {
       SYSTEM_OR_MANAGER_ACTION: '系统或管理员操作',
     };
 
-    return {
+    const aliases = parseJson<string[]>(b['aliases'], []);
+    const nlExamples = parseJson<string[]>(b['nl_examples'], []);
+    const inputsSchema = parseJson<any[]>(b['inputs_schema'], null);
+    const preconditions = parseJson<any[]>(b['preconditions'], []);
+    const resultSchema = parseJson<any[]>(b['result_schema'], null);
+    const postconditions = parseJson<any[]>(b['postconditions'], []);
+    const sideEffects = parseJson<any[]>(b['side_effects'], []);
+
+    const result: any = {
       code: b['code'],
       name: b['name'],
       display_name: b['name'], // 中文显示名称
@@ -113,11 +141,22 @@ export function assembleYaml(ontologyId: number): YamlBundle {
       owner_object_name: ownerObj ? ownerObj['name'] : b['owner_object'], // 归属对象中文名
       trigger_type: b['trigger_type'],
       trigger_type_label: triggerTypeLabels[b['trigger_type'] as string] || b['trigger_type'], // 触发类型中文
-      required_inputs: parseJson<string[]>(b['required_inputs'], []),
+      // Use inputs_schema if available, otherwise fall back to required_inputs
+      ...(inputsSchema ? { inputs: inputsSchema } : { required_inputs: parseJson<string[]>(b['required_inputs'], []) }),
       referenced_rules: parseJson<string[]>(b['referenced_rules'], []),
       emits_events: parseJson<string[]>(b['emits_events'], []),
       writeback_targets: parseJson<string[]>(b['writeback_targets'], []),
     };
+
+    // Add enhanced fields if present
+    if (aliases.length > 0) result.aliases = aliases;
+    if (nlExamples.length > 0) result.nl_examples = nlExamples;
+    if (preconditions.length > 0) result.preconditions = preconditions;
+    if (resultSchema) result.result_schema = resultSchema;
+    if (postconditions.length > 0) result.postconditions = postconditions;
+    if (sideEffects.length > 0) result.side_effects = sideEffects;
+
+    return result;
   });
 
   // ── rules.yaml ───────────────────────────────────────────────────────────────
@@ -129,7 +168,11 @@ export function assembleYaml(ontologyId: number): YamlBundle {
       critical: '严重',
     };
 
-    return {
+    const inputContext = parseJson<string[]>(r['input_context'], []);
+    const expressionStructured = parseJson<any>(r['expression_structured'], null);
+    const nextActions = parseJson<string[]>(r['next_actions'], []);
+
+    const result: any = {
       code: r['code'],
       name: r['name'],
       display_name: r['name'], // 中文显示名称
@@ -137,12 +180,21 @@ export function assembleYaml(ontologyId: number): YamlBundle {
       type: r['type'],
       applicable_objects: parseJson<string[]>(r['applicable_objects'], []),
       applicable_behaviors: parseJson<string[]>(r['applicable_behaviors'], []),
-      expression: r['expression'] || '',
+      // Use structured expression if available, otherwise fall back to string
+      expression: expressionStructured || r['expression'] || '',
       failure_message: r['failure_message'] || '',
       severity: r['severity'],
       severity_label: severityLabels[r['severity'] as string] || r['severity'], // 严重度中文
       escalation_target: r['escalation_target'] || '',
     };
+
+    // Add enhanced fields if present
+    if (inputContext.length > 0) result.input_context = inputContext;
+    if (nextActions.length > 0) result.next_actions = nextActions;
+    if (r['failure_message_template']) result.failure_message_template = r['failure_message_template'];
+    if (r['constraint_type']) result.constraint_type = r['constraint_type'];
+
+    return result;
   });
 
   // ── events.yaml ──────────────────────────────────────────────────────────────
@@ -150,7 +202,13 @@ export function assembleYaml(ontologyId: number): YamlBundle {
     const producerObj = rawObjects.find((o) => o['code'] === e['producer_object']);
     const producerBeh = rawBehaviors.find((b) => b['code'] === e['producer_behavior']);
 
-    return {
+    const payloadSchema = parseJson<any[]>(e['payload_schema'], []);
+    const propagationConditions = parseJson<any[]>(e['propagation_conditions'], []);
+    const triggeredBehaviors = parseJson<string[]>(e['triggered_behaviors'], []);
+    const tracePolicy = parseJson<any>(e['trace_policy'], null);
+    const causality = parseJson<any>(e['causality'], null);
+
+    const result: any = {
       code: e['code'],
       name: e['name'],
       display_name: e['name'], // 中文显示名称
@@ -162,15 +220,31 @@ export function assembleYaml(ontologyId: number): YamlBundle {
       subscribers: parseJson<string[]>(e['subscribers'], []),
       impacted_objects: parseJson<string[]>(e['impacted_objects'], []),
     };
+
+    // Add enhanced fields if present
+    if (payloadSchema.length > 0) result.payload_schema = payloadSchema;
+    if (propagationConditions.length > 0) result.propagation_conditions = propagationConditions;
+    if (triggeredBehaviors.length > 0) result.triggered_behaviors = triggeredBehaviors;
+    if (tracePolicy) result.trace_policy = tracePolicy;
+    if (causality) result.causality = causality;
+
+    return result;
   });
 
   // ── scenarios.yaml ───────────────────────────────────────────────────────────
   const scenariosDoc = rawScenarios.map((s) => {
     const steps = parseJson<any[]>(s['steps'], []);
+    const startConditions = parseJson<string[]>(s['start_conditions'], []);
+    const decisionPointsEnhanced = parseJson<any[]>(s['decision_points_enhanced'], null);
+    const rollbackCompensation = parseJson<any[]>(s['rollback_compensation'], []);
+    const observabilityMetrics = parseJson<string[]>(s['observability_metrics'], []);
 
-    // 为每个步骤添加中文名称
+    // 为每个步骤添加中文名称和增强字段
     const enrichedSteps = steps.map((step: any) => {
       const enriched: any = { step: step.step };
+
+      // Add type if present
+      if (step.type) enriched.type = step.type;
 
       if (step.behavior) {
         const beh = rawBehaviors.find((b) => b['code'] === step.behavior);
@@ -188,10 +262,18 @@ export function assembleYaml(ontologyId: number): YamlBundle {
         enriched.decision_gate = step.decision_gate;
       }
 
+      // Add enhanced fields if present
+      if (step.condition) enriched.condition = step.condition;
+      if (step.if_true) enriched.if_true = step.if_true;
+      if (step.if_false) enriched.if_false = step.if_false;
+      if (step.on_success) enriched.on_success = step.on_success;
+      if (step.on_failure) enriched.on_failure = step.on_failure;
+      if (step.rollback_to !== undefined) enriched.rollback_to = step.rollback_to;
+
       return enriched;
     });
 
-    return {
+    const result: any = {
       code: s['code'],
       name: s['name'],
       display_name: s['name'], // 中文显示名称
@@ -201,6 +283,14 @@ export function assembleYaml(ontologyId: number): YamlBundle {
       steps: enrichedSteps,
       success_criteria: parseJson<string[]>(s['success_criteria'], []),
     };
+
+    // Add enhanced fields if present
+    if (startConditions.length > 0) result.start_conditions = startConditions;
+    if (decisionPointsEnhanced) result.decision_points = decisionPointsEnhanced;
+    if (rollbackCompensation.length > 0) result.rollback_or_compensation = rollbackCompensation;
+    if (observabilityMetrics.length > 0) result.observability_metrics = observabilityMetrics;
+
+    return result;
   });
 
   return {

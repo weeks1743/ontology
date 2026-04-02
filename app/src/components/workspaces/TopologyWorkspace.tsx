@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useOntologyStore } from '../../store/ontology-store';
 import type { EntityType } from '../../types/ontology';
+import { Play, RotateCcw } from 'lucide-react';
 
 interface Props {
   ontologyId: number;
@@ -12,79 +13,178 @@ const CATEGORIES = [
   { name: '行为操作', color: '#10B981' },
   { name: '业务规则', color: '#F59E0B' },
   { name: '消息事件', color: '#F97316' },
+  { name: '业务场景', color: '#8B5CF6' },
 ];
 
 export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
   const { objects, behaviors, rules, events, scenarios, selectEntity } = useOntologyStore();
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [currentStep, setCurrentStep] = useState(-1); // -1 表示初始状态，未开始模拟
 
   const activeScenario = useMemo(
     () => (selectedScenario ? scenarios.find((s) => s.code === selectedScenario) ?? null : null),
     [selectedScenario, scenarios],
   );
 
+  // 获取当前步骤的详细信息
+  const currentStepInfo = useMemo(() => {
+    if (!activeScenario || !isSimulating || currentStep < 0) return null;
+
+    const step = activeScenario.steps[currentStep];
+    if (!step) return null;
+
+    let title = '';
+    let description = '';
+
+    if (step.behavior) {
+      const behavior = behaviors.find(b => b.code === step.behavior);
+      const obj = behavior ? objects.find(o => o.code === behavior.owner_object) : null;
+      title = `调用 ${obj?.name || ''}.${behavior?.name || step.behavior}`;
+      description = `流程步骤${step.step}：触发${obj?.name || '对象'}的【${behavior?.name || step.behavior}】行为。`;
+    } else if (step.event) {
+      const event = events.find(e => e.code === step.event);
+      const obj = event ? objects.find(o => o.code === event.producer_object) : null;
+      title = `${event?.name || step.event} 事件`;
+      description = `${obj?.name || '对象'}触发【${event?.name || step.event}】事件，等待后续处理。`;
+    }
+
+    return { step: step.step, title, description };
+  }, [activeScenario, isSimulating, currentStep, behaviors, objects, events]);
+
   // Compute the set of node IDs involved in the active scenario
   const scenarioNodeIds = useMemo<Set<string>>(() => {
     if (!activeScenario) return new Set();
     const ids = new Set<string>();
-    activeScenario.involved_objects.forEach((code) => ids.add(`obj_${code}`));
-    activeScenario.steps.forEach((step) => {
-      if (step.behavior) ids.add(`beh_${step.behavior}`);
-      if (step.event) ids.add(`evt_${step.event}`);
-    });
+
+    // 如果处于模拟模式，只显示到当前步骤的节点
+    if (isSimulating && currentStep >= 0) {
+      // 添加场景节点本身
+      ids.add(`scenario_${activeScenario.code}`);
+
+      // 只添加到当前步骤的节点
+      for (let i = 0; i <= currentStep; i++) {
+        const step = activeScenario.steps[i];
+        if (step.behavior) {
+          ids.add(`beh_${step.behavior}`);
+          // 添加行为的归属对象
+          const behavior = behaviors.find(b => b.code === step.behavior);
+          if (behavior?.owner_object) {
+            ids.add(`obj_${behavior.owner_object}`);
+          }
+          // 添加行为引用的规则
+          behavior?.referenced_rules.forEach(ruleCode => {
+            ids.add(`rule_${ruleCode}`);
+          });
+        }
+        if (step.event) {
+          ids.add(`evt_${step.event}`);
+          // 添加事件的产生对象和影响对象
+          const event = events.find(e => e.code === step.event);
+          if (event?.producer_object) {
+            ids.add(`obj_${event.producer_object}`);
+          }
+          event?.impacted_objects.forEach(objCode => {
+            ids.add(`obj_${objCode}`);
+          });
+        }
+      }
+    } else {
+      // 非模拟模式，显示所有相关节点
+      activeScenario.involved_objects.forEach((code) => ids.add(`obj_${code}`));
+      activeScenario.steps.forEach((step) => {
+        if (step.behavior) ids.add(`beh_${step.behavior}`);
+        if (step.event) ids.add(`evt_${step.event}`);
+      });
+    }
+
     return ids;
-  }, [activeScenario]);
+  }, [activeScenario, isSimulating, currentStep, behaviors, events]);
 
   const option = useMemo(() => {
     // Build nodes
-    const nodes: object[] = [
-      ...objects.map((o) => ({
-        id: `obj_${o.code}`,
-        name: o.name,
-        value: o.code,
-        category: 0,
-        symbolSize:
-          activeScenario && !scenarioNodeIds.has(`obj_${o.code}`) ? 24 : activeScenario ? 44 : 36,
-        itemStyle:
-          activeScenario && !scenarioNodeIds.has(`obj_${o.code}`)
-            ? { opacity: 0.25 }
-            : undefined,
-        label: { show: true, position: 'bottom', color: '#fff', fontSize: 11 },
-      })),
-      ...behaviors.map((b) => ({
-        id: `beh_${b.code}`,
-        name: b.name,
-        value: b.code,
-        category: 1,
-        symbolSize:
-          activeScenario && !scenarioNodeIds.has(`beh_${b.code}`) ? 18 : activeScenario ? 34 : 28,
-        itemStyle:
-          activeScenario && !scenarioNodeIds.has(`beh_${b.code}`)
-            ? { opacity: 0.25 }
-            : undefined,
-      })),
-      ...rules.map((r) => ({
-        id: `rule_${r.code}`,
-        name: r.name,
-        value: r.code,
-        category: 2,
-        symbolSize: 22,
-        itemStyle: activeScenario ? { opacity: 0.2 } : undefined,
-      })),
-      ...events.map((e) => ({
-        id: `evt_${e.code}`,
-        name: e.name,
-        value: e.code,
-        category: 3,
-        symbolSize:
-          activeScenario && !scenarioNodeIds.has(`evt_${e.code}`) ? 14 : activeScenario ? 28 : 22,
-        itemStyle:
-          activeScenario && !scenarioNodeIds.has(`evt_${e.code}`)
-            ? { opacity: 0.25 }
-            : undefined,
-      })),
-    ];
+    const nodes: object[] = [];
+
+    // 如果处于模拟模式，添加场景节点
+    if (isSimulating && activeScenario && currentStep >= 0) {
+      nodes.push({
+        id: `scenario_${activeScenario.code}`,
+        name: activeScenario.name,
+        value: activeScenario.code,
+        category: 4,
+        symbolSize: 50,
+        itemStyle: { color: '#8B5CF6' },
+        label: { show: true, position: 'bottom', color: '#fff', fontSize: 12 },
+      });
+    }
+
+    // 添加对象节点
+    nodes.push(
+      ...objects.map((o) => {
+        const isInScenario = scenarioNodeIds.has(`obj_${o.code}`);
+        const shouldShow = !isSimulating || isInScenario;
+        return {
+          id: `obj_${o.code}`,
+          name: o.name,
+          value: o.code,
+          category: 0,
+          symbolSize: isSimulating && isInScenario ? 44 : activeScenario && isInScenario ? 44 : 36,
+          itemStyle: !shouldShow ? { opacity: 0 } : !isInScenario && activeScenario ? { opacity: 0.25 } : undefined,
+          label: { show: shouldShow, position: 'bottom', color: '#fff', fontSize: 11 },
+        };
+      })
+    );
+
+    // 添加行为节点
+    nodes.push(
+      ...behaviors.map((b) => {
+        const isInScenario = scenarioNodeIds.has(`beh_${b.code}`);
+        const shouldShow = !isSimulating || isInScenario;
+        return {
+          id: `beh_${b.code}`,
+          name: b.name,
+          value: b.code,
+          category: 1,
+          symbolSize: isSimulating && isInScenario ? 34 : activeScenario && isInScenario ? 34 : 28,
+          itemStyle: !shouldShow ? { opacity: 0 } : !isInScenario && activeScenario ? { opacity: 0.25 } : undefined,
+          label: { show: shouldShow, position: 'bottom', color: '#fff', fontSize: 10 },
+        };
+      })
+    );
+
+    // 添加规则节点
+    nodes.push(
+      ...rules.map((r) => {
+        const isInScenario = scenarioNodeIds.has(`rule_${r.code}`);
+        const shouldShow = !isSimulating || isInScenario;
+        return {
+          id: `rule_${r.code}`,
+          name: r.name,
+          value: r.code,
+          category: 2,
+          symbolSize: 22,
+          itemStyle: !shouldShow ? { opacity: 0 } : activeScenario ? { opacity: 0.2 } : undefined,
+          label: { show: shouldShow, position: 'bottom', color: '#fff', fontSize: 9 },
+        };
+      })
+    );
+
+    // 添加事件节点
+    nodes.push(
+      ...events.map((e) => {
+        const isInScenario = scenarioNodeIds.has(`evt_${e.code}`);
+        const shouldShow = !isSimulating || isInScenario;
+        return {
+          id: `evt_${e.code}`,
+          name: e.name,
+          value: e.code,
+          category: 3,
+          symbolSize: isSimulating && isInScenario ? 28 : activeScenario && isInScenario ? 28 : 22,
+          itemStyle: !shouldShow ? { opacity: 0 } : !isInScenario && activeScenario ? { opacity: 0.25 } : undefined,
+          label: { show: shouldShow, position: 'bottom', color: '#fff', fontSize: 9 },
+        };
+      })
+    );
 
     // Build edges
     const edges: object[] = [];
@@ -385,10 +485,12 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
                     onClick={() => {
                       if (isActive) {
                         setSelectedScenario(null);
-                        setCurrentStep(0);
+                        setCurrentStep(-1);
+                        setIsSimulating(false);
                       } else {
                         setSelectedScenario(s.code);
-                        setCurrentStep(0);
+                        setCurrentStep(-1);
+                        setIsSimulating(false);
                       }
                     }}
                   >
@@ -413,47 +515,93 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
       </div>
 
       {/* Bottom scenario player bar */}
-      {activeScenario && (
+      {activeScenario && !isSimulating && (
         <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur border border-white/10 rounded-xl px-4 py-3 flex items-center gap-4">
           <span className="text-xs font-semibold text-violet-400 tracking-widest uppercase shrink-0">
-            SCENARIO
+            {activeScenario.name} - 动态模拟
           </span>
-          <span className="text-sm text-white/80 flex-1 truncate">{activeScenario.name}</span>
+          <span className="text-sm text-white/60 flex-1">点击【下一步】开始模拟</span>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              disabled={currentStep === 0}
-              onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
-              className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors text-white/80 text-xs"
-            >
-              ‹
-            </button>
-            <span className="text-xs text-white/50 font-mono min-w-[48px] text-center">
-              {totalSteps > 0 ? `${currentStep + 1} / ${totalSteps}` : '—'}
+            <span className="text-xs text-white/50 font-mono">
+              0 / {activeScenario.steps.length}
             </span>
             <button
-              disabled={currentStep >= totalSteps - 1}
-              onClick={() => setCurrentStep((s) => Math.min(totalSteps - 1, s + 1))}
-              className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors text-white/80 text-xs"
+              onClick={() => {
+                setIsSimulating(true);
+                setCurrentStep(0);
+              }}
+              className="px-4 py-1.5 rounded-lg bg-violet-500 hover:bg-violet-600 transition-colors text-white text-sm font-medium flex items-center gap-1.5"
             >
-              ›
+              <Play size={14} />
+              下一步
+            </button>
+            <button
+              onClick={() => {
+                setSelectedScenario(null);
+                setCurrentStep(-1);
+                setIsSimulating(false);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-600 transition-colors text-white text-sm"
+            >
+              重置
             </button>
           </div>
-          {/* Step indicators */}
-          {totalSteps > 0 && (
-            <div className="flex items-center gap-1 shrink-0">
-              {activeScenario.steps.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentStep(i)}
-                  className={`rounded-full transition-all ${
-                    i === currentStep
-                      ? 'w-4 h-2 bg-violet-400'
-                      : 'w-2 h-2 bg-white/20 hover:bg-white/40'
-                  }`}
-                />
-              ))}
+        </div>
+      )}
+
+      {/* Bottom simulation control bar */}
+      {activeScenario && isSimulating && currentStepInfo && (
+        <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur border border-white/10 rounded-xl px-4 py-3">
+          <div className="flex items-start gap-4">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-semibold text-violet-400 tracking-widest uppercase">
+                {activeScenario.name} - 动态模拟
+              </span>
+              <span
+                className="px-2 py-0.5 rounded-full text-xs font-mono bg-violet-500/30 text-violet-300 border border-violet-500/50"
+              >
+                {currentStep + 1} / {activeScenario.steps.length}
+              </span>
             </div>
-          )}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm text-white font-medium mb-1">
+                {currentStepInfo.step === 1 ? '① 流程启动' : `${['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'][Math.min(currentStepInfo.step - 1, 9)] || `⑩+${currentStepInfo.step - 10}`} ${currentStepInfo.title}`}
+              </div>
+              <div className="text-xs text-white/60">
+                {currentStepInfo.description}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                disabled={currentStep === 0}
+                onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-white text-sm"
+              >
+                上一步
+              </button>
+              <button
+                disabled={currentStep >= activeScenario.steps.length - 1}
+                onClick={() => {
+                  if (currentStep < activeScenario.steps.length - 1) {
+                    setCurrentStep((s) => s + 1);
+                  }
+                }}
+                className="px-4 py-1.5 rounded-lg bg-violet-500 hover:bg-violet-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-white text-sm font-medium"
+              >
+                下一步
+              </button>
+              <button
+                onClick={() => {
+                  setIsSimulating(false);
+                  setCurrentStep(-1);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-600 transition-colors text-white text-sm flex items-center gap-1.5"
+              >
+                <RotateCcw size={14} />
+                重置
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -127,94 +127,153 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
     // Build nodes
     const nodes: object[] = [];
 
-    // 如果处于模拟模式，添加场景节点
     if (isSimulating && activeScenario && currentStep >= 0) {
+      // === 模拟模式：只构建可见节点 ===
+
+      // 1. 添加场景节点（始终显示）
       nodes.push({
         id: `scenario_${activeScenario.code}`,
         name: activeScenario.name,
         value: activeScenario.code,
         category: 4,
-        symbolSize: 50,
+        symbolSize: 60,
         itemStyle: { color: '#8B5CF6' },
         label: { show: true, position: 'bottom', color: '#fff', fontSize: 12 },
       });
-    }
 
-    // 添加对象节点
-    nodes.push(
-      ...objects.map((o) => {
-        const isInScenario = scenarioNodeIds.has(`obj_${o.code}`);
-        const shouldShow = !isSimulating || isInScenario;
-        return {
-          id: `obj_${o.code}`,
-          name: o.name,
-          value: o.code,
-          category: 0,
-          symbolSize: isSimulating && isInScenario ? 44 : activeScenario && isInScenario ? 44 : 36,
-          itemStyle: !shouldShow ? { opacity: 0 } : !isInScenario && activeScenario ? { opacity: 0.25 } : undefined,
-          label: { show: shouldShow, position: 'bottom', color: '#fff', fontSize: 11 },
-        };
-      })
-    );
+      // 2. 只添加 scenarioNodeIds 中包含的对象节点
+      objects.forEach((o) => {
+        if (scenarioNodeIds.has(`obj_${o.code}`)) {
+          nodes.push({
+            id: `obj_${o.code}`,
+            name: o.name,
+            value: o.code,
+            category: 0,
+            symbolSize: 50,
+            label: { show: true, position: 'bottom', color: '#fff', fontSize: 11 },
+          });
+        }
+      });
 
-    // 添加行为节点
-    nodes.push(
-      ...behaviors.map((b) => {
-        const isInScenario = scenarioNodeIds.has(`beh_${b.code}`);
-        const shouldShow = !isSimulating || isInScenario;
-        return {
-          id: `beh_${b.code}`,
-          name: b.name,
-          value: b.code,
-          category: 1,
-          symbolSize: isSimulating && isInScenario ? 34 : activeScenario && isInScenario ? 34 : 28,
-          itemStyle: !shouldShow ? { opacity: 0 } : !isInScenario && activeScenario ? { opacity: 0.25 } : undefined,
-          label: { show: shouldShow, position: 'bottom', color: '#fff', fontSize: 10 },
-        };
-      })
-    );
+      // 3. 只添加 scenarioNodeIds 中包含的行为节点
+      behaviors.forEach((b) => {
+        if (scenarioNodeIds.has(`beh_${b.code}`)) {
+          nodes.push({
+            id: `beh_${b.code}`,
+            name: b.name,
+            value: b.code,
+            category: 1,
+            symbolSize: 40,
+            label: { show: true, position: 'bottom', color: '#fff', fontSize: 10 },
+          });
+        }
+      });
 
-    // 添加规则节点
-    nodes.push(
-      ...rules.map((r) => {
-        const isInScenario = scenarioNodeIds.has(`rule_${r.code}`);
-        const shouldShow = !isSimulating || isInScenario;
-        return {
+      // 4. 只添加 scenarioNodeIds 中包含的规则节点
+      rules.forEach((r) => {
+        if (scenarioNodeIds.has(`rule_${r.code}`)) {
+          nodes.push({
+            id: `rule_${r.code}`,
+            name: r.name,
+            value: r.code,
+            category: 2,
+            symbolSize: 30,
+            label: { show: true, position: 'bottom', color: '#fff', fontSize: 9 },
+          });
+        }
+      });
+
+      // 5. 只添加 scenarioNodeIds 中包含的事件节点
+      events.forEach((e) => {
+        if (scenarioNodeIds.has(`evt_${e.code}`)) {
+          nodes.push({
+            id: `evt_${e.code}`,
+            name: e.name,
+            value: e.code,
+            category: 3,
+            symbolSize: 35,
+            label: { show: true, position: 'bottom', color: '#fff', fontSize: 9 },
+          });
+        }
+      });
+    } else {
+      // === 非模拟模式：构建所有节点（保持现有逻辑）===
+
+      // 添加对象节点
+      nodes.push(
+        ...objects.map((o) => {
+          const isInScenario = scenarioNodeIds.has(`obj_${o.code}`);
+          return {
+            id: `obj_${o.code}`,
+            name: o.name,
+            value: o.code,
+            category: 0,
+            symbolSize: activeScenario && isInScenario ? 44 : 36,
+            itemStyle: activeScenario && !isInScenario ? { opacity: 0.25 } : undefined,
+            label: { show: true, position: 'bottom', color: '#fff', fontSize: 11 },
+          };
+        })
+      );
+
+      // 添加行为节点
+      nodes.push(
+        ...behaviors.map((b) => {
+          const isInScenario = scenarioNodeIds.has(`beh_${b.code}`);
+          return {
+            id: `beh_${b.code}`,
+            name: b.name,
+            value: b.code,
+            category: 1,
+            symbolSize: activeScenario && isInScenario ? 34 : 28,
+            itemStyle: activeScenario && !isInScenario ? { opacity: 0.25 } : undefined,
+            label: { show: true, position: 'bottom', color: '#fff', fontSize: 10 },
+          };
+        })
+      );
+
+      // 添加规则节点
+      nodes.push(
+        ...rules.map((r) => ({
           id: `rule_${r.code}`,
           name: r.name,
           value: r.code,
           category: 2,
           symbolSize: 22,
-          itemStyle: !shouldShow ? { opacity: 0 } : activeScenario ? { opacity: 0.2 } : undefined,
-          label: { show: shouldShow, position: 'bottom', color: '#fff', fontSize: 9 },
-        };
-      })
-    );
+          itemStyle: activeScenario ? { opacity: 0.2 } : undefined,
+          label: { show: true, position: 'bottom', color: '#fff', fontSize: 9 },
+        }))
+      );
 
-    // 添加事件节点
-    nodes.push(
-      ...events.map((e) => {
-        const isInScenario = scenarioNodeIds.has(`evt_${e.code}`);
-        const shouldShow = !isSimulating || isInScenario;
-        return {
-          id: `evt_${e.code}`,
-          name: e.name,
-          value: e.code,
-          category: 3,
-          symbolSize: isSimulating && isInScenario ? 28 : activeScenario && isInScenario ? 28 : 22,
-          itemStyle: !shouldShow ? { opacity: 0 } : !isInScenario && activeScenario ? { opacity: 0.25 } : undefined,
-          label: { show: shouldShow, position: 'bottom', color: '#fff', fontSize: 9 },
-        };
-      })
-    );
+      // 添加事件节点
+      nodes.push(
+        ...events.map((e) => {
+          const isInScenario = scenarioNodeIds.has(`evt_${e.code}`);
+          return {
+            id: `evt_${e.code}`,
+            name: e.name,
+            value: e.code,
+            category: 3,
+            symbolSize: activeScenario && isInScenario ? 28 : 22,
+            itemStyle: activeScenario && !isInScenario ? { opacity: 0.25 } : undefined,
+            label: { show: true, position: 'bottom', color: '#fff', fontSize: 9 },
+          };
+        })
+      );
+    }
 
     // Build edges
     const edges: object[] = [];
 
+    // 边过滤函数：在模拟模式下，只显示连接可见节点的边
+    const shouldShowEdge = (sourceId: string, targetId: string) => {
+      if (!isSimulating) return true;
+      return scenarioNodeIds.has(sourceId) && scenarioNodeIds.has(targetId);
+    };
+
     // Object relations (solid cyan for direct object-to-object relationships)
     objects.forEach((obj) => {
       obj.relations_detail.forEach((rel) => {
-        if (rel.target_object) {
+        if (rel.target_object && shouldShowEdge(`obj_${obj.code}`, `obj_${rel.target_object}`)) {
           const relationLabel = rel.displayName || rel.name;
           edges.push({
             source: `obj_${obj.code}`,
@@ -242,7 +301,7 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
 
     behaviors.forEach((b) => {
       // owner_object → behavior (solid indigo)
-      if (b.owner_object) {
+      if (b.owner_object && shouldShowEdge(`obj_${b.owner_object}`, `beh_${b.code}`)) {
         const ownerObj = objects.find(o => o.code === b.owner_object);
         edges.push({
           source: `obj_${b.owner_object}`,
@@ -265,94 +324,102 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
 
       // behavior → emits_events (solid orange)
       b.emits_events.forEach((evtCode) => {
-        const evt = events.find(e => e.code === evtCode);
-        edges.push({
-          source: `beh_${b.code}`,
-          target: `evt_${evtCode}`,
-          lineStyle: { color: 'rgba(249,115,22,0.6)', width: 1.5, type: 'solid' },
-          label: {
-            show: true,
-            formatter: '触发事件',
-            fontSize: 9,
-            color: 'rgba(249,115,22,0.8)',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            padding: [2, 4],
-            borderRadius: 3,
-          },
-          tooltip: {
-            formatter: () => `<strong>${b.name}</strong> 触发事件 <strong>${evt?.name || evtCode}</strong>`,
-          },
-        });
+        if (shouldShowEdge(`beh_${b.code}`, `evt_${evtCode}`)) {
+          const evt = events.find(e => e.code === evtCode);
+          edges.push({
+            source: `beh_${b.code}`,
+            target: `evt_${evtCode}`,
+            lineStyle: { color: 'rgba(249,115,22,0.6)', width: 1.5, type: 'solid' },
+            label: {
+              show: true,
+              formatter: '触发事件',
+              fontSize: 9,
+              color: 'rgba(249,115,22,0.8)',
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              padding: [2, 4],
+              borderRadius: 3,
+            },
+            tooltip: {
+              formatter: () => `<strong>${b.name}</strong> 触发事件 <strong>${evt?.name || evtCode}</strong>`,
+            },
+          });
+        }
       });
 
       // behavior → referenced_rules (dashed amber)
       b.referenced_rules.forEach((ruleCode) => {
-        const rule = rules.find(r => r.code === ruleCode);
-        edges.push({
-          source: `beh_${b.code}`,
-          target: `rule_${ruleCode}`,
-          lineStyle: { color: 'rgba(245,158,11,0.5)', width: 1, type: 'dashed' },
-          label: {
-            show: true,
-            formatter: '引用规则',
-            fontSize: 9,
-            color: 'rgba(245,158,11,0.8)',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            padding: [2, 4],
-            borderRadius: 3,
-          },
-          tooltip: {
-            formatter: () => `<strong>${b.name}</strong> 引用规则 <strong>${rule?.name || ruleCode}</strong>`,
-          },
-        });
+        if (shouldShowEdge(`beh_${b.code}`, `rule_${ruleCode}`)) {
+          const rule = rules.find(r => r.code === ruleCode);
+          edges.push({
+            source: `beh_${b.code}`,
+            target: `rule_${ruleCode}`,
+            lineStyle: { color: 'rgba(245,158,11,0.5)', width: 1, type: 'dashed' },
+            label: {
+              show: true,
+              formatter: '引用规则',
+              fontSize: 9,
+              color: 'rgba(245,158,11,0.8)',
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              padding: [2, 4],
+              borderRadius: 3,
+            },
+            tooltip: {
+              formatter: () => `<strong>${b.name}</strong> 引用规则 <strong>${rule?.name || ruleCode}</strong>`,
+            },
+          });
+        }
       });
     });
 
     // rule → applicable_objects (dotted amber)
     rules.forEach((r) => {
       r.applicable_objects.forEach((objCode) => {
-        const obj = objects.find(o => o.code === objCode);
-        edges.push({
-          source: `rule_${r.code}`,
-          target: `obj_${objCode}`,
-          lineStyle: { color: 'rgba(245,158,11,0.4)', width: 1, type: 'dotted' },
-          label: {
-            show: true,
-            formatter: '适用于',
-            fontSize: 9,
-            color: 'rgba(245,158,11,0.8)',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            padding: [2, 4],
-            borderRadius: 3,
-          },
-          tooltip: {
-            formatter: () => `<strong>${r.name}</strong> 适用于 <strong>${obj?.name || objCode}</strong>`,
-          },
-        });
+        if (shouldShowEdge(`rule_${r.code}`, `obj_${objCode}`)) {
+          const obj = objects.find(o => o.code === objCode);
+          edges.push({
+            source: `rule_${r.code}`,
+            target: `obj_${objCode}`,
+            lineStyle: { color: 'rgba(245,158,11,0.4)', width: 1, type: 'dotted' },
+            label: {
+              show: true,
+              formatter: '适用于',
+              fontSize: 9,
+              color: 'rgba(245,158,11,0.8)',
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              padding: [2, 4],
+              borderRadius: 3,
+            },
+            tooltip: {
+              formatter: () => `<strong>${r.name}</strong> 适用于 <strong>${obj?.name || objCode}</strong>`,
+            },
+          });
+        }
       });
     });
 
     // event → impacted_objects (dotted orange)
     events.forEach((e) => {
       e.impacted_objects.forEach((objCode) => {
-        const obj = objects.find(o => o.code === objCode);
-        edges.push({
-          source: `evt_${e.code}`,
-          target: `obj_${objCode}`,
-          lineStyle: { color: 'rgba(249,115,22,0.4)', width: 1, type: 'dotted' },
-          label: {
-            show: true,
-            formatter: '影响对象',
-            fontSize: 9,
-            color: 'rgba(249,115,22,0.8)',
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            padding: [2, 4],
-            borderRadius: 3,
-          },
-          tooltip: {
-            formatter: () => `<strong>${e.name}</strong> 影响对象 <strong>${obj?.name || objCode}</strong>`,
-          },
-        });
+        if (shouldShowEdge(`evt_${e.code}`, `obj_${objCode}`)) {
+          const obj = objects.find(o => o.code === objCode);
+          edges.push({
+            source: `evt_${e.code}`,
+            target: `obj_${objCode}`,
+            lineStyle: { color: 'rgba(249,115,22,0.4)', width: 1, type: 'dotted' },
+            label: {
+              show: true,
+              formatter: '影响对象',
+              fontSize: 9,
+              color: 'rgba(249,115,22,0.8)',
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              padding: [2, 4],
+              borderRadius: 3,
+            },
+            tooltip: {
+              formatter: () => `<strong>${e.name}</strong> 影响对象 <strong>${obj?.name || objCode}</strong>`,
+            },
+          });
+        }
       });
     });
 
@@ -390,10 +457,11 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
           roam: true,
           draggable: true,
           force: {
-            repulsion: 300,
-            gravity: 0.1,
-            edgeLength: [80, 200],
+            repulsion: isSimulating ? 150 : 300,
+            gravity: isSimulating ? 0.4 : 0.1,
+            edgeLength: isSimulating ? [60, 120] : [80, 200],
             layoutAnimation: true,
+            friction: 0.6,
           },
           categories: CATEGORIES.map((c) => ({
             name: c.name,

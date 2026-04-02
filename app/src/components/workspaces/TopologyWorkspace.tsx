@@ -70,45 +70,43 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
 
     // 如果处于模拟模式
     if (isSimulating && currentStep >= 0) {
-      // 添加场景节点本身
-      ids.add(`scenario_${activeScenario.code}`);
-
-      // 步骤0是流程启动，只显示场景节点
+      // 步骤0是流程启动，不显示任何节点
       if (currentStep === 0) {
         return ids;
       }
 
-      // 实际步骤从1开始，对应 steps[0]
-      const stepIndex = currentStep - 1;
-      const step = activeScenario.steps[stepIndex];
+      // 从步骤 1 到当前步骤，累积所有节点
+      for (let i = 0; i < currentStep; i++) {
+        const step = activeScenario.steps[i];
 
-      if (step) {
-        if (step.behavior) {
-          ids.add(`beh_${step.behavior}`);
-          // 添加行为的归属对象
-          const behavior = behaviors.find(b => b.code === step.behavior);
-          if (behavior?.owner_object) {
-            ids.add(`obj_${behavior.owner_object}`);
+        if (step) {
+          if (step.behavior) {
+            ids.add(`beh_${step.behavior}`);
+            // 添加行为的归属对象
+            const behavior = behaviors.find(b => b.code === step.behavior);
+            if (behavior?.owner_object) {
+              ids.add(`obj_${behavior.owner_object}`);
+            }
+            // 添加行为引用的规则
+            behavior?.referenced_rules.forEach(ruleCode => {
+              ids.add(`rule_${ruleCode}`);
+            });
+            // 添加行为触发的事件
+            behavior?.emits_events.forEach(evtCode => {
+              ids.add(`evt_${evtCode}`);
+            });
           }
-          // 添加行为引用的规则
-          behavior?.referenced_rules.forEach(ruleCode => {
-            ids.add(`rule_${ruleCode}`);
-          });
-          // 添加行为触发的事件
-          behavior?.emits_events.forEach(evtCode => {
-            ids.add(`evt_${evtCode}`);
-          });
-        }
-        if (step.event) {
-          ids.add(`evt_${step.event}`);
-          // 添加事件的产生对象和影响对象
-          const event = events.find(e => e.code === step.event);
-          if (event?.producer_object) {
-            ids.add(`obj_${event.producer_object}`);
+          if (step.event) {
+            ids.add(`evt_${step.event}`);
+            // 添加事件的产生对象和影响对象
+            const event = events.find(e => e.code === step.event);
+            if (event?.producer_object) {
+              ids.add(`obj_${event.producer_object}`);
+            }
+            event?.impacted_objects.forEach(objCode => {
+              ids.add(`obj_${objCode}`);
+            });
           }
-          event?.impacted_objects.forEach(objCode => {
-            ids.add(`obj_${objCode}`);
-          });
         }
       }
     } else {
@@ -130,18 +128,7 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
     if (isSimulating && activeScenario && currentStep >= 0) {
       // === 模拟模式：只构建可见节点 ===
 
-      // 1. 添加场景节点（始终显示）
-      nodes.push({
-        id: `scenario_${activeScenario.code}`,
-        name: activeScenario.name,
-        value: activeScenario.code,
-        category: 4,
-        symbolSize: 60,
-        itemStyle: { color: '#8B5CF6' },
-        label: { show: true, position: 'bottom', color: '#fff', fontSize: 12 },
-      });
-
-      // 2. 只添加 scenarioNodeIds 中包含的对象节点
+      // 只添加 scenarioNodeIds 中包含的对象节点
       objects.forEach((o) => {
         if (scenarioNodeIds.has(`obj_${o.code}`)) {
           nodes.push({

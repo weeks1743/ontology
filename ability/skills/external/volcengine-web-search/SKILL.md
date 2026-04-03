@@ -6,6 +6,10 @@ metadata:
   emoji: "🔍"
   category: "search"
   tags: ["search", "web", "volcengine", "doubao"]
+  openclaw:
+    requires:
+      bins: ["node"]
+      env: ["ARK_API_KEY"]
 arguments: ["query"]
 argument-hint: "<search query>"
 when_to_use: "需要获取实时网络信息、新闻热点、天气查询、百科知识等场景"

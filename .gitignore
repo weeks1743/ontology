@@ -38,6 +38,9 @@ lerna-debug.log*
 .env.local
 .env.*.local
 
+# Sensitive config files
+ability/server/config/skills.json
+
 # Database files (optional - uncomment if you don't want to track the db)
 # data/*.db
 # data/*.db-shm

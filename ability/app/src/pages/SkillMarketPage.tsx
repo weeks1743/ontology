@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useAbilityStore } from '../store/ability-store';
 import { Skill } from '../types';
-import { Play, Settings } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 import SkillConfigDialog from '../components/SkillConfigDialog';
 
 export default function SkillMarketPage() {
-  const navigate = useNavigate();
   const { skills, fetchSkills, loading } = useAbilityStore();
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
@@ -48,7 +46,6 @@ export default function SkillMarketPage() {
               <SkillCard
                 key={skill.id}
                 skill={skill}
-                onExecute={() => navigate(`/skills/${skill.id}`)}
                 onConfig={() => handleConfigClick(skill)}
               />
             ))}
@@ -70,9 +67,9 @@ export default function SkillMarketPage() {
   );
 }
 
-function SkillCard({ skill, onExecute, onConfig }: { skill: Skill; onExecute: () => void; onConfig: () => void }) {
+function SkillCard({ skill, onConfig }: { skill: Skill; onConfig: () => void }) {
   return (
-    <div className="glass-effect rounded-lg p-6 hover:border-purple-500/30 transition-colors cursor-pointer" onClick={onExecute}>
+    <div className="glass-effect rounded-lg p-6 hover:border-purple-500/30 transition-colors">
       <div className="text-4xl mb-3">{skill.metadata.emoji || '⚙️'}</div>
       <h3 className="text-lg font-semibold mb-2">{skill.name}</h3>
       <p className="text-sm text-gray-400 mb-4 line-clamp-2">{skill.description}</p>
@@ -80,27 +77,15 @@ function SkillCard({ skill, onExecute, onConfig }: { skill: Skill; onExecute: ()
         <span className="text-xs px-2 py-1 rounded bg-purple-500/20 text-purple-400">
           外部
         </span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onConfig();
-            }}
-            className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-300"
-          >
-            <Settings size={14} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onExecute();
-            }}
-            className="flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300"
-          >
-            <Play size={14} />
-            试用
-          </button>
-        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onConfig();
+          }}
+          className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-300"
+        >
+          <Settings size={14} />
+        </button>
       </div>
     </div>
   );

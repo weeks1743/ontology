@@ -1,20 +1,58 @@
 import { Router } from 'express';
 import { db } from '../db.js';
 import { Skill } from '../types.js';
+import { getAllSkills } from '../skill-core/discovery.js';
 
 const router = Router();
 
-// 获取所有技能
+// 获取所有技能（合并 SQLite + skill-core registry）
 router.get('/', (req, res) => {
   try {
-    const skills = db.prepare('SELECT * FROM skills ORDER BY created_at DESC').all();
-    const parsed = skills.map(skill => ({
+    // 1. 从 SQLite 获取旧系统技能
+    const sqliteSkills = db.prepare('SELECT * FROM skills ORDER BY created_at DESC').all();
+    const parsedSqliteSkills = sqliteSkills.map(skill => ({
       ...skill,
       metadata: JSON.parse(skill.metadata as string),
       input_schema: skill.input_schema ? JSON.parse(skill.input_schema as string) : undefined,
       output_schema: skill.output_schema ? JSON.parse(skill.output_schema as string) : undefined,
     }));
-    res.json(parsed);
+
+    // 2. 从 skill-core registry 获取新系统技能
+    const skillCoreSkills = getAllSkills().map(skill => ({
+      id: skill.id,
+      name: skill.frontmatter.name || skill.id,
+      description: skill.frontmatter.description || '',
+      category: skill.loadedFrom === 'external' ? 'external' : skill.loadedFrom,
+      source: skill.skillDir,
+      metadata: {
+        ...skill.frontmatter.metadata,
+        emoji: skill.frontmatter.metadata?.emoji,
+        context: skill.frontmatter.context,
+        arguments: skill.frontmatter.arguments,
+        when_to_use: skill.frontmatter.when_to_use,
+        version: skill.frontmatter.version,
+        user_invocable: skill.frontmatter['user-invocable'],
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }));
+
+    // 3. 合并列表（去重：优先使用 skill-core 的数据）
+    const skillMap = new Map<string, any>();
+
+    // 先添加 SQLite 技能
+    for (const skill of parsedSqliteSkills) {
+      skillMap.set(skill.id, skill);
+    }
+
+    // 再添加 skill-core 技能（覆盖同名技能）
+    for (const skill of skillCoreSkills) {
+      skillMap.set(skill.id, skill);
+    }
+
+    // 4. 返回合并后的列表
+    const mergedSkills = Array.from(skillMap.values());
+    res.json(mergedSkills);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

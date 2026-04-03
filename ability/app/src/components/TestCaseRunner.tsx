@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Play, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Download } from 'lucide-react';
 
 interface TestCase {
   id: string;
@@ -12,6 +12,8 @@ interface TestCase {
   actualResult?: any;
   error?: string;
   duration?: number;
+  htmlUrl?: string;
+  htmlContent?: string;
 }
 
 interface TestCaseRunnerProps {
@@ -39,6 +41,20 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
     } finally {
       setRunning(false);
     }
+  };
+
+  const handleDownload = (testCase: TestCase) => {
+    if (!testCase.htmlContent) return;
+
+    const blob = new Blob([testCase.htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${testCase.id}-${Date.now()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const getStatusIcon = (status: TestCase['status']) => {
@@ -129,9 +145,37 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                         查看结果
                       </summary>
                       <pre className="mt-2 p-3 bg-black/30 rounded text-xs overflow-auto">
-                        {JSON.stringify(testCase.actualResult, null, 2)}
+                        {typeof testCase.actualResult === 'object' && testCase.actualResult.report
+                          ? `[${testCase.actualResult.format || 'text'} 报告，${testCase.actualResult.report.length} 字符]`
+                          : JSON.stringify(testCase.actualResult, null, 2)}
                       </pre>
                     </details>
+                  )}
+
+                  {/* HTML 报告操作 */}
+                  {(testCase.htmlUrl || testCase.htmlContent) && (
+                    <div className="flex items-center gap-2 mt-2">
+                      {testCase.htmlUrl && (
+                        <a
+                          href={testCase.htmlUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                        >
+                          <ExternalLink size={14} />
+                          打开 HTML 报告
+                        </a>
+                      )}
+                      {testCase.htmlContent && (
+                        <button
+                          onClick={() => handleDownload(testCase)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-sm hover:bg-green-500/30 transition-colors"
+                        >
+                          <Download size={14} />
+                          下载 HTML
+                        </button>
+                      )}
+                    </div>
                   )}
 
                   {/* 错误信息 */}

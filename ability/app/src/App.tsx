@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardPage from './pages/DashboardPage';
+import OntologySkillsPage from './pages/OntologySkillsPage';
 import SkillMarketPage from './pages/SkillMarketPage';
 import SkillDetailPage from './pages/SkillDetailPage';
 import SkillTestPage from './pages/SkillTestPage';
@@ -15,6 +16,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/ontology-skills" element={<OntologySkillsPage />} />
             <Route path="/skills" element={<SkillMarketPage />} />
             <Route path="/skills/:id" element={<SkillDetailPage />} />
             <Route path="/test" element={<SkillTestPage />} />

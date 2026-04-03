@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { db, initDatabase } from './db.js';
@@ -9,6 +10,8 @@ import logsRouter from './routes/logs.js';
 import databaseRouter from './routes/database.js';
 import ontologySkillsRouter from './routes/ontology-skills.js';
 import externalSkillsRouter from './routes/external-skills.js';
+// skill-core: 新增 SKILL 核心模块（独立路由）
+import { skillCoreRouter, initSkillCore } from './skill-core/index.js';
 
 const app = express();
 const PORT = 3002;
@@ -28,6 +31,10 @@ console.log('🔧 Loading external skills...');
 const externalCount = await loadExternalSkills();
 console.log(`✅ Loaded ${externalCount} external skills`);
 
+// skill-core: 初始化 Claude Code 兼容的 SKILL 核心
+const skillCoreCount = initSkillCore();
+console.log(`✅ [skill-core] Loaded ${skillCoreCount} skills (Claude Code compatible)`);
+
 // 路由
 app.use('/api/skills', skillsRouter);
 app.use('/api/skills', executeRouter);
@@ -35,6 +42,8 @@ app.use('/api/logs', logsRouter);
 app.use('/api/database', databaseRouter);
 app.use('/api/ontology-skills', ontologySkillsRouter);
 app.use('/api/external-skills', externalSkillsRouter);
+// skill-core: Claude Code 兼容的 SKILL API（独立前缀）
+app.use('/api/v2/skills', skillCoreRouter);
 
 // 健康检查
 app.get('/api/health', (req, res) => {

@@ -1,6 +1,28 @@
-import { useState, useEffect } from 'react';
-import { useAbilityStore } from '../store/ability-store';
+import { useState } from 'react';
+import { skillsApi } from '../api/client';
 import TestCaseRunner from '../components/TestCaseRunner';
+
+// 本体技能用旧 API（后端业务逻辑），外部技能用 v2 API（LLM 执行）
+async function executeSkillByType(skillId: string, params: any) {
+  // 本体技能（ont.*）→ 旧 API
+  if (skillId.startsWith('ont.')) {
+    const result = await skillsApi.execute(skillId, params);
+    return {
+      success: result.success,
+      spawnOutput: result.data,
+      error: result.error,
+      durationMs: result.duration_ms,
+    };
+  }
+  // 外部技能（ext.*）→ v2 API（LLM 执行）
+  const res = await fetch(`/api/v2/skills/${skillId}/execute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ params }),
+  });
+  if (!res.ok) throw new Error(`Failed to execute skill: ${res.statusText}`);
+  return res.json();
+}
 
 interface TestCase {
   id: string;
@@ -13,6 +35,8 @@ interface TestCase {
   actualResult?: any;
   error?: string;
   duration?: number;
+  htmlUrl?: string;
+  htmlContent?: string;
 }
 
 // CRM 业务流程测试用例
@@ -226,6 +250,51 @@ const EXTERNAL_TEST_CASES: TestCase[] = [
       format: 'markdown'
     },
     status: 'pending'
+  },
+  {
+    id: 'EXT004',
+    name: '生成公司研究报告（HTML）',
+    description: '测试报告生成器 - 公司研究报告（松井机械案例）',
+    skillId: 'ext.kai_report_creator',
+    params: {
+      template: 'company_research_report',
+      data: {
+        company_name: '上海松井机械有限公司',
+        report_date: '2026年04月03日',
+        core_conclusion: '上海松井机械有限公司作为日本松井制作所100%控股的外资制造企业，具备规范的管理体系、稳定的经营状况、明确的数字化升级需求，是协同办公SaaS产品的优质目标客户。',
+        full_name: '上海松井机械有限公司',
+        established_date: '1997年06月03日',
+        company_type: '有限责任公司（外国法人独资）',
+        registered_capital: '1026万美元',
+        business_status: '存续',
+        employee_count: '121人（2024年数据）',
+        org_structure: '兼具生产制造、销售服务、技术研发职能，为松井全球重要生产基地与中国区运营总部',
+        management_features: '外资背景，管理流程规范，重视合规与权限管控，跨部门协作需求明确',
+        tax_credit: '连续2年（2023、2024）获评A级',
+        ip_count: 28,
+        licenses: 16,
+        core_business: '塑料成型辅助机械专业制造商，核心业务覆盖注塑机周边设备研发、生产、销售与系统集成',
+        industry_position: '母公司松井制作所全球销售额排名第二、日本第一，在华布局超30年，拥有13个国内据点',
+        core_advantages: '技术积淀：百年行业经验，拥有28项专利；客户覆盖：服务汽车、电子电气、医疗等多领域头部客户；绿色理念：推行Factor4环保理念',
+        key_findings: [
+          '跨部门协同效率低，定制化方案沟通周期长',
+          '与日本总部跨时区协作低效，国内多据点业务联动不顺畅',
+          '设备运行数据、生产进度、售后数据与管理系统独立',
+          '外资企业需严格权限分级，专利、客户数据等敏感信息需隔离',
+          '定制化系统工程项目进度、交付、成本管控不透明'
+        ],
+        cooperation_suggestions: '建议立即启动需求对接，本周内联系公司IT部门与核心业务负责人；基于调研结果，1周内提交定制化试点方案，突出跨区域协作、合规管控、数据集成三大核心能力',
+        risks: [
+          { type: '决策流程', level: '中', description: '外资企业总部决策层级多，推进周期长' },
+          { type: '系统集成', level: '中高', description: '与现有生产设备系统、ERP系统对接存在技术壁垒' },
+          { type: '员工接受度', level: '低', description: '生产现场员工对新工具可能存在抵触' }
+        ],
+        summary: '松井机械作为规范运营、技术领先、付费能力强的外资制造企业，其协同办公核心痛点与SaaS产品能力高度匹配，具备快速落地、深度合作、长期增值的三重潜力。',
+        report_author: '协同办公SaaS厂商销售'
+      },
+      format: 'html'
+    },
+    status: 'pending'
   }
 ];
 
@@ -233,7 +302,6 @@ export default function SkillTestPage() {
   const [activeTab, setActiveTab] = useState<'ontology' | 'external'>('ontology');
   const [ontologyTests, setOntologyTests] = useState<TestCase[]>(CRM_TEST_CASES);
   const [externalTests, setExternalTests] = useState<TestCase[]>(EXTERNAL_TEST_CASES);
-  const { executeSkill } = useAbilityStore();
 
   const currentTests = activeTab === 'ontology' ? ontologyTests : externalTests;
   const setCurrentTests = activeTab === 'ontology' ? setOntologyTests : setExternalTests;
@@ -242,31 +310,41 @@ export default function SkillTestPage() {
     // 更新状态为运行中
     setCurrentTests(tests =>
       tests.map(tc =>
-        tc.id === testCase.id ? { ...tc, status: 'running' as const } : tc
+        tc.id === testCase.id ? { ...tc, status: 'running' as const, htmlUrl: undefined, htmlContent: undefined } : tc
       )
     );
 
     try {
       const startTime = Date.now();
-      await executeSkill(testCase.skillId, testCase.params);
-
-      // 从日志中获取结果
-      const logs = await fetch('/api/logs?limit=1').then(r => r.json());
-      const latestLog = logs[0];
-
+      const result = await executeSkillByType(testCase.skillId, testCase.params);
       const duration = Date.now() - startTime;
-      const success = latestLog?.status === 'success';
 
-      // 更新测试结果
+      const success = result.success;
+      let htmlUrl: string | undefined;
+
+      // 从 spawnOutput 中提取内容
+      const output = result.spawnOutput;
+      const outputStr = typeof output === 'string' ? output : JSON.stringify(output);
+
+      // 检测是否为 HTML 输出
+      let htmlContent: string | undefined;
+      if (success && outputStr && outputStr.includes('<!DOCTYPE html')) {
+        htmlContent = outputStr;
+        const blob = new Blob([outputStr], { type: 'text/html' });
+        htmlUrl = URL.createObjectURL(blob);
+      }
+
       setCurrentTests(tests =>
         tests.map(tc =>
           tc.id === testCase.id
             ? {
                 ...tc,
                 status: success ? 'passed' : 'failed',
-                actualResult: latestLog?.output_result,
-                error: latestLog?.error_message,
-                duration
+                actualResult: output ? { format: htmlUrl ? 'html' : 'text', length: outputStr.length, preview: outputStr.substring(0, 500) } : undefined,
+                error: result.error,
+                duration,
+                htmlUrl,
+                htmlContent
               }
             : tc
         )
@@ -279,7 +357,7 @@ export default function SkillTestPage() {
                 ...tc,
                 status: 'failed',
                 error: (error as Error).message,
-                duration: Date.now() - Date.now()
+                duration: 0
               }
             : tc
         )

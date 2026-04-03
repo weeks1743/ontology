@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, FileText, FlaskConical } from 'lucide-react';
+import { LayoutDashboard, Database, ShoppingCart, FileText, FlaskConical } from 'lucide-react';
 
 export default function LeftSidebar() {
   const location = useLocation();
 
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: '总览仪表盘' },
+    { path: '/ontology-skills', icon: Database, label: '本体技能' },
     { path: '/skills', icon: ShoppingCart, label: '技能市场' },
     { path: '/test', icon: FlaskConical, label: '技能测试' },
     { path: '/logs', icon: FileText, label: '执行历史' },

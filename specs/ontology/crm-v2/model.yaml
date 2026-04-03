@@ -1,0 +1,34 @@
+domain: crm
+version: 0.1.0-draft
+positioning: CRM领域本体，管理从线索到回款的客户关系全生命周期
+design_principles:
+  - 以客户为中心的全生命周期管理
+  - 数据驱动的销售过程优化
+  - 规则引擎驱动的业务约束与合规
+  - 事件驱动的跨对象协同
+personas:
+  - 销售代表
+  - 销售经理
+  - 客户服务团队
+  - 运营管理员
+scope:
+  included:
+    - 线索管理
+    - 机会管理
+    - 报价管理
+    - 合同管理
+    - 客户管理
+    - 活动管理
+  excluded:
+    - 财务结算
+    - 产品研发
+    - ERP集成
+    - 供应链管理
+ontology_code: crm
+display_name: crm
+description: ''
+primary_scenarios:
+  - 线索录入与补全
+  - 线索转商机
+  - 商机到报价
+generated_at: '2026-04-02T07:27:38.898Z'

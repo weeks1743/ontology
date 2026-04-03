@@ -1,0 +1,17 @@
+{
+  "mongodb": {
+    "connection_url": "mongodb://127.0.0.1:27017",
+    "database_name": "crm_capability",
+    "username": "",
+    "password": ""
+  },
+  "neo4j": {
+    "connection_url": "bolt://localhost:7687",
+    "username": "neo4j",
+    "password": "password"
+  },
+  "chromadb": {
+    "connection_url": "http://localhost:8000",
+    "collection_name": "crm_opportunities"
+  }
+}

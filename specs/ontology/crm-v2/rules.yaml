@@ -1,0 +1,71 @@
+- code: Lead.BudgetThreshold
+  name: 线索预算门槛
+  display_name: 线索预算门槛
+  description: ''
+  type: constraint
+  applicable_objects:
+    - Lead
+  applicable_behaviors: []
+  expression:
+    type: logical_or
+    operands:
+      - type: comparison
+        left: lead.budget
+        operator: '>='
+        right: 10000
+      - type: is_null
+        field: lead.budget
+  failure_message: 预算低于最低门槛1万元
+  severity: medium
+  severity_label: 中
+  escalation_target: ''
+  input_context:
+    - lead.budget
+  next_actions:
+    - 重新评估预算
+    - 申请特殊审批
+    - 联系客户确认预算
+  failure_message_template: 预算 {lead.budget} 元低于最低要求 {threshold} 元
+  constraint_type: hard
+- code: Lead.RequiredInfo
+  name: 线索必填信息校验
+  display_name: 线索必填信息校验
+  description: ''
+  type: validation
+  applicable_objects:
+    - Lead
+  applicable_behaviors: []
+  expression: lead.title != null && lead.phone != null
+  failure_message: 线索标题和联系电话为必填项
+  severity: high
+  severity_label: 高
+  escalation_target: ''
+  constraint_type: hard
+- code: Opportunity.ProbabilityRange
+  name: 商机赢单概率范围
+  display_name: 商机赢单概率范围
+  description: ''
+  type: validation
+  applicable_objects:
+    - Opportunity
+  applicable_behaviors: []
+  expression: opportunity.probability >= 0 && opportunity.probability <= 100
+  failure_message: 赢单概率必须在0-100之间
+  severity: medium
+  severity_label: 中
+  escalation_target: ''
+  constraint_type: hard
+- code: Quote.AmountApproval
+  name: 报价超额审批规则
+  display_name: 报价超额审批规则
+  description: ''
+  type: constraint
+  applicable_objects:
+    - Quote
+  applicable_behaviors: []
+  expression: quote.amount <= 500000 || quote.approvedBy != null
+  failure_message: 报价超过50万需要审批通过
+  severity: critical
+  severity_label: 严重
+  escalation_target: ''
+  constraint_type: hard

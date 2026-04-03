@@ -1,0 +1,376 @@
+- code: Contact
+  name: 联系人
+  display_name: 联系人
+  description: ''
+  lifecycle:
+    - 活跃
+    - 非活跃
+  attributes:
+    - name: name
+      display_name: 姓名
+      type: string
+      description: ''
+      required: true
+    - name: phone
+      display_name: 电话
+      type: string
+      description: ''
+      required: false
+    - name: email
+      display_name: 邮箱
+      type: string
+      description: ''
+      required: false
+    - name: role
+      display_name: 职位角色
+      type: string
+      description: 职位角色
+      required: false
+  relations:
+    - name: belongsToCustomer
+      display_name: 所属客户
+      target_object: Customer
+      type: many-to-one
+      description: 所属客户
+    - name: relatedOpportunities
+      display_name: 相关商机
+      target_object: Opportunity
+      type: one-to-many
+      description: 相关的商机
+    - name: fromLeads
+      display_name: 来源线索
+      target_object: Lead
+      type: one-to-many
+      description: 关联的线索
+- code: Customer
+  name: 客户
+  display_name: 客户
+  description: ''
+  lifecycle:
+    - 潜在
+    - 活跃
+    - 观察中
+    - 冻结
+  attributes:
+    - name: customerName
+      display_name: 客户名称
+      type: string
+      description: 客户名称
+      required: true
+    - name: industry
+      display_name: 所属行业
+      type: string
+      description: 所属行业
+      required: false
+    - name: region
+      display_name: 所属区域
+      type: string
+      description: 所属区域
+      required: false
+    - name: customerLevel
+      display_name: 客户级别
+      type: enum
+      description: 客户级别
+      required: false
+      enum_values:
+        - A
+        - B
+        - C
+        - D
+    - name: ownerSales
+      display_name: 负责销售
+      type: string
+      description: 负责销售
+      required: false
+  relations:
+    - name: hasContacts
+      display_name: 联系人
+      target_object: Contact
+      type: one-to-many
+      description: 客户的联系人
+    - name: hasOpportunities
+      display_name: 商机
+      target_object: Opportunity
+      type: one-to-many
+      description: 客户的商机
+    - name: fromLeads
+      display_name: 来源线索
+      target_object: Lead
+      type: one-to-many
+      description: 转化来源的线索
+- code: Lead
+  name: 线索
+  display_name: 线索
+  description: ''
+  lifecycle:
+    - state: 新建
+      allowed_transitions:
+        - 待跟进
+        - 已关闭
+      required_conditions:
+        - Lead.RequiredInfo
+      available_behaviors:
+        - Lead.Complete
+        - Lead.Discard
+      on_enter_events: []
+      on_exit_events:
+        - lead.created
+    - state: 待跟进
+      allowed_transitions:
+        - 跟进中
+        - 已关闭
+      required_conditions: []
+      available_behaviors:
+        - Lead.FollowUp
+        - Lead.Discard
+      on_enter_events:
+        - lead.completed
+      on_exit_events: []
+    - state: 跟进中
+      allowed_transitions:
+        - 已评估
+        - 已关闭
+      required_conditions: []
+      available_behaviors:
+        - Lead.Evaluate
+        - Lead.Discard
+      on_enter_events: []
+      on_exit_events: []
+    - state: 已评估
+      allowed_transitions:
+        - 已转化
+        - 已关闭
+      required_conditions:
+        - Lead.BudgetThreshold
+        - Lead.DecisionMaker
+      available_behaviors:
+        - Lead.ConvertToOpportunity
+        - Lead.Reject
+      on_enter_events:
+        - lead.evaluated
+      on_exit_events: []
+    - state: 已转化
+      allowed_transitions: []
+      required_conditions: []
+      available_behaviors: []
+      on_enter_events:
+        - lead.converted
+      on_exit_events: []
+    - state: 已关闭
+      allowed_transitions: []
+      required_conditions: []
+      available_behaviors: []
+      on_enter_events: []
+      on_exit_events: []
+  attributes:
+    - name: title
+      display_name: 线索标题
+      type: string
+      description: 线索标题
+      required: true
+    - name: source
+      display_name: 线索来源
+      type: enum
+      description: 线索来源
+      required: false
+      enum_values:
+        - 官网
+        - 展会
+        - 推荐
+        - 广告
+        - 电话
+    - name: budget
+      display_name: 预算金额
+      type: number
+      description: 预算金额
+      required: false
+    - name: status
+      display_name: 当前状态
+      type: enum
+      description: 当前状态
+      required: false
+      enum_values:
+        - 新建
+        - 待跟进
+        - 跟进中
+        - 已评估
+        - 已转化
+        - 已关闭
+    - name: owner
+      display_name: 负责人
+      type: string
+      description: 负责人
+      required: false
+    - name: phone
+      display_name: 联系电话
+      type: string
+      description: 联系电话
+      required: false
+    - name: company
+      display_name: 所属公司
+      type: string
+      description: 所属公司
+      required: false
+  relations:
+    - name: relatedCustomer
+      display_name: 关联客户
+      target_object: Customer
+      type: many-to-one
+      description: 关联的已有客户
+    - name: relatedContact
+      display_name: 关联联系人
+      target_object: Contact
+      type: many-to-one
+      description: 关联的已有联系人
+    - name: convertsToOpportunity
+      display_name: 转化为商机
+      target_object: Opportunity
+      type: one-to-many
+      description: 转化生成的商机
+  aliases:
+    - 潜客
+    - 销售线索
+    - 意向客户
+  nl_examples:
+    - 创建一个新线索
+    - 这个潜客的预算是多少
+    - 把这个销售线索转成商机
+    - 线索的来源是什么
+  negative_examples:
+    - 客户
+    - 联系人
+  disambiguation_notes: 线索是尚未转化的潜在客户，与已转化的"客户"(Customer)不同
+- code: Opportunity
+  name: 商机
+  display_name: 商机
+  description: ''
+  lifecycle:
+    - 识别
+    - 初步接触
+    - 需求分析
+    - 方案提案
+    - 报价谈判
+    - 赢单
+    - 输单
+  attributes:
+    - name: name
+      display_name: 商机名称
+      type: string
+      description: ''
+      required: true
+    - name: amount
+      display_name: 预计金额
+      type: number
+      description: 预计金额
+      required: false
+    - name: probability
+      display_name: 赢单概率%
+      type: number
+      description: 赢单概率%
+      required: false
+    - name: closeDate
+      display_name: 预计关闭日期
+      type: date
+      description: 预计关闭日期
+      required: false
+    - name: stage
+      display_name: 阶段
+      type: enum
+      description: ''
+      required: false
+      enum_values:
+        - 识别
+        - 初步接触
+        - 需求分析
+        - 方案提案
+        - 报价谈判
+        - 赢单
+        - 输单
+    - name: owner
+      display_name: 负责人
+      type: string
+      description: ''
+      required: false
+  relations:
+    - name: belongsToCustomer
+      display_name: 所属客户
+      target_object: Customer
+      type: many-to-one
+      description: 所属客户
+    - name: primaryContact
+      display_name: 主要联系人
+      target_object: Contact
+      type: many-to-one
+      description: 主要联系人
+    - name: fromLead
+      display_name: 来源线索
+      target_object: Lead
+      type: many-to-one
+      description: 来源线索
+    - name: hasQuotes
+      display_name: 报价
+      target_object: Quote
+      type: one-to-many
+      description: 关联报价
+- code: Quote
+  name: 报价
+  display_name: 报价
+  description: ''
+  lifecycle:
+    - 草稿
+    - 待审批
+    - 已批准
+    - 已拒绝
+    - 已发送
+    - 已成交
+    - 已失效
+  attributes:
+    - name: quoteNo
+      display_name: 报价单号
+      type: string
+      description: 报价单号
+      required: true
+    - name: amount
+      display_name: 报价总金额
+      type: number
+      description: 报价总金额
+      required: true
+    - name: validDays
+      display_name: 有效天数
+      type: number
+      description: 有效天数
+      required: false
+    - name: status
+      display_name: 状态
+      type: enum
+      description: ''
+      required: false
+      enum_values:
+        - 草稿
+        - 待审批
+        - 已批准
+        - 已拒绝
+        - 已发送
+        - 已成交
+        - 已失效
+    - name: discount
+      display_name: 折扣率%
+      type: number
+      description: 折扣率%
+      required: false
+  relations:
+    - name: fromOpportunity
+      display_name: 来源商机
+      target_object: Opportunity
+      type: many-to-one
+      description: 来源商机
+    - name: forCustomer
+      display_name: 客户
+      target_object: Customer
+      type: many-to-one
+      description: 报价客户
+    - name: primaryContact
+      display_name: 联系人
+      target_object: Contact
+      type: many-to-one
+      description: 主要联系人

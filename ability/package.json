@@ -1,0 +1,13 @@
+{
+  "name": "ability-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:app\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:app": "cd app && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0"
+  }
+}

@@ -1,0 +1,95 @@
+- code: lead_entry_completion
+  name: 线索录入与补全
+  display_name: 线索录入与补全
+  description: ''
+  business_goal: 完成线索的完整信息录入，为后续转化做准备
+  involved_objects:
+    - Lead
+  steps:
+    - step: 1
+      behavior: Lead.Create
+      behavior_name: 创建线索
+    - step: 2
+      event: lead.created
+      event_name: 线索已创建
+    - step: 3
+      behavior: Lead.Complete
+      behavior_name: 补全线索信息
+    - step: 4
+      event: lead.completed
+      event_name: 线索已补全
+  success_criteria:
+    - 线索信息完整度≥80%
+    - 线索状态变更为已补全
+- code: lead_to_opportunity
+  name: 线索转商机
+  display_name: 线索转商机
+  description: ''
+  business_goal: 将符合条件的线索转化为销售商机
+  involved_objects:
+    - Lead
+    - Opportunity
+  steps:
+    - step: 1
+      behavior: Lead.Evaluate
+      behavior_name: 评估线索
+    - step: 2
+      event: lead.evaluated
+      event_name: 线索已评估
+    - step: 3
+      behavior: Lead.ConvertToOpportunity
+      behavior_name: 转化为商机
+    - step: 4
+      event: lead.converted
+      event_name: 线索已转化
+    - step: 5
+      behavior: Opportunity.Create
+      behavior_name: 创建商机
+    - step: 6
+      event: opportunity.created
+      event_name: 商机已创建
+  success_criteria:
+    - 线索转化率>30%
+    - 商机金额>0
+- code: opportunity_to_quote
+  name: 商机到报价
+  display_name: 商机到报价
+  description: ''
+  business_goal: 推进商机至报价阶段，完成报价单审批
+  involved_objects:
+    - Opportunity
+    - Quote
+  steps:
+    - step: 1
+      behavior: Opportunity.Advance
+      behavior_name: 推进商机
+    - step: 2
+      event: opportunity.advanced
+      event_name: 商机已推进
+    - step: 3
+      behavior: Opportunity.CreateQuote
+      behavior_name: 创建报价单
+    - step: 4
+      event: opportunity.won
+      event_name: 商机已赢单
+    - step: 5
+      behavior: Quote.Create
+      behavior_name: 创建报价
+    - step: 6
+      event: quote.created
+      event_name: 报价单已创建
+    - step: 7
+      behavior: Quote.Submit
+      behavior_name: 提交审批
+    - step: 8
+      event: quote.submitted
+      event_name: 报价已提交审批
+    - step: 9
+      behavior: Quote.Approve
+      behavior_name: 审批通过
+    - step: 10
+      event: quote.approved
+      event_name: 报价已批准
+  success_criteria:
+    - 报价审批完成
+    - 商机状态更新为赢单

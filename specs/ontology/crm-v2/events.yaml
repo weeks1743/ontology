@@ -1,0 +1,160 @@
+- code: lead.completed
+  name: 线索已补全
+  display_name: 线索已补全
+  description: ''
+  producer_object: Lead
+  producer_object_name: 线索
+  producer_behavior: Lead.Complete
+  producer_behavior_name: 补全线索信息
+  subscribers:
+    - Lead.Evaluate
+  impacted_objects:
+    - Lead
+- code: lead.converted
+  name: 线索已转化
+  display_name: 线索已转化
+  description: ''
+  producer_object: Lead
+  producer_object_name: 线索
+  producer_behavior: Lead.ConvertToOpportunity
+  producer_behavior_name: 转化为商机
+  subscribers:
+    - Opportunity.Create
+  impacted_objects:
+    - Lead
+    - Opportunity
+- code: lead.created
+  name: 线索已创建
+  display_name: 线索已创建
+  description: ''
+  producer_object: Lead
+  producer_object_name: 线索
+  producer_behavior: Lead.Create
+  producer_behavior_name: 创建线索
+  subscribers:
+    - Lead.Complete
+  impacted_objects:
+    - Lead
+- code: lead.evaluated
+  name: 线索已评估
+  display_name: 线索已评估
+  description: ''
+  producer_object: Lead
+  producer_object_name: 线索
+  producer_behavior: Lead.Evaluate
+  producer_behavior_name: 评估线索
+  subscribers:
+    - Lead.ConvertToOpportunity
+  impacted_objects:
+    - Lead
+- code: opportunity.advanced
+  name: 商机已推进
+  display_name: 商机已推进
+  description: ''
+  producer_object: Opportunity
+  producer_object_name: 商机
+  producer_behavior: Opportunity.Advance
+  producer_behavior_name: 推进商机
+  subscribers:
+    - Opportunity.CreateQuote
+  impacted_objects:
+    - Opportunity
+- code: opportunity.created
+  name: 商机已创建
+  display_name: 商机已创建
+  description: ''
+  producer_object: Opportunity
+  producer_object_name: 商机
+  producer_behavior: Opportunity.Create
+  producer_behavior_name: 创建商机
+  subscribers:
+    - Opportunity.Advance
+  impacted_objects:
+    - Opportunity
+  payload_schema:
+    - name: lead_id
+      type: string
+      required: true
+      description: 线索ID
+    - name: opportunity_id
+      type: string
+      required: true
+      description: 商机ID
+    - name: customer_id
+      type: string
+      required: true
+      description: 客户ID
+    - name: contact_id
+      type: string
+      required: true
+      description: 联系人ID
+    - name: conversion_timestamp
+      type: datetime
+      required: true
+      description: 转化时间
+  propagation_conditions:
+    - condition: opportunity.status == 'active'
+      action: propagate
+    - condition: opportunity.status == 'cancelled'
+      action: skip
+  triggered_behaviors:
+    - Activity.LogFollowUp
+  trace_policy:
+    retention_days: 90
+    include_payload: true
+    trace_upstream: true
+  causality:
+    triggers_after:
+      - lead.completed
+    blocks_until: []
+    triggers:
+      - activity.logged
+- code: opportunity.won
+  name: 商机已赢单
+  display_name: 商机已赢单
+  description: ''
+  producer_object: Opportunity
+  producer_object_name: 商机
+  producer_behavior: Opportunity.CreateQuote
+  producer_behavior_name: 创建报价单
+  subscribers:
+    - Quote.Create
+  impacted_objects:
+    - Opportunity
+    - Quote
+- code: quote.approved
+  name: 报价已批准
+  display_name: 报价已批准
+  description: ''
+  producer_object: Quote
+  producer_object_name: 报价
+  producer_behavior: Quote.Approve
+  producer_behavior_name: 审批通过
+  subscribers: []
+  impacted_objects:
+    - Quote
+    - Opportunity
+- code: quote.created
+  name: 报价单已创建
+  display_name: 报价单已创建
+  description: ''
+  producer_object: Quote
+  producer_object_name: 报价
+  producer_behavior: Quote.Create
+  producer_behavior_name: 创建报价
+  subscribers:
+    - Quote.Submit
+  impacted_objects:
+    - Quote
+- code: quote.submitted
+  name: 报价已提交审批
+  display_name: 报价已提交审批
+  description: ''
+  producer_object: Quote
+  producer_object_name: 报价
+  producer_behavior: Quote.Submit
+  producer_behavior_name: 提交审批
+  subscribers:
+    - Quote.Approve
+  impacted_objects:
+    - Quote

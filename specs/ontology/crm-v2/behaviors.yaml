@@ -1,0 +1,247 @@
+- code: Lead.Complete
+  name: 补全线索信息
+  display_name: 补全线索信息
+  description: ''
+  owner_object: Lead
+  owner_object_name: 线索
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  required_inputs:
+    - budget
+    - company
+  referenced_rules:
+    - Lead.RequiredInfo
+    - Lead.BudgetThreshold
+  emits_events:
+    - lead.completed
+  writeback_targets:
+    - Lead
+- code: Lead.ConvertToOpportunity
+  name: 转化为商机
+  display_name: 转化为商机
+  description: ''
+  owner_object: Lead
+  owner_object_name: 线索
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  inputs:
+    - name: budget
+      type: number
+      required: true
+      description: 预算金额
+      validation:
+        min: 0
+        max: 999999999
+    - name: company
+      type: string
+      required: true
+      description: 公司名称
+      validation:
+        min_length: 2
+        max_length: 100
+    - name: conversion_reason
+      type: string
+      required: false
+      description: 转化原因
+  referenced_rules:
+    - Lead.RequiredInfo
+    - Lead.BudgetThreshold
+  emits_events:
+    - lead.converted
+  writeback_targets:
+    - Lead
+    - Opportunity
+  aliases:
+    - 转商机
+    - 转成商机
+    - 线索转化
+    - 创建商机
+  nl_examples:
+    - 把这个线索转成商机
+    - 转化这个潜客
+    - 创建商机
+    - 线索转商机
+  preconditions:
+    - rule: Lead.ConvertibleCheck
+      failure_action: block
+    - rule: Lead.BudgetThreshold
+      failure_action: warn
+  result_schema:
+    - name: opportunity_id
+      type: string
+      description: 创建的商机ID
+    - name: customer_id
+      type: string
+      description: 创建的客户ID
+    - name: contact_id
+      type: string
+      description: 创建的联系人ID
+    - name: success
+      type: boolean
+      description: 是否成功
+  postconditions:
+    - type: state_change
+      details:
+        from: 已评估
+        to: 已转化
+    - type: event_emitted
+      details:
+        event: opportunity.created
+    - type: creates_object
+      details:
+        type: Opportunity
+        relation: converted_from
+    - type: creates_object
+      details:
+        type: Customer
+    - type: creates_object
+      details:
+        type: Contact
+  side_effects:
+    - type: modifies
+      target: Lead
+      fields:
+        - status
+        - converted_at
+    - type: creates
+      target: Opportunity
+    - type: creates
+      target: Customer
+    - type: creates
+      target: Contact
+- code: Lead.Create
+  name: 创建线索
+  display_name: 创建线索
+  description: ''
+  owner_object: Lead
+  owner_object_name: 线索
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  required_inputs:
+    - title
+    - source
+    - phone
+  referenced_rules:
+    - Lead.RequiredInfo
+  emits_events:
+    - lead.created
+  writeback_targets:
+    - Lead
+- code: Lead.Evaluate
+  name: 评估线索
+  display_name: 评估线索
+  description: ''
+  owner_object: Lead
+  owner_object_name: 线索
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  required_inputs:
+    - budget
+    - company
+  referenced_rules:
+    - Lead.BudgetThreshold
+  emits_events:
+    - lead.evaluated
+  writeback_targets:
+    - Lead
+- code: Opportunity.Advance
+  name: 推进商机
+  display_name: 推进商机
+  description: ''
+  owner_object: Opportunity
+  owner_object_name: 商机
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  required_inputs:
+    - stage
+    - probability
+  referenced_rules:
+    - Opportunity.ProbabilityRange
+  emits_events:
+    - opportunity.advanced
+  writeback_targets:
+    - Opportunity
+- code: Opportunity.Create
+  name: 创建商机
+  display_name: 创建商机
+  description: ''
+  owner_object: Opportunity
+  owner_object_name: 商机
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  required_inputs:
+    - name
+    - amount
+    - closeDate
+  referenced_rules:
+    - Opportunity.ProbabilityRange
+  emits_events:
+    - opportunity.created
+  writeback_targets:
+    - Opportunity
+- code: Opportunity.CreateQuote
+  name: 创建报价单
+  display_name: 创建报价单
+  description: ''
+  owner_object: Opportunity
+  owner_object_name: 商机
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  required_inputs:
+    - quoteNo
+    - amount
+  referenced_rules:
+    - Quote.AmountApproval
+  emits_events:
+    - opportunity.won
+  writeback_targets:
+    - Quote
+- code: Quote.Approve
+  name: 审批通过
+  display_name: 审批通过
+  description: ''
+  owner_object: Quote
+  owner_object_name: 报价
+  trigger_type: SYSTEM_OR_MANAGER_ACTION
+  trigger_type_label: 系统或管理员操作
+  required_inputs: []
+  referenced_rules: []
+  emits_events:
+    - quote.approved
+  writeback_targets:
+    - Quote
+    - Opportunity
+- code: Quote.Create
+  name: 创建报价
+  display_name: 创建报价
+  description: ''
+  owner_object: Quote
+  owner_object_name: 报价
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  required_inputs:
+    - quoteNo
+    - amount
+    - validDays
+  referenced_rules:
+    - Quote.AmountApproval
+  emits_events:
+    - quote.created
+  writeback_targets:
+    - Quote
+- code: Quote.Submit
+  name: 提交审批
+  display_name: 提交审批
+  description: ''
+  owner_object: Quote
+  owner_object_name: 报价
+  trigger_type: USER_ACTION
+  trigger_type_label: 用户操作
+  required_inputs:
+    - approverId
+  referenced_rules:
+    - Quote.AmountApproval
+  emits_events:
+    - quote.submitted
+  writeback_targets:
+    - Quote

@@ -295,6 +295,19 @@ const EXTERNAL_TEST_CASES: TestCase[] = [
       format: 'html'
     },
     status: 'pending'
+  },
+  {
+    id: 'EXT005',
+    name: '火山方舟联网搜索',
+    description: '测试火山方舟 Web Search - 搜索大模型领域最新进展',
+    skillId: 'ext.volcengine_web_search',
+    params: {
+      query: '大模型领域最近有什么热门的科技新闻？火山方舟最近发布了什么新模型',
+      max_keyword: 3,
+      limit: 10,
+      sources: ['douyin', 'toutiao', 'moji']
+    },
+    status: 'pending'
   }
 ];
 

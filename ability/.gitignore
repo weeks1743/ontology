@@ -2,6 +2,14 @@
 node_modules/
 dist/
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
 # Environment variables - NEVER COMMIT
 .env
 *.env.local

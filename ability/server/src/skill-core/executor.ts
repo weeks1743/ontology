@@ -21,6 +21,7 @@ import type {
 import { substituteArguments, parseArgumentNames } from './params.js';
 import { executeShellCommandsInPrompt, hasShellCommands } from './shell.js';
 import { getSkillById } from './discovery.js';
+import { getSkillConfig } from '../engine/external-skills.js';
 
 // ─── LLM 配置（延迟读取 .env，避免模块加载顺序问题）──────────
 
@@ -436,11 +437,14 @@ async function tryExecuteScript(
 
   if (!scriptPath || !command) return null;
 
+  // 加载技能配置（从 skills.json）
+  const skillConfig = getSkillConfig(skill.id);
+
   // 执行脚本
   return new Promise((resolve, reject) => {
     const proc = spawn(command, [scriptPath, JSON.stringify(params)], {
       cwd: skill.skillDir,
-      env: process.env as Record<string, string>,
+      env: { ...process.env, ...skillConfig } as Record<string, string>,  // 合并配置
     });
 
     let stdout = '';

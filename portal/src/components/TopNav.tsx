@@ -31,8 +31,8 @@ export default function TopNav() {
         })}
       </div>
       <div className="ml-auto flex items-center">
-        <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs text-white/50">
-          U
+        <div className="px-3 py-1 rounded-md bg-white/10 text-sm text-white/70">
+          赋能科技
         </div>
       </div>
     </nav>

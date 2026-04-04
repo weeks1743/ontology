@@ -23,16 +23,6 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'yaml', icon: Code, label: 'YAML 查看' },
 ];
 
-const PALETTE_COLORS = [
-  '#3B82F6',
-  '#10B981',
-  '#F59E0B',
-  '#F97316',
-  '#EF4444',
-  '#06B6D4',
-  '#8B5CF6',
-];
-
 export default function LeftSidebar({ ontology, onBackToList }: Props) {
   const activeTab = useOntologyStore((s) => s.activeTab);
   const setActiveTab = useOntologyStore((s) => s.setActiveTab);
@@ -95,18 +85,6 @@ export default function LeftSidebar({ ontology, onBackToList }: Props) {
         </ul>
       </div>
 
-      {/* Bottom color palette */}
-      <div className="absolute bottom-4 left-0 right-0 px-4">
-        <div className="flex items-center gap-2">
-          {PALETTE_COLORS.map((color) => (
-            <button
-              key={color}
-              className="w-4 h-4 rounded-full cursor-pointer hover:scale-110 transition-transform flex-shrink-0"
-              style={{ backgroundColor: color }}
-            />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

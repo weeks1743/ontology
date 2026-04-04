@@ -61,6 +61,8 @@ These patterns make a report look instantly AI-generated. Do not produce them:
 | Same font size for every paragraph | Vary prose density: lead paragraphs slightly larger (16px), supporting detail smaller (14px) |
 | Symmetrical two-column layouts everywhere | Use `2fr 1fr` or `3fr 1fr` — asymmetry implies hierarchy |
 | Inter as body font | Use system-ui / -apple-system stack (already in themes) |
+| `:::kpi` block where every value is `[INSERT VALUE]` / `[数据待填写]` in a narrative report | Use `:::callout` or `:::timeline` as the visual anchor instead |
+| `:::chart` with all-placeholder data in a text-heavy (narrative/mixed) section | Use `:::diagram` (flowchart/mindmap) or a `highlight-sentence` paragraph |
 
 ## 5. Content-Tone Color Calibration
 
@@ -70,7 +72,7 @@ When generating `theme_overrides` in `--plan` mode, suggest a tone-appropriate p
 |---|---|---|---|
 | **Contemplative / Research** | 认知、思维、本质、意义、哲学、研究、白皮书、学术 / philosophy, cognition, research, academic | `#7C6853` (warm brown) | Grounded, editorial |
 | **Technical / Engineering** | 架构、系统、API、性能、部署、代码、工程 / architecture, system, API, performance, engineering | `#3D5A80` (navy blue) | Precise, authoritative |
-| **Business / Data** | 销售、营收、KPI、增长、季报、业绩 / sales, revenue, KPI, growth, quarterly | `#0F7B6C` (deep teal) | Confident, forward |
+| **Business / Data** | 销售、营收、KPI、增长、季报、业绩 / sales, revenue, KPI, growth, quarterly | `#1F6F50` (pine green) | Restrained, commercial, premium |
 | **Narrative / Annual** | 故事、增长、复盘、年度 / story, growth, retrospective, annual | `#B45309` (amber) | Warm, momentum |
 | **Editorial / News** | 新闻、行业、趋势、观察 / news, industry, trend | `#1C1C1E` (near-black) | Authoritative, print |
 
@@ -113,4 +115,5 @@ Before writing the final HTML, answer each question. Fix any "no":
 - [ ] Are there 3+ consecutive all-prose sections with no component? If yes → insert visual anchor
 - [ ] Do all section headings feel like AI-generated template phrases? If yes → make them content-specific
 - [ ] Is every card's `border-radius` identical? If yes → vary radii between data elements and prose cards
+- [ ] Does any `:::kpi` or `:::chart` block contain only placeholder values (`[INSERT VALUE]` / `[数据待填写]`) in a `narrative` or `mixed` report? If yes → replace with `:::callout`, `:::timeline`, or `:::diagram`
 - [ ] **If you told someone "an AI wrote this", would they immediately believe it?** If yes → find the most generic-looking part and redesign it

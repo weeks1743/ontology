@@ -2,6 +2,7 @@
 export interface Skill {
   id: string;
   name: string;
+  display_name?: string; // 中文显示名称
   description: string;
   category: 'ontology' | 'external';
   source: string;

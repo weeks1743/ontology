@@ -1,12 +1,9 @@
 ---
-name: ext.kai_report_creator
+name: kai-report-creator
 description: Use when the user wants to CREATE or GENERATE a report, business summary, data dashboard, or research doc — 报告/数据看板/商业报告/研究文档/KPI仪表盘. Handles Chinese and English equally. Supports generating from raw notes, data, URLs, or an approved plan file. Use for --plan (structure first), --generate (render to HTML), --themes (preview styles), --from <file>, --bundle, --export-image flags. Does NOT apply to exporting finished HTML to PPTX/PNG (use kai-html-export) or creating slide decks (use kai-slide-creator).
-version: 1.6.0
+version: 1.8.2
 user-invocable: true
-context: inline
-allowed-tools: ["Bash"]
-shell: bash
-metadata: {"emoji": "📊", "category": "report"}
+metadata: {"openclaw": {"emoji": "📊"}}
 ---
 
 # kai-report-creator
@@ -32,7 +29,7 @@ When invoked as `/report [flags] [content]`, parse flags and route:
 | `--themes` | Output `report-themes-preview.html` showing all 6 built-in themes. Do not generate a report. |
 | `--bundle` | Generate HTML with all CDN libraries inlined. Overrides `charts: cdn` in frontmatter. |
 | `--from <file>` | If file's first line is `---`, treat as IR and render directly. Otherwise treat as raw content, generate IR first then render. If ambiguous, ask user to confirm. |
-| `--theme <name>` | Override theme. Valid: `corporate-blue`, `minimal`, `dark-tech`, `dark-board`, `data-story`, `newspaper`. |
+| `--theme <name>` | Override theme. Built-in: `corporate-blue`, `minimal`, `dark-tech`, `dark-board`, `data-story`, `newspaper`. Custom: any folder name under `themes/` (e.g. `--theme my-brand` uses `themes/my-brand/`). See `themes/README.zh-CN.md`. |
 | `--template <file>` | Use a custom HTML template file. Read it and inject rendered content into placeholders. |
 | `--output <filename>` | Save HTML to this filename instead of the default. |
 | `--export-image [mode]` | After generating HTML, also export to image via `scripts/export-image.py`. Mode: `im` (default), `mobile`, `desktop`, `all`. Requires: `pip install playwright && playwright install chromium`. |
@@ -139,6 +136,32 @@ When the user runs `/report --plan "topic"`:
 
 **Step 1 — Suggest theme.** Check content-type routing table. If a match is found, suggest the recommended theme in the IR frontmatter and inform the user.
 
+**Step 1.5 — Analyze content nature.**
+
+Scan the user's topic/content input and compute numeric density:
+- Count **numeric tokens**: words/phrases containing digits with quantitative meaning — e.g. `128K`, `8.6%`, `¥3200万`, `$1.2B`, `+18%`, `3x`. Exclude ordinals used as labels (`Q3`, `第一`, `Step 2`).
+- **Density** = numeric token count / total word count (Chinese: character-segment count; English: whitespace-split word count)
+
+Classify:
+
+| Class | Density | Description |
+|-------|---------|-------------|
+| `narrative` | < 5% | Primarily text — research, editorial, philosophy, retrospective prose |
+| `mixed` | 5–20% | Mix of text and data — project reports, team updates, product reviews |
+| `data` | > 20% | Data-heavy — sales dashboards, KPI reports, financial summaries |
+
+(Boundary: exactly 20% counts as `mixed`.)
+
+If total word count < 10 (e.g. a bare topic like `Q3`), skip density calculation and default to `mixed`.
+
+Announce the classification to the user. Examples:
+- narrative: "内容以文字叙述为主（narrative），将使用 callout/timeline 作为视觉锚点，不插入空 KPI 占位符。"
+- mixed: "内容为图文混合（mixed），有明确数字的章节才会使用 KPI/图表组件。"
+- data: "内容以数据为主（data），将使用 KPI/图表作为主要视觉锚点。"
+- (English equivalent when `lang: en`)
+
+Store the class (`narrative` / `mixed` / `data`) and apply it in Step 2 item 3.5 (component routing) and item 4 (visual rhythm rules).
+
 **Step 2 — Plan the structure.**
 
 1. Think about the report structure: appropriate sections, data the user likely has.
@@ -160,11 +183,29 @@ When the user runs `/report --plan "topic"`:
    - `sankey`: **use when data has quantified flows between named categories** — budget allocation across departments, multi-source conversion funnels (where users branch to different paths), supply chain, energy/material flows. Key signal: the data has `source → target: value` triples. Requires ECharts.
    - Do NOT use sankey for simple proportions (use pie) or ordered stages with no branching (use funnel).
 
+3.5. **Content Nature → Component Routing** — apply based on the class determined in Step 1.5:
+
+| Class | Preferred visual anchors | Prohibited |
+|-------|--------------------------|------------|
+| `narrative` | `:::callout`, `:::timeline`, `:::diagram`, `highlight-sentence` | `:::kpi` and `:::chart` with all-placeholder values |
+| `mixed` | `:::callout`/`:::timeline` by default; `:::kpi`/`:::chart` only when that section contains real numbers from the source | `:::kpi` or `:::chart` where every value is a placeholder |
+| `data` | `:::kpi` > `:::chart` > others | — (existing behavior) |
+
+**narrative strict rule:** Never generate a `:::kpi` or `:::chart` block where all values are `[数据待填写]` / `[INSERT VALUE]`. If a section has no numbers, use `:::callout`, `:::timeline`, or `:::diagram` instead.
+
+**mixed rule:** A `:::kpi` block is only allowed if at least one value in that block is a real number extracted from the source content.
+
 4. **Apply visual rhythm rules** when laying out sections:
    - Never place 3 or more consecutive sections containing only plain Markdown prose (no components)
-   - Ideal section rhythm: `prose → kpi → chart/table → callout/timeline → prose → ...`
-   - Every 4–5 sections, insert a "visual anchor" — at least one `:::kpi`, `:::chart`, or `:::diagram` block
-   - If a topic area would generate 3+ consecutive prose sections, break it up by inserting a `:::callout` or `:::kpi` with placeholder values
+   - Every 4–5 sections, insert a "visual anchor" — type depends on content class from Step 1.5:
+     - `narrative`: use `:::callout`, `:::timeline`, `:::diagram`, or a `highlight-sentence` paragraph
+     - `mixed`: use `:::callout`/`:::timeline` by default; use `:::kpi`/`:::chart` only if that section has real numbers
+     - `data`: use `:::kpi` or `:::chart` (existing behavior)
+   - Ideal rhythm by class:
+     - `narrative`: `prose → callout → prose → timeline → prose → diagram → ...`
+     - `mixed`: `prose → callout → prose → kpi(if numbers) → prose → timeline → ...`
+     - `data`: `prose → kpi → chart/table → callout/timeline → prose → ...`
+   - **Never** break up consecutive prose sections by inserting a `:::kpi` with placeholder values in `narrative` or `mixed` reports — use `:::callout` instead
 5. Save to `report-<slug>.report.md` using the Write tool.
 6. Tell the user:
    - The IR file path
@@ -188,6 +229,8 @@ When rendering IR to HTML, apply component-specific rendering rules. Each compon
 **Detailed rendering rules are in `references/rendering-rules.md`** — load when generating HTML.
 
 **Design quality rules are in `references/design-quality.md`** — load alongside rendering-rules.md. Apply the 90/8/2 color law, KPI column rules, anti-slop patterns, and run the pre-output self-check before writing.
+
+When the report is explicitly comparing named vendors, models, or tools, set `data-report-mode="comparison"` on the outer report container and use `.badge--entity-a/.badge--entity-b/.badge--entity-c` only for entity identity. Do not use entity colors on generic KPI values or generic badges.
 
 **CRITICAL: The final HTML must contain zero `:::` sequences.** Any `:::tag`, param line, or closing `:::` appearing in the output means a directive was not converted — find it and fix it before writing the file.
 

@@ -404,8 +404,14 @@ function detectExecutionMode(skill: ParsedSkill): 'inline' | 'fork' | 'spawn' {
   // body 中有 shell 执行语法 → inline
   if (hasShellCommands(body)) return 'inline';
 
-  // 有 scripts/ 目录 → spawn
-  if (existsSync(join(skill.skillDir, 'scripts'))) return 'spawn';
+  // 有 scripts/ 目录且包含可执行脚本 → spawn
+  const scriptsDir = join(skill.skillDir, 'scripts');
+  if (existsSync(scriptsDir)) {
+    const scriptFiles = ['generate.js', 'search.py', 'execute.js', 'run.py', 'index.js'];
+    for (const file of scriptFiles) {
+      if (existsSync(join(scriptsDir, file))) return 'spawn';
+    }
+  }
 
   // 默认 inline
   return 'inline';

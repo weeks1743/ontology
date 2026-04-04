@@ -1,5 +1,5 @@
 ---
-name: ext.baidu_search
+name: baidu-search
 description: 使用百度搜索 API 进行网络搜索
 metadata: { "openclaw": { "emoji": "🔍", "requires": { "bins": ["python3"], "env": ["BAIDU_API_KEY"] } } }
 ---

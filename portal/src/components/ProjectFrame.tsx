@@ -16,7 +16,7 @@ export default function ProjectFrame({ layer }: { layer: LayerConfig }) {
         height: 'calc(100vh - 48px)',
         display: isActive ? 'block' : 'none',
       }}
-      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
     />
   );
 }

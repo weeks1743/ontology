@@ -15,15 +15,17 @@ import {
 } from './discovery.js';
 import { executeSkill } from './executor.js';
 import { validateSkillMd } from './parser.js';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { randomUUID } from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const SKILLS_DIR = join(__dirname, '../../../skills');
+const TMP_DIR = join(__dirname, '../../../tmp');
 
 export const skillCoreRouter = Router();
 
@@ -105,6 +107,35 @@ skillCoreRouter.post('/:id/execute', async (req: Request, res: Response) => {
       durationMs: 0,
     });
   }
+});
+
+/** POST /api/v2/skills/save-html — 保存 HTML 内容到 tmp 目录，返回文件 URL */
+skillCoreRouter.post('/save-html', (req: Request, res: Response) => {
+  const { html, testId, skillId } = req.body as { html: string; testId?: string; skillId?: string };
+
+  if (!html || typeof html !== 'string') {
+    res.status(400).json({ error: 'Missing html content' });
+    return;
+  }
+
+  // 确保 tmp 目录存在
+  if (!existsSync(TMP_DIR)) {
+    mkdirSync(TMP_DIR, { recursive: true });
+  }
+
+  // 生成文件名：testId-skillId-uuid.html
+  const fileId = randomUUID().slice(0, 8);
+  const prefix = testId || skillId || 'report';
+  const filename = `${prefix}-${fileId}.html`;
+  const filePath = join(TMP_DIR, filename);
+
+  writeFileSync(filePath, html, 'utf-8');
+
+  // 返回可通过 /tmp/ 访问的 URL
+  const fileUrl = `/tmp/${filename}`;
+  console.log(`[skill-core] Saved HTML report: ${filename} (${html.length} chars)`);
+
+  res.json({ success: true, filename, url: fileUrl });
 });
 
 /** GET /api/v2/skills/:id/validate — 验证技能 */

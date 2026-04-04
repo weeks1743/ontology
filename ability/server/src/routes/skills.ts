@@ -1,9 +1,28 @@
 import { Router } from 'express';
 import { db } from '../db.js';
 import { Skill } from '../types.js';
-import { getAllSkills } from '../skill-core/discovery.js';
+import { getAllSkills, getSkillById } from '../skill-core/discovery.js';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 const router = Router();
+
+// 加载技能名称映射配置
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const skillNamesPath = join(__dirname, '../../config/skill-names.json');
+let skillNamesMap: Record<string, { display_name: string; emoji?: string }> = {};
+
+try {
+  if (existsSync(skillNamesPath)) {
+    const content = readFileSync(skillNamesPath, 'utf-8');
+    skillNamesMap = JSON.parse(content);
+  }
+} catch (error) {
+  console.warn('Failed to load skill-names.json:', error);
+}
 
 // 获取所有技能（合并 SQLite + skill-core registry）
 router.get('/', (req, res) => {
@@ -39,24 +58,28 @@ router.get('/', (req, res) => {
     // 2. 从 skill-core registry 获取新系统技能（仅 external）
     const skillCoreSkills = getAllSkills()
       .filter(skill => skill.loadedFrom === 'external')
-      .map(skill => ({
-        id: skill.id,
-        name: skill.frontmatter.name || skill.id,
-        description: skill.frontmatter.description || '',
-        category: 'external',
-        source: skill.skillDir,
-        metadata: {
-          ...skill.frontmatter.metadata,
-          emoji: skill.frontmatter.metadata?.emoji,
-          context: skill.frontmatter.context,
-          arguments: skill.frontmatter.arguments,
-          when_to_use: skill.frontmatter.when_to_use,
-          version: skill.frontmatter.version,
-          user_invocable: skill.frontmatter['user-invocable'],
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
+      .map(skill => {
+        const nameMapping = skillNamesMap[skill.id] || {};
+        return {
+          id: skill.id,
+          name: skill.frontmatter.name || skill.id,
+          display_name: nameMapping.display_name || skill.frontmatter.name || skill.id,
+          description: skill.frontmatter.description || '',
+          category: 'external',
+          source: skill.skillDir,
+          metadata: {
+            ...skill.frontmatter.metadata,
+            emoji: nameMapping.emoji || skill.frontmatter.metadata?.emoji,
+            context: skill.frontmatter.context,
+            arguments: skill.frontmatter.arguments,
+            when_to_use: skill.frontmatter.when_to_use,
+            version: skill.frontmatter.version,
+            user_invocable: skill.frontmatter['user-invocable'],
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      });
 
     // 3. 合并列表（去重：优先使用 skill-core 的数据）
     const skillMap = new Map<string, any>();
@@ -93,6 +116,65 @@ router.get('/:id', (req, res) => {
       output_schema: (skill as any).output_schema ? JSON.parse((skill as any).output_schema) : undefined,
     };
     res.json(parsed);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// 获取技能详情（README.md 或 SKILL.md body）
+router.get('/:id/detail', (req, res) => {
+  try {
+    const skill = getSkillById(req.params.id);
+    if (!skill) {
+      return res.status(404).json({ error: 'Skill not found' });
+    }
+
+    const skillDir = skill.skillDir;
+    const readmeZhPath = join(skillDir, 'README.zh-CN.md');
+    const readmePath = join(skillDir, 'README.md');
+    const skillMdPath = join(skillDir, 'SKILL.md');
+
+    // 获取 GitHub 仓库信息
+    const nameMapping = skillNamesMap[skill.id] || {};
+    const githubBaseUrl = skillNamesMap['_github_base_url'] || '';
+    const githubPath = nameMapping.github_path || '';
+
+    // 优先读取 README.zh-CN.md（中文文档优先）
+    if (existsSync(readmeZhPath)) {
+      const content = readFileSync(readmeZhPath, 'utf-8');
+      return res.json({
+        skill_id: skill.id,
+        content,
+        source: 'README.zh-CN.md',
+        github_base_url: githubBaseUrl,
+        github_path: githubPath,
+      });
+    }
+
+    // 其次读取 README.md
+    if (existsSync(readmePath)) {
+      const content = readFileSync(readmePath, 'utf-8');
+      return res.json({
+        skill_id: skill.id,
+        content,
+        source: 'README.md',
+        github_base_url: githubBaseUrl,
+        github_path: githubPath,
+      });
+    }
+
+    // 最后返回 SKILL.md 的 body（不含 frontmatter）
+    if (existsSync(skillMdPath)) {
+      return res.json({
+        skill_id: skill.id,
+        content: skill.body,
+        source: 'SKILL.md',
+        github_base_url: githubBaseUrl,
+        github_path: githubPath,
+      });
+    }
+
+    res.status(404).json({ error: 'No README.md or SKILL.md found' });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

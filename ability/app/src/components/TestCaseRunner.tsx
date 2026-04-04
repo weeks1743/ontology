@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Download } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertCircle, ExternalLink, Download, Loader2 } from 'lucide-react';
 
 interface TestCase {
   id: string;
@@ -14,6 +14,7 @@ interface TestCase {
   duration?: number;
   htmlUrl?: string;
   htmlContent?: string;
+  progress?: string;
 }
 
 interface TestCaseRunnerProps {
@@ -26,11 +27,11 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
   const [running, setRunning] = useState(false);
 
   const handleRunTest = async (testCase: TestCase) => {
-    setRunning(true);
+    // 不要全局锁定，允许并行运行多个测试
     try {
       await onRunTest(testCase);
-    } finally {
-      setRunning(false);
+    } catch (error) {
+      console.error('[TestCaseRunner] Test failed:', error);
     }
   };
 
@@ -44,17 +45,41 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
   };
 
   const handleDownload = (testCase: TestCase) => {
-    if (!testCase.htmlContent) return;
+    // 优先使用服务器持久化 URL 下载
+    if (testCase.htmlUrl && testCase.htmlUrl.startsWith('/tmp/')) {
+      const link = document.createElement('a');
+      link.href = testCase.htmlUrl;
+      link.download = `${testCase.skillId}-${testCase.id}.html`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => document.body.removeChild(link), 100);
+      return;
+    }
 
-    const blob = new Blob([testCase.htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `report-${testCase.id}-${Date.now()}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // 降级：使用 htmlContent 创建 blob
+    if (!testCase.htmlContent) {
+      alert('HTML 内容为空，无法下载');
+      return;
+    }
+
+    try {
+      const blob = new Blob([testCase.htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${testCase.skillId}-${testCase.id}.html`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 1000);
+    } catch (error) {
+      console.error('[Download] Failed:', error);
+      alert('下载失败：' + (error as Error).message);
+    }
   };
 
   const getStatusIcon = (status: TestCase['status']) => {
@@ -64,7 +89,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
       case 'failed':
         return <XCircle className="text-red-400" size={20} />;
       case 'running':
-        return <Clock className="text-indigo-400 animate-spin" size={20} />;
+        return <Loader2 className="text-indigo-400 animate-spin" size={20} />;
       default:
         return <AlertCircle className="text-gray-400" size={20} />;
     }
@@ -72,6 +97,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
 
   const passedCount = testCases.filter(tc => tc.status === 'passed').length;
   const failedCount = testCases.filter(tc => tc.status === 'failed').length;
+  const runningCount = testCases.filter(tc => tc.status === 'running').length;
   const totalCount = testCases.length;
 
   return (
@@ -106,7 +132,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
             className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-50"
           >
             <Play size={16} />
-            {running ? '运行中...' : '运行全部测试'}
+            {running ? `运行中 (${runningCount}/${totalCount})...` : '运行全部测试'}
           </button>
         </div>
       </div>
@@ -116,7 +142,11 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
         {testCases.map((testCase) => (
           <div
             key={testCase.id}
-            className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-indigo-500/30 transition-colors"
+            className={`bg-white/5 border rounded-xl p-4 transition-colors ${
+              testCase.status === 'running'
+                ? 'border-indigo-500/30'
+                : 'border-white/10 hover:border-indigo-500/30'
+            }`}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3 flex-1">
@@ -127,6 +157,14 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                     <span className="text-sm text-gray-400">{testCase.name}</span>
                   </div>
                   <p className="text-sm text-gray-400 mb-2">{testCase.description}</p>
+
+                  {/* 运行中进度反馈 - 简洁静态方案 */}
+                  {testCase.status === 'running' && (
+                    <div className="mt-3 mb-2 flex items-center gap-2 text-sm text-indigo-400">
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>{testCase.progress || '正在执行...'}</span>
+                    </div>
+                  )}
 
                   {/* 输入参数 */}
                   <details className="text-sm">
@@ -188,7 +226,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                   {/* 执行时间 */}
                   {testCase.duration !== undefined && (
                     <div className="mt-2 text-xs text-gray-500">
-                      耗时: {testCase.duration}ms
+                      耗时: {testCase.duration >= 1000 ? `${(testCase.duration / 1000).toFixed(1)}s` : `${testCase.duration}ms`}
                     </div>
                   )}
                 </div>
@@ -196,7 +234,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
 
               <button
                 onClick={() => handleRunTest(testCase)}
-                disabled={running || testCase.status === 'running'}
+                disabled={testCase.status === 'running'}
                 className="flex items-center gap-1 px-3 py-1 text-sm text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50"
               >
                 <Play size={14} />

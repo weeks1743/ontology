@@ -426,17 +426,6 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
         textStyle: { color: '#fff', fontSize: 12 },
         padding: [8, 12],
       },
-      legend: [
-        {
-          data: CATEGORIES.map((c) => c.name),
-          top: 12,
-          right: 16,
-          textStyle: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
-          icon: 'circle',
-          itemWidth: 10,
-          itemHeight: 10,
-        },
-      ],
       series: [
         {
           type: 'graph',
@@ -506,31 +495,6 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
 
       {/* Left overlay panel */}
       <div className="absolute left-4 top-4 w-52 bg-black/40 backdrop-blur rounded-xl p-4 pointer-events-auto">
-        {/* Node type legend */}
-        <p className="text-white/60 text-xs font-medium mb-2 tracking-wide">节点类型图例</p>
-        <div className="space-y-1.5">
-          {[
-            { label: '数据实体', color: '#6366F1', count: objects.length },
-            { label: '行为操作', color: '#10B981', count: behaviors.length },
-            { label: '业务规则', color: '#F59E0B', count: rules.length },
-            { label: '消息事件', color: '#F97316', count: events.length },
-          ].map(({ label, color, count }) => (
-            <div key={label} className="flex items-center gap-2">
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: color }}
-              />
-              <span className="text-white/70 text-xs flex-1">{label}</span>
-              <span
-                className="text-xs px-1.5 py-0.5 rounded-full font-mono"
-                style={{ backgroundColor: `${color}30`, color }}
-              >
-                {count}
-              </span>
-            </div>
-          ))}
-        </div>
-
         {/* Scenario filter section */}
         {scenarios.length > 0 && (
           <div className="mt-4">

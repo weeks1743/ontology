@@ -3,10 +3,12 @@ import { useAbilityStore } from '../store/ability-store';
 import { Skill } from '../types';
 import { Settings } from 'lucide-react';
 import SkillConfigDialog from '../components/SkillConfigDialog';
+import SkillDetailDialog from '../components/SkillDetailDialog';
 
 export default function SkillMarketPage() {
   const { skills, fetchSkills, loading } = useAbilityStore();
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
 
   useEffect(() => {
@@ -14,6 +16,11 @@ export default function SkillMarketPage() {
   }, [fetchSkills]);
 
   const externalSkills = skills.filter(s => s.category === 'external');
+
+  const handleCardClick = (skill: Skill) => {
+    setSelectedSkill(skill);
+    setDetailDialogOpen(true);
+  };
 
   const handleConfigClick = (skill: Skill) => {
     setSelectedSkill(skill);
@@ -46,6 +53,7 @@ export default function SkillMarketPage() {
               <SkillCard
                 key={skill.id}
                 skill={skill}
+                onClick={() => handleCardClick(skill)}
                 onConfig={() => handleConfigClick(skill)}
               />
             ))}
@@ -56,10 +64,20 @@ export default function SkillMarketPage() {
         {selectedSkill && (
           <SkillConfigDialog
             skillId={selectedSkill.id}
-            skillName={selectedSkill.name}
+            skillName={selectedSkill.display_name || selectedSkill.name}
             isOpen={configDialogOpen}
             onClose={() => setConfigDialogOpen(false)}
             onSave={handleConfigSave}
+          />
+        )}
+
+        {/* 详情对话框 */}
+        {selectedSkill && (
+          <SkillDetailDialog
+            skillId={selectedSkill.id}
+            skillName={selectedSkill.display_name || selectedSkill.name}
+            isOpen={detailDialogOpen}
+            onClose={() => setDetailDialogOpen(false)}
           />
         )}
       </div>
@@ -67,11 +85,17 @@ export default function SkillMarketPage() {
   );
 }
 
-function SkillCard({ skill, onConfig }: { skill: Skill; onConfig: () => void }) {
+function SkillCard({ skill, onClick, onConfig }: { skill: Skill; onClick: () => void; onConfig: () => void }) {
+  const displayName = skill.display_name || skill.name;
+  const displayEmoji = (skill.metadata as any).emoji || '⚙️';
+
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6 hover:border-indigo-500/30 transition-colors">
-      <div className="text-4xl mb-3">{skill.metadata.emoji || '⚙️'}</div>
-      <h3 className="text-lg font-semibold mb-2">{skill.name}</h3>
+    <div
+      onClick={onClick}
+      className="bg-white/5 border border-white/10 rounded-xl p-6 hover:border-indigo-500/30 transition-colors cursor-pointer"
+    >
+      <div className="text-4xl mb-3">{displayEmoji}</div>
+      <h3 className="text-lg font-semibold mb-2">{displayName}</h3>
       <p className="text-sm text-white/40 mb-4 line-clamp-2">{skill.description}</p>
       <div className="flex items-center justify-between">
         <span className="text-xs px-2 py-1 rounded bg-indigo-600/20 text-white">

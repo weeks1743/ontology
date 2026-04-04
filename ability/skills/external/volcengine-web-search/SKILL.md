@@ -1,5 +1,5 @@
 ---
-name: ext.volcengine_web_search
+name: volcengine-web-search
 description: 基于火山方舟联网搜索插件，使用 Doubao-Seed-2.0 模型实现实时网络信息检索，支持多源搜索（头条、抖音百科、墨迹天气）
 version: "1.0.0"
 metadata:

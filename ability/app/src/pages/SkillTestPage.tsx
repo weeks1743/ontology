@@ -14,14 +14,64 @@ async function executeSkillByType(skillId: string, params: any) {
       durationMs: result.duration_ms,
     };
   }
-  // 外部技能（ext.*）→ v2 API（LLM 执行）
+  // 外部技能 → v2 API（LLM 执行）
   const res = await fetch(`/api/v2/skills/${skillId}/execute`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ params }),
   });
-  if (!res.ok) throw new Error(`Failed to execute skill: ${res.statusText}`);
-  return res.json();
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || `Failed to execute skill: ${res.statusText}`);
+  }
+  return data;
+}
+
+/**
+ * 从 LLM 输出中提取纯 HTML 内容
+ * 处理 DeepSeek 等模型用 markdown 代码块包裹 HTML 的情况
+ */
+function extractHtmlContent(raw: string): string | null {
+  if (!raw) {
+    console.log('[extractHtml] Empty input');
+    return null;
+  }
+
+  console.log('[extractHtml] Input length:', raw.length);
+
+  // 1. 尝试从 markdown 代码块中提取（支持 ```html 和 ``` 两种格式）
+  const mdMatch = raw.match(/```(?:html)?\s*\n([\s\S]*?)```/);
+  if (mdMatch) {
+    const extracted = mdMatch[1].trim();
+    console.log('[extractHtml] Found markdown block, checking for HTML tags');
+    // 检查是否包含 HTML 标签（放宽条件，只要有 <html 或 <body 即可）
+    if (/<(?:html|body|!doctype)/i.test(extracted)) {
+      console.log('[extractHtml] ✓ Extracted from markdown block');
+      return extracted;
+    }
+  }
+
+  // 2. 尝试查找完整的 HTML 文档（从 <!DOCTYPE 或 <html 开始）
+  const htmlMatch = raw.match(/<(!doctype|html)[\s\S]*<\/html>/i);
+  if (htmlMatch) {
+    console.log('[extractHtml] ✓ Found complete HTML document');
+    return htmlMatch[0];
+  }
+
+  // 3. 尝试查找部分 HTML（包含 body）
+  const bodyMatch = raw.match(/<body[\s\S]*<\/body>/i);
+  if (bodyMatch) {
+    console.log('[extractHtml] ✓ Found body tag, wrapping as complete HTML');
+    // 包装为完整 HTML
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+${bodyMatch[0]}
+</html>`;
+  }
+
+  console.log('[extractHtml] ✗ No HTML content found');
+  return null;
 }
 
 interface TestCase {
@@ -37,6 +87,7 @@ interface TestCase {
   duration?: number;
   htmlUrl?: string;
   htmlContent?: string;
+  progress?: string;
 }
 
 // CRM 业务流程测试用例
@@ -209,7 +260,7 @@ const EXTERNAL_TEST_CASES: TestCase[] = [
     id: 'EXT001',
     name: '百度搜索',
     description: '测试百度搜索功能',
-    skillId: 'ext.baidu_search',
+    skillId: 'baidu-search',
     params: {
       query: '人工智能最新进展',
       limit: 5
@@ -220,7 +271,7 @@ const EXTERNAL_TEST_CASES: TestCase[] = [
     id: 'EXT002',
     name: '生成销售报告',
     description: '测试报告生成器 - 销售报告',
-    skillId: 'ext.kai_report_creator',
+    skillId: 'kai-report-creator',
     params: {
       template: 'sales_report',
       data: {
@@ -237,7 +288,7 @@ const EXTERNAL_TEST_CASES: TestCase[] = [
     id: 'EXT003',
     name: '生成商机分析报告',
     description: '测试报告生成器 - 商机分析',
-    skillId: 'ext.kai_report_creator',
+    skillId: 'kai-report-creator',
     params: {
       template: 'opportunity_analysis',
       data: {
@@ -255,7 +306,7 @@ const EXTERNAL_TEST_CASES: TestCase[] = [
     id: 'EXT004',
     name: '生成公司研究报告（HTML）',
     description: '测试报告生成器 - 公司研究报告（松井机械案例）',
-    skillId: 'ext.kai_report_creator',
+    skillId: 'kai-report-creator',
     params: {
       template: 'company_research_report',
       data: {
@@ -300,12 +351,33 @@ const EXTERNAL_TEST_CASES: TestCase[] = [
     id: 'EXT005',
     name: '火山方舟联网搜索',
     description: '测试火山方舟 Web Search - 搜索大模型领域最新进展',
-    skillId: 'ext.volcengine_web_search',
+    skillId: 'volcengine-web-search',
     params: {
       query: '大模型领域最近有什么热门的科技新闻？火山方舟最近发布了什么新模型',
       max_keyword: 3,
       limit: 10,
       sources: ['douyin', 'toutiao', 'moji']
+    },
+    status: 'pending'
+  },
+  {
+    id: 'EXT006',
+    name: '生成产品发布幻灯片（HTML）',
+    description: '测试幻灯片生成器 - 生成一份产品发布演示文稿（5页，含封面、痛点、方案、数据、结尾）',
+    skillId: 'kai-slide-creator',
+    params: {
+      command: '--generate',
+      topic: '协同办公 SaaS 产品发布会',
+      style: 'aurora-mesh',
+      language: 'zh-CN',
+      slides: [
+        { type: 'cover', title: 'AIFlux 协同办公平台', subtitle: '让协作更智能，让工作更高效', date: '2026年4月' },
+        { type: 'pain-point', title: '企业协作痛点', points: ['跨部门沟通成本高', '数据孤岛严重', '远程协作效率低', '信息安全难保障'] },
+        { type: 'solution', title: 'AIFlux 解决方案', features: ['智能工作流引擎', '实时协同编辑', '全链路数据打通', '企业级权限管控'] },
+        { type: 'data', title: '客户成效', metrics: [{ label: '协作效率提升', value: '65%' }, { label: '沟通成本降低', value: '40%' }, { label: '项目交付加速', value: '2x' }] },
+        { type: 'closing', title: '开启智能协作新时代', subtitle: '联系我们：contact@aiflux.com', cta: '立即预约演示' }
+      ],
+      output_format: 'html'
     },
     status: 'pending'
   }
@@ -320,61 +392,92 @@ export default function SkillTestPage() {
   const setCurrentTests = activeTab === 'ontology' ? setOntologyTests : setExternalTests;
 
   const runTest = async (testCase: TestCase) => {
-    // 更新状态为运行中
-    setCurrentTests(tests =>
-      tests.map(tc =>
-        tc.id === testCase.id ? { ...tc, status: 'running' as const, htmlUrl: undefined, htmlContent: undefined } : tc
-      )
-    );
+    const runId = testCase.id;
+
+    // 辅助：只更新当前测试用例
+    const updateTc = (patch: Partial<TestCase>) => {
+      setCurrentTests(tests =>
+        tests.map(tc => tc.id === runId ? { ...tc, ...patch } : tc)
+      );
+    };
+
+    updateTc({ status: 'running', htmlUrl: undefined, htmlContent: undefined, progress: '正在执行...', duration: undefined });
+
+    const startTime = Date.now();
+
+    // 简洁的计时器：仅显示已等待时长，不频繁切换消息
+    const timerRef = setInterval(() => {
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+      updateTc({ progress: `正在执行... (${elapsed}s)` });
+    }, 1000);
 
     try {
-      const startTime = Date.now();
       const result = await executeSkillByType(testCase.skillId, testCase.params);
       const duration = Date.now() - startTime;
+      clearInterval(timerRef);
 
       const success = result.success;
-      let htmlUrl: string | undefined;
-
-      // 从 spawnOutput 中提取内容
       const output = result.spawnOutput;
       const outputStr = typeof output === 'string' ? output : JSON.stringify(output);
 
-      // 检测是否为 HTML 输出
       let htmlContent: string | undefined;
-      if (success && outputStr && outputStr.includes('<!DOCTYPE html')) {
-        htmlContent = outputStr;
-        const blob = new Blob([outputStr], { type: 'text/html' });
-        htmlUrl = URL.createObjectURL(blob);
+      let htmlUrl: string | undefined;
+
+      // 调试：查看原始输出
+      console.log('[extractHtml] Raw output length:', outputStr.length);
+      console.log('[extractHtml] First 200 chars:', outputStr.substring(0, 200));
+
+      const extractedHtml = extractHtmlContent(outputStr);
+      console.log('[extractHtml] Extracted HTML:', extractedHtml ? `${extractedHtml.length} chars` : 'null');
+
+      if (success && extractedHtml) {
+        htmlContent = extractedHtml;
+        // 保存 HTML 到服务器 tmp 目录，获取持久化 URL
+        try {
+          const saveRes = await fetch('/api/v2/skills/save-html', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              html: extractedHtml,
+              testId: testCase.id,
+              skillId: testCase.skillId,
+            }),
+          });
+          const saveData = await saveRes.json();
+          if (saveRes.ok && saveData.url) {
+            htmlUrl = saveData.url;
+            console.log('[extractHtml] Saved to server:', saveData.url);
+          } else {
+            console.warn('[extractHtml] Save failed, falling back to blob URL');
+            const blob = new Blob([extractedHtml], { type: 'text/html' });
+            htmlUrl = URL.createObjectURL(blob);
+          }
+        } catch (e) {
+          console.warn('[extractHtml] Save request failed, falling back to blob URL:', e);
+          const blob = new Blob([extractedHtml], { type: 'text/html' });
+          htmlUrl = URL.createObjectURL(blob);
+        }
+      } else if (success) {
+        console.warn('[extractHtml] Success but no HTML extracted');
       }
 
-      setCurrentTests(tests =>
-        tests.map(tc =>
-          tc.id === testCase.id
-            ? {
-                ...tc,
-                status: success ? 'passed' : 'failed',
-                actualResult: output ? { format: htmlUrl ? 'html' : 'text', length: outputStr.length, preview: outputStr.substring(0, 500) } : undefined,
-                error: result.error,
-                duration,
-                htmlUrl,
-                htmlContent
-              }
-            : tc
-        )
-      );
+      updateTc({
+        status: success ? 'passed' : 'failed',
+        actualResult: output ? { format: htmlUrl ? 'html' : 'text', length: outputStr.length, preview: outputStr.substring(0, 500) } : undefined,
+        error: result.error,
+        duration,
+        htmlUrl,
+        htmlContent,
+        progress: undefined,
+      });
     } catch (error) {
-      setCurrentTests(tests =>
-        tests.map(tc =>
-          tc.id === testCase.id
-            ? {
-                ...tc,
-                status: 'failed',
-                error: (error as Error).message,
-                duration: 0
-              }
-            : tc
-        )
-      );
+      clearInterval(timerRef);
+      updateTc({
+        status: 'failed',
+        error: (error as Error).message,
+        duration: Date.now() - startTime,
+        progress: undefined,
+      });
     }
   };
 

@@ -1,0 +1,18 @@
+{
+  "_github_base_url": "https://github.com/openclaw/ability/blob/main/skills/external",
+  "baidu-search": {
+    "display_name": "百度搜索",
+    "emoji": "🔍",
+    "github_path": "baidu-search"
+  },
+  "kai-report-creator": {
+    "display_name": "Kai 报告生成器",
+    "emoji": "📊",
+    "github_path": "kai-report-creator"
+  },
+  "volcengine-web-search": {
+    "display_name": "火山方舟联网搜索",
+    "emoji": "🌐",
+    "github_path": "volcengine-web-search"
+  }
+}

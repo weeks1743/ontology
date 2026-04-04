@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { existsSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { db, initDatabase } from './db.js';
 import { initializeDatabases, disconnectAll } from './database/index.js';
 import { loadExternalSkills } from './engine/external-skills.js';
@@ -14,12 +17,22 @@ import ontologiesRouter from './routes/ontologies.js';
 // skill-core: 新增 SKILL 核心模块（独立路由）
 import { skillCoreRouter, initSkillCore } from './skill-core/index.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 const PORT = 3002;
 
+// 确保 tmp 目录存在
+const TMP_DIR = join(__dirname, '../../tmp');
+if (!existsSync(TMP_DIR)) mkdirSync(TMP_DIR, { recursive: true });
+
 // 中间件
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// 静态文件：tmp 目录用于存放生成的 HTML 报告
+app.use('/tmp', express.static(TMP_DIR));
 
 // 初始化 SQLite 数据库
 initDatabase();

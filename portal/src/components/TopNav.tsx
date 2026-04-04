@@ -6,6 +6,9 @@ export default function TopNav() {
 
   return (
     <nav className="flex items-center h-12 px-4 bg-[#0f172a] border-b border-white/10 shrink-0 z-50">
+      <div className="flex items-center mr-6">
+        <span className="text-lg font-bold text-white tracking-tight">AIFlux</span>
+      </div>
       <div className="flex items-center gap-1">
         {LAYERS.map((layer) => {
           const Icon = layer.icon;

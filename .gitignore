@@ -41,10 +41,10 @@ lerna-debug.log*
 # Sensitive config files
 ability/server/config/skills.json
 
-# Database files (optional - uncomment if you don't want to track the db)
-# data/*.db
-# data/*.db-shm
-# data/*.db-wal
+# Database files
+ontology/data/*.db
+ontology/data/*.db-shm
+ontology/data/*.db-wal
 
 # Project specific
 材料/

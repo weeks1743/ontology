@@ -63,7 +63,7 @@ export default function SkillConfigDialog({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="glass-effect rounded-lg p-6 w-full max-w-md">
+      <div className="w-full max-w-md bg-[#111113] border border-white/10 rounded-2xl p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold">配置技能</h2>
           <button
@@ -87,7 +87,7 @@ export default function SkillConfigDialog({
                   type="password"
                   value={config.BAIDU_API_KEY || ''}
                   onChange={(e) => handleChange('BAIDU_API_KEY', e.target.value)}
-                  className="w-full px-3 py-2 bg-black/30 border border-glass-border rounded focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-colors placeholder:text-white/20"
                   placeholder="输入百度搜索 API Key"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -107,7 +107,7 @@ export default function SkillConfigDialog({
                   type="password"
                   value={config.ARK_API_KEY || ''}
                   onChange={(e) => handleChange('ARK_API_KEY', e.target.value)}
-                  className="w-full px-3 py-2 bg-black/30 border border-glass-border rounded focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-colors placeholder:text-white/20"
                   placeholder="输入火山方舟 API Key"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -140,7 +140,7 @@ export default function SkillConfigDialog({
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
           >
             <Save size={16} />
             {loading ? '保存中...' : '保存'}

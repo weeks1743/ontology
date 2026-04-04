@@ -5,6 +5,7 @@ export interface Skill {
   description: string;
   category: 'ontology' | 'external';
   source: string; // 'generated' | 'clawhub' | 'github'
+  ontology_id?: string; // 关联的本体 ID
   metadata: {
     emoji?: string;
     requires?: {

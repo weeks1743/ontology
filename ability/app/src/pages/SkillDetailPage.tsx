@@ -42,34 +42,34 @@ export default function SkillDetailPage() {
   };
 
   if (!skill) {
-    return <div className="h-full overflow-auto bg-space-darker p-8">加载中...</div>;
+    return <div className="h-full overflow-auto bg-[#0A0A0B] p-8">加载中...</div>;
   }
 
   return (
-    <div className="h-full overflow-auto bg-space-darker">
+    <div className="h-full overflow-auto bg-[#0A0A0B]">
       <div className="p-8 max-w-7xl mx-auto space-y-8">
         <div className="flex items-center gap-4">
           <span className="text-5xl">{skill.metadata.emoji || '⚙️'}</span>
           <div>
-            <h1 className="text-3xl font-bold text-blue-400">{skill.name}</h1>
-            <p className="text-gray-400 mt-2">{skill.description}</p>
+            <h1 className="text-xl font-semibold text-white">{skill.name}</h1>
+            <p className="text-sm text-white/40 mt-1">{skill.description}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* 输入参数 */}
-          <div className="glass-effect rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">输入参数</h2>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <h2 className="text-lg font-semibold mb-4">输入参数</h2>
             <textarea
               value={inputParams}
               onChange={(e) => setInputParams(e.target.value)}
-              className="w-full h-64 bg-black/30 border border-glass-border rounded-lg p-4 font-mono text-sm resize-none focus:border-blue-500/50 focus:outline-none"
+              className="w-full h-64 bg-white/5 border border-white/10 rounded-lg p-4 font-mono text-sm resize-none focus:border-indigo-500/50 focus:outline-none"
               placeholder='{"key": "value"}'
             />
             <button
               onClick={handleExecute}
               disabled={executing}
-              className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50"
+              className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-50"
             >
               <Play size={16} />
               {executing ? '执行中...' : '执行技能'}
@@ -77,8 +77,8 @@ export default function SkillDetailPage() {
           </div>
 
           {/* 执行结果 */}
-          <div className="glass-effect rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">执行结果</h2>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <h2 className="text-lg font-semibold mb-4">执行结果</h2>
             {result ? (
               <div className="space-y-4">
                 {/* 状态 */}
@@ -107,7 +107,7 @@ export default function SkillDetailPage() {
                 </div>
 
                 {/* 结果数据 */}
-                <div className="bg-black/30 border border-glass-border rounded-lg p-4 max-h-64 overflow-auto">
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4 max-h-64 overflow-auto">
                   <pre className="text-sm font-mono">
                     {JSON.stringify(result.data || result.error, null, 2)}
                   </pre>

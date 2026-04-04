@@ -3,13 +3,13 @@ import { useAbilityStore } from '../store/ability-store';
 import { Activity, CheckCircle, XCircle, Database, Zap, TrendingUp, Target } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { skills, logs, databaseStatus, fetchSkills, fetchLogs, fetchDatabaseStatus } = useAbilityStore();
+  const { skills, logs, databaseStatus, currentOntology, fetchSkills, fetchLogs, fetchDatabaseStatus } = useAbilityStore();
 
   useEffect(() => {
     fetchSkills();
     fetchLogs({ limit: 5 });
     fetchDatabaseStatus();
-  }, []);
+  }, [fetchSkills, fetchLogs, fetchDatabaseStatus]);
 
   const ontologySkills = skills.filter(s => s.category === 'ontology');
   const externalSkills = skills.filter(s => s.category === 'external');
@@ -23,11 +23,13 @@ export default function DashboardPage() {
     : 0;
 
   return (
-    <div className="h-full overflow-auto bg-space-darker">
+    <div className="h-full overflow-auto bg-[#0A0A0B]">
       <div className="p-8 max-w-7xl mx-auto space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-blue-400">总览仪表盘</h1>
-          <p className="text-gray-400 mt-2">系统运行状态和统计数据</p>
+          <h1 className="text-xl font-semibold text-white">
+            {currentOntology ? `${currentOntology.display_name} - 总览` : '总览仪表盘'}
+          </h1>
+          <p className="text-sm text-white/40 mt-1">系统运行状态和统计数据</p>
         </div>
 
         {/* 统计卡片 */}
@@ -61,7 +63,7 @@ export default function DashboardPage() {
         {/* 数据库状态和执行日志 */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* 数据库状态 */}
-          <div className="glass-effect rounded-lg p-6">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Database size={20} />
               数据库状态
@@ -87,7 +89,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 最近执行日志 */}
-          <div className="glass-effect rounded-lg p-6 xl:col-span-2">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6 xl:col-span-2">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Activity size={20} />
               最近执行
@@ -147,7 +149,7 @@ function StatCard({ icon, label, value, color }: {
   }[color] || 'text-gray-400';
 
   return (
-    <div className="glass-effect rounded-lg p-4">
+    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-gray-400">{label}</span>
         {icon}

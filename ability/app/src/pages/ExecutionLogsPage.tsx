@@ -8,16 +8,16 @@ export default function ExecutionLogsPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [fetchLogs]);
 
   const filteredLogs = filter === 'all' ? logs : logs.filter(log => log.status === filter);
 
   return (
-    <div className="h-full overflow-auto bg-space-darker">
+    <div className="h-full overflow-auto bg-[#0A0A0B]">
       <div className="p-8 max-w-7xl mx-auto space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-blue-400">执行历史</h1>
-          <p className="text-gray-400 mt-2">查看所有技能执行记录和状态</p>
+          <h1 className="text-xl font-semibold text-white">执行历史</h1>
+          <p className="text-sm text-white/40 mt-1">查看所有技能执行记录和状态</p>
         </div>
 
         {/* 过滤器 */}
@@ -25,7 +25,7 @@ export default function ExecutionLogsPage() {
           <button
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg transition-colors ${
-              filter === 'all' ? 'bg-blue-500/20 text-blue-400' : 'glass-effect text-gray-300'
+              filter === 'all' ? 'bg-indigo-600/20 text-white' : 'bg-white/5 border border-white/10 text-white/50'
             }`}
           >
             全部 ({logs.length})
@@ -33,7 +33,7 @@ export default function ExecutionLogsPage() {
           <button
             onClick={() => setFilter('success')}
             className={`px-4 py-2 rounded-lg transition-colors ${
-              filter === 'success' ? 'bg-green-500/20 text-green-400' : 'glass-effect text-gray-300'
+              filter === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-white/5 border border-white/10 text-white/50'
             }`}
           >
             成功 ({logs.filter(l => l.status === 'success').length})
@@ -41,7 +41,7 @@ export default function ExecutionLogsPage() {
           <button
             onClick={() => setFilter('error')}
             className={`px-4 py-2 rounded-lg transition-colors ${
-              filter === 'error' ? 'bg-red-500/20 text-red-400' : 'glass-effect text-gray-300'
+              filter === 'error' ? 'bg-red-500/20 text-red-400' : 'bg-white/5 border border-white/10 text-white/50'
             }`}
           >
             失败 ({logs.filter(l => l.status === 'error').length})
@@ -49,7 +49,7 @@ export default function ExecutionLogsPage() {
         </div>
 
         {/* 日志表格 */}
-        <div className="glass-effect rounded-lg overflow-hidden">
+        <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
           <table className="w-full">
             <thead className="bg-white/5">
               <tr>
@@ -69,7 +69,7 @@ export default function ExecutionLogsPage() {
                 </tr>
               ) : (
                 filteredLogs.map(log => (
-                  <tr key={log.id} className="border-t border-glass-border hover:bg-white/5">
+                  <tr key={log.id} className="border-t border-white/10 hover:bg-white/5">
                     <td className="px-6 py-4">
                       {log.status === 'success' ? (
                         <CheckCircle className="text-green-400" size={20} />

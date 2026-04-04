@@ -27,10 +27,20 @@ router.post('/generate', async (req, res) => {
   }
 });
 
-// 删除所有本体技能
+// 删除所有本体技能（按 ontology_id）
 router.delete('/all', (req, res) => {
   try {
-    const result = db.prepare("DELETE FROM skills WHERE category = 'ontology'").run();
+    const { ontology_id } = req.query;
+
+    if (!ontology_id) {
+      return res.status(400).json({ error: 'ontology_id is required' });
+    }
+
+    const result = db.prepare(`
+      DELETE FROM skills
+      WHERE category = 'ontology' AND ontology_id = ?
+    `).run(ontology_id as string);
+
     res.json({ success: true, deleted_count: result.changes });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });

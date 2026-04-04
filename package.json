@@ -2,9 +2,10 @@
   "name": "ontology-workspace",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:app\"",
-    "dev:server": "cd server && npm run dev",
-    "dev:app": "cd app && npm run dev"
+    "dev": "concurrently \"npm run dev:ontology\" \"npm run dev:ability\" \"npm run dev:portal\"",
+    "dev:ontology": "cd ontology && npm run dev",
+    "dev:ability": "cd ability && npm run dev",
+    "dev:portal": "cd portal && npm run dev"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

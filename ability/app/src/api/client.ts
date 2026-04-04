@@ -1,11 +1,27 @@
-import { Skill, ExecutionLog, DatabaseStatus, ExecutionResult } from '../types';
+import { Skill, ExecutionLog, DatabaseStatus, ExecutionResult, Ontology } from '../types';
 
 const API_BASE = '/api';
 
+// 本体相关（代理主系统 API）
+export const ontologiesApi = {
+  getAll: async (): Promise<Ontology[]> => {
+    const res = await fetch(`${API_BASE}/ontologies`);
+    if (!res.ok) throw new Error('Failed to fetch ontologies');
+    return res.json();
+  },
+
+  getById: async (id: string): Promise<Ontology> => {
+    const res = await fetch(`${API_BASE}/ontologies/${id}`);
+    if (!res.ok) throw new Error('Failed to fetch ontology');
+    return res.json();
+  },
+};
+
 // 技能相关
 export const skillsApi = {
-  getAll: async (): Promise<Skill[]> => {
-    const res = await fetch(`${API_BASE}/skills`);
+  getAll: async (ontologyId?: string): Promise<Skill[]> => {
+    const query = ontologyId ? `?ontology_id=${ontologyId}` : '';
+    const res = await fetch(`${API_BASE}/skills${query}`);
     if (!res.ok) throw new Error('Failed to fetch skills');
     return res.json();
   },
@@ -54,8 +70,8 @@ export const ontologySkillsApi = {
     return res.json();
   },
 
-  deleteAll: async (): Promise<{ success: boolean; deleted_count: number }> => {
-    const res = await fetch(`${API_BASE}/ontology-skills/all`, { method: 'DELETE' });
+  deleteAll: async (ontologyId: string): Promise<{ success: boolean; deleted_count: number }> => {
+    const res = await fetch(`${API_BASE}/ontology-skills/all?ontology_id=${ontologyId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Failed to delete ontology skills');
     return res.json();
   },
@@ -63,8 +79,9 @@ export const ontologySkillsApi = {
 
 // 执行日志相关
 export const logsApi = {
-  getAll: async (params?: { skill_id?: string; status?: string; limit?: number; offset?: number }): Promise<ExecutionLog[]> => {
+  getAll: async (params?: { ontology_id?: string; skill_id?: string; status?: string; limit?: number; offset?: number }): Promise<ExecutionLog[]> => {
     const query = new URLSearchParams();
+    if (params?.ontology_id) query.set('ontology_id', params.ontology_id);
     if (params?.skill_id) query.set('skill_id', params.skill_id);
     if (params?.status) query.set('status', params.status);
     if (params?.limit) query.set('limit', params.limit.toString());

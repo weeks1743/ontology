@@ -5,6 +5,7 @@ export interface Skill {
   description: string;
   category: 'ontology' | 'external';
   source: string;
+  ontology_id?: string; // 关联的本体 ID
   metadata: {
     emoji?: string;
     requires?: {
@@ -14,6 +15,16 @@ export interface Skill {
   };
   input_schema?: Record<string, any>;
   output_schema?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+// 本体定义
+export interface Ontology {
+  id: number; // 主系统返回的是数字 ID
+  ontology_code: string;
+  display_name: string;
+  description?: string;
   created_at: string;
   updated_at: string;
 }

@@ -10,6 +10,7 @@ import logsRouter from './routes/logs.js';
 import databaseRouter from './routes/database.js';
 import ontologySkillsRouter from './routes/ontology-skills.js';
 import externalSkillsRouter from './routes/external-skills.js';
+import ontologiesRouter from './routes/ontologies.js';
 // skill-core: 新增 SKILL 核心模块（独立路由）
 import { skillCoreRouter, initSkillCore } from './skill-core/index.js';
 
@@ -36,6 +37,7 @@ const skillCoreCount = initSkillCore();
 console.log(`✅ [skill-core] Loaded ${skillCoreCount} skills (Claude Code compatible)`);
 
 // 路由
+app.use('/api/ontologies', ontologiesRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/skills', executeRouter);
 app.use('/api/logs', logsRouter);

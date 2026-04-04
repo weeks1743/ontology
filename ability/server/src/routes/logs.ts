@@ -3,25 +3,34 @@ import { db } from '../db.js';
 
 const router = Router();
 
-// 获取执行日志
+// 获取执行日志（按 ontology_id 过滤）
 router.get('/', (req, res) => {
   try {
-    const { skill_id, status, limit = '50', offset = '0' } = req.query;
+    const { ontology_id, skill_id, status, limit = '50', offset = '0' } = req.query;
 
-    let query = 'SELECT * FROM execution_logs WHERE 1=1';
-    const params: any[] = [];
+    if (!ontology_id) {
+      return res.status(400).json({ error: 'ontology_id is required' });
+    }
+
+    // 通过 JOIN skills 表获取对应 ontology_id 的日志
+    let query = `
+      SELECT el.* FROM execution_logs el
+      JOIN skills s ON el.skill_id = s.id
+      WHERE s.ontology_id = ? OR s.category = 'external'
+    `;
+    const params: any[] = [ontology_id];
 
     if (skill_id) {
-      query += ' AND skill_id = ?';
+      query += ' AND el.skill_id = ?';
       params.push(skill_id);
     }
 
     if (status) {
-      query += ' AND status = ?';
+      query += ' AND el.status = ?';
       params.push(status);
     }
 
-    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    query += ' ORDER BY el.created_at DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit as string), parseInt(offset as string));
 
     const logs = db.prepare(query).all(...params);

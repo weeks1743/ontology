@@ -2,22 +2,25 @@ import { useEffect, useState } from 'react';
 import { useAbilityStore } from '../store/ability-store';
 import { Skill } from '../types';
 import { Play, Trash2, RefreshCw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function OntologySkillsPage() {
   const navigate = useNavigate();
-  const { skills, fetchSkills, generateOntologySkills, deleteAllOntologySkills, loading } = useAbilityStore();
+  const { ontologyId } = useParams<{ ontologyId: string }>();
+  const { skills, currentOntologyId, fetchSkills, generateOntologySkills, deleteAllOntologySkills, loading } = useAbilityStore();
 
   useEffect(() => {
     fetchSkills();
-  }, []);
+  }, [fetchSkills]);
 
   const ontologySkills = skills.filter(s => s.category === 'ontology');
 
   const handleGenerate = async () => {
-    // TODO: 需要从主系统获取 ontology_id
-    // 这里暂时硬编码一个 ID
-    await generateOntologySkills('crm-v1');
+    if (!currentOntologyId) {
+      alert('未选择本体系统');
+      return;
+    }
+    await generateOntologySkills(currentOntologyId);
   };
 
   const handleDeleteAll = async () => {
@@ -27,11 +30,11 @@ export default function OntologySkillsPage() {
   };
 
   return (
-    <div className="h-full overflow-auto bg-space-darker">
+    <div className="h-full overflow-auto bg-[#0A0A0B]">
       <div className="p-8 max-w-7xl mx-auto space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-blue-400">本体技能</h1>
-          <p className="text-gray-400 mt-2">从本体模型中的逻辑行为自动生成的技能</p>
+          <h1 className="text-xl font-semibold text-white">本体技能</h1>
+          <p className="text-sm text-white/40 mt-1">从本体模型中的逻辑行为自动生成的技能</p>
         </div>
 
         {/* 操作栏 */}
@@ -39,7 +42,7 @@ export default function OntologySkillsPage() {
           <button
             onClick={handleGenerate}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-50"
           >
             <RefreshCw size={16} />
             生成本体技能
@@ -56,8 +59,8 @@ export default function OntologySkillsPage() {
 
         {/* 技能卡片网格 */}
         {ontologySkills.length === 0 ? (
-          <div className="glass-effect rounded-lg p-12 text-center">
-            <p className="text-gray-400 mb-4">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
+            <p className="text-white/40 mb-4">
               暂无本体技能，点击"生成本体技能"从主系统 behaviors 定义生成技能
             </p>
           </div>
@@ -67,7 +70,7 @@ export default function OntologySkillsPage() {
               <SkillCard
                 key={skill.id}
                 skill={skill}
-                onExecute={() => navigate(`/skills/${skill.id}`)}
+                onExecute={() => navigate(`/${ontologyId}/skills/${skill.id}`)}
               />
             ))}
           </div>
@@ -79,12 +82,12 @@ export default function OntologySkillsPage() {
 
 function SkillCard({ skill, onExecute }: { skill: Skill; onExecute: () => void }) {
   return (
-    <div className="glass-effect rounded-lg p-6 hover:border-blue-500/30 transition-colors cursor-pointer" onClick={onExecute}>
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6 hover:border-indigo-500/30 transition-colors cursor-pointer" onClick={onExecute}>
       <div className="text-4xl mb-3">{skill.metadata.emoji || '⚙️'}</div>
       <h3 className="text-lg font-semibold mb-2">{skill.name}</h3>
-      <p className="text-sm text-gray-400 mb-4 line-clamp-2">{skill.description}</p>
+      <p className="text-sm text-white/40 mb-4 line-clamp-2">{skill.description}</p>
       <div className="flex items-center justify-between">
-        <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400">
+        <span className="text-xs px-2 py-1 rounded bg-indigo-600/20 text-white">
           本体
         </span>
         <button
@@ -92,7 +95,7 @@ function SkillCard({ skill, onExecute }: { skill: Skill; onExecute: () => void }
             e.stopPropagation();
             onExecute();
           }}
-          className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
+          className="flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300"
         >
           <Play size={14} />
           试用

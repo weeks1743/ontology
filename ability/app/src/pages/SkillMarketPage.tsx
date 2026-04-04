@@ -11,7 +11,7 @@ export default function SkillMarketPage() {
 
   useEffect(() => {
     fetchSkills();
-  }, []);
+  }, [fetchSkills]);
 
   const externalSkills = skills.filter(s => s.category === 'external');
 
@@ -26,17 +26,17 @@ export default function SkillMarketPage() {
   };
 
   return (
-    <div className="h-full overflow-auto bg-space-darker">
+    <div className="h-full overflow-auto bg-[#0A0A0B]">
       <div className="p-8 max-w-7xl mx-auto space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-purple-400">技能市场</h1>
-          <p className="text-gray-400 mt-2">外部通用技能库 — 来自第三方平台的可复用技能</p>
+          <h1 className="text-xl font-semibold text-white">技能市场</h1>
+          <p className="text-sm text-white/40 mt-1">外部通用技能库 — 来自第三方平台的可复用技能</p>
         </div>
 
         {/* 技能卡片网格 */}
         {externalSkills.length === 0 ? (
-          <div className="glass-effect rounded-lg p-12 text-center">
-            <p className="text-gray-400 mb-4">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
+            <p className="text-white/40 mb-4">
               暂无外部技能
             </p>
           </div>
@@ -69,12 +69,12 @@ export default function SkillMarketPage() {
 
 function SkillCard({ skill, onConfig }: { skill: Skill; onConfig: () => void }) {
   return (
-    <div className="glass-effect rounded-lg p-6 hover:border-purple-500/30 transition-colors">
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6 hover:border-indigo-500/30 transition-colors">
       <div className="text-4xl mb-3">{skill.metadata.emoji || '⚙️'}</div>
       <h3 className="text-lg font-semibold mb-2">{skill.name}</h3>
-      <p className="text-sm text-gray-400 mb-4 line-clamp-2">{skill.description}</p>
+      <p className="text-sm text-white/40 mb-4 line-clamp-2">{skill.description}</p>
       <div className="flex items-center justify-between">
-        <span className="text-xs px-2 py-1 rounded bg-purple-500/20 text-purple-400">
+        <span className="text-xs px-2 py-1 rounded bg-indigo-600/20 text-white">
           外部
         </span>
         <button
@@ -82,7 +82,7 @@ function SkillCard({ skill, onConfig }: { skill: Skill; onConfig: () => void }) 
             e.stopPropagation();
             onConfig();
           }}
-          className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-300"
+          className="flex items-center gap-1 text-sm text-white/40 hover:text-white/70"
         >
           <Settings size={14} />
         </button>

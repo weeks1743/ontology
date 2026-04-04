@@ -64,7 +64,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
       case 'failed':
         return <XCircle className="text-red-400" size={20} />;
       case 'running':
-        return <Clock className="text-blue-400 animate-spin" size={20} />;
+        return <Clock className="text-indigo-400 animate-spin" size={20} />;
       default:
         return <AlertCircle className="text-gray-400" size={20} />;
     }
@@ -77,7 +77,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
   return (
     <div className="space-y-6">
       {/* 统计和操作栏 */}
-      <div className="glass-effect rounded-lg p-6">
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
         <div className="flex items-center justify-between">
           <div className="flex gap-6">
             <div>
@@ -94,7 +94,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
             </div>
             <div>
               <div className="text-sm text-gray-400">成功率</div>
-              <div className="text-2xl font-bold text-blue-400">
+              <div className="text-2xl font-bold text-indigo-400">
                 {totalCount > 0 ? Math.round((passedCount / totalCount) * 100) : 0}%
               </div>
             </div>
@@ -103,7 +103,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
           <button
             onClick={handleRunAll}
             disabled={running}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-50"
           >
             <Play size={16} />
             {running ? '运行中...' : '运行全部测试'}
@@ -116,7 +116,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
         {testCases.map((testCase) => (
           <div
             key={testCase.id}
-            className="glass-effect rounded-lg p-4 hover:border-blue-500/30 transition-colors"
+            className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-indigo-500/30 transition-colors"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3 flex-1">
@@ -130,7 +130,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
 
                   {/* 输入参数 */}
                   <details className="text-sm">
-                    <summary className="cursor-pointer text-blue-400 hover:text-blue-300">
+                    <summary className="cursor-pointer text-indigo-400 hover:text-indigo-300">
                       查看参数
                     </summary>
                     <pre className="mt-2 p-3 bg-black/30 rounded text-xs overflow-auto">
@@ -160,7 +160,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                           href={testCase.htmlUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg text-sm hover:bg-indigo-500/30 transition-colors"
                         >
                           <ExternalLink size={14} />
                           打开 HTML 报告
@@ -197,7 +197,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
               <button
                 onClick={() => handleRunTest(testCase)}
                 disabled={running || testCase.status === 'running'}
-                className="flex items-center gap-1 px-3 py-1 text-sm text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1 text-sm text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-50"
               >
                 <Play size={14} />
                 运行

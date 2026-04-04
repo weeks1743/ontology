@@ -15,7 +15,8 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SKILLS_DIR = join(__dirname, '../../../skills/ontology');
+// 技能目录按 ontology_id 隔离
+const getSkillsDir = (ontologyId: string) => join(__dirname, '../../../skills/ontology', ontologyId);
 
 // 技能映射配置
 interface SkillMapping {
@@ -136,14 +137,19 @@ const QUERY_SKILLS: SkillMapping[] = [
 ];
 
 export class SkillGenerator {
+  private currentOntologyId: string = '';
+
   // 生成所有本体技能
   async generateAll(ontologyId: string): Promise<number> {
     console.log(`🔧 Generating ontology skills for: ${ontologyId}`);
+    this.currentOntologyId = ontologyId;
+
+    const SKILLS_DIR = getSkillsDir(ontologyId);
 
     // 获取本体定义
     const definition = await getOntologyDefinition(ontologyId);
 
-    // 清空现有技能目录
+    // 清空现有技能目录（仅当前 ontology_id）
     if (existsSync(SKILLS_DIR)) {
       rmSync(SKILLS_DIR, { recursive: true, force: true });
     }
@@ -155,7 +161,7 @@ export class SkillGenerator {
     for (const mapping of SKILL_MAPPINGS) {
       const behavior = definition.behaviors.find(b => b.code === mapping.behaviorCode);
       if (behavior) {
-        await this.generateSkill(mapping, behavior, definition);
+        await this.generateSkill(mapping, behavior, definition, ontologyId);
         generatedCount++;
       } else {
         console.warn(`⚠️  Behavior not found: ${mapping.behaviorCode}`);
@@ -164,11 +170,11 @@ export class SkillGenerator {
 
     // 生成查询技能
     for (const mapping of QUERY_SKILLS) {
-      await this.generateQuerySkill(mapping, definition);
+      await this.generateQuerySkill(mapping, definition, ontologyId);
       generatedCount++;
     }
 
-    console.log(`✅ Generated ${generatedCount} skills`);
+    console.log(`✅ Generated ${generatedCount} skills for ${ontologyId}`);
     return generatedCount;
   }
 
@@ -176,8 +182,10 @@ export class SkillGenerator {
   private async generateSkill(
     mapping: SkillMapping,
     behavior: OntologyBehavior,
-    definition: any
+    definition: any,
+    ontologyId: string
   ): Promise<void> {
+    const SKILLS_DIR = getSkillsDir(ontologyId);
     const skillDir = join(SKILLS_DIR, mapping.skillId.replace('ont.', ''));
     mkdirSync(skillDir, { recursive: true });
     mkdirSync(join(skillDir, 'scripts'), { recursive: true });
@@ -195,13 +203,14 @@ export class SkillGenerator {
     writeFileSync(join(skillDir, 'scripts', 'execute.js'), executeJs);
 
     // 注册到数据库
-    await this.registerSkill(mapping, behavior);
+    await this.registerSkill(mapping, behavior, ontologyId);
 
     console.log(`  ✓ ${mapping.skillId}`);
   }
 
   // 生成查询技能
-  private async generateQuerySkill(mapping: SkillMapping, definition: any): Promise<void> {
+  private async generateQuerySkill(mapping: SkillMapping, definition: any, ontologyId: string): Promise<void> {
+    const SKILLS_DIR = getSkillsDir(ontologyId);
     const skillDir = join(SKILLS_DIR, mapping.skillId.replace('ont.', ''));
     mkdirSync(skillDir, { recursive: true });
     mkdirSync(join(skillDir, 'scripts'), { recursive: true });
@@ -219,7 +228,7 @@ export class SkillGenerator {
     writeFileSync(join(skillDir, 'scripts', 'execute.js'), executeJs);
 
     // 注册到数据库
-    await this.registerQuerySkill(mapping);
+    await this.registerQuerySkill(mapping, ontologyId);
 
     console.log(`  ✓ ${mapping.skillId}`);
   }
@@ -333,36 +342,38 @@ console.log(JSON.stringify({
   }
 
   // 注册技能到数据库
-  private async registerSkill(mapping: SkillMapping, behavior: OntologyBehavior): Promise<void> {
+  private async registerSkill(mapping: SkillMapping, behavior: OntologyBehavior, ontologyId: string): Promise<void> {
     const now = new Date().toISOString();
 
     // 检查是否已存在
-    const existing = db.prepare('SELECT id FROM skills WHERE id = ?').get(mapping.skillId);
+    const existing = db.prepare('SELECT id FROM skills WHERE id = ? AND ontology_id = ?').get(mapping.skillId, ontologyId);
 
     if (existing) {
       // 更新
       db.prepare(`
         UPDATE skills
         SET name = ?, description = ?, metadata = ?, updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND ontology_id = ?
       `).run(
         mapping.skillName,
         mapping.description,
         JSON.stringify({ emoji: mapping.emoji, requires: { bins: ['node'], env: [] } }),
         now,
-        mapping.skillId
+        mapping.skillId,
+        ontologyId
       );
     } else {
       // 插入
       db.prepare(`
-        INSERT INTO skills (id, name, description, category, source, metadata, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO skills (id, name, description, category, source, ontology_id, metadata, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         mapping.skillId,
         mapping.skillName,
         mapping.description,
         'ontology',
         'generated',
+        ontologyId,
         JSON.stringify({ emoji: mapping.emoji, requires: { bins: ['node'], env: [] } }),
         now,
         now
@@ -371,33 +382,35 @@ console.log(JSON.stringify({
   }
 
   // 注册查询技能到数据库
-  private async registerQuerySkill(mapping: SkillMapping): Promise<void> {
+  private async registerQuerySkill(mapping: SkillMapping, ontologyId: string): Promise<void> {
     const now = new Date().toISOString();
 
-    const existing = db.prepare('SELECT id FROM skills WHERE id = ?').get(mapping.skillId);
+    const existing = db.prepare('SELECT id FROM skills WHERE id = ? AND ontology_id = ?').get(mapping.skillId, ontologyId);
 
     if (existing) {
       db.prepare(`
         UPDATE skills
         SET name = ?, description = ?, metadata = ?, updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND ontology_id = ?
       `).run(
         mapping.skillName,
         mapping.description,
         JSON.stringify({ emoji: mapping.emoji, requires: { bins: ['node'], env: [] } }),
         now,
-        mapping.skillId
+        mapping.skillId,
+        ontologyId
       );
     } else {
       db.prepare(`
-        INSERT INTO skills (id, name, description, category, source, metadata, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO skills (id, name, description, category, source, ontology_id, metadata, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         mapping.skillId,
         mapping.skillName,
         mapping.description,
         'ontology',
         'generated',
+        ontologyId,
         JSON.stringify({ emoji: mapping.emoji, requires: { bins: ['node'], env: [] } }),
         now,
         now

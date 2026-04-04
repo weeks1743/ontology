@@ -1,36 +1,38 @@
 @import "tailwindcss";
 
+@theme {
+  --color-bg-primary: #0A0A0B;
+  --color-bg-secondary: #131416;
+  --color-bg-card: #1C1D21;
+  --color-bg-hover: rgba(255, 255, 255, 0.05);
+  --color-bg-input: #0A0A0B;
+  --color-accent-purple: #634BFF;
+  --color-accent-purple-light: #7E6BFF;
+  --color-accent-blue: #3B82F6;
+  --color-accent-green: #10B981;
+  --color-accent-red: #EF4444;
+  --color-accent-yellow: #F59E0B;
+  --color-accent-cyan: #06B6D4;
+  --color-accent-pink: #EC4899;
+  --color-accent-orange: #F97316;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #9CA3AF;
+  --color-text-tertiary: #6B7280;
+  --color-border: rgba(255, 255, 255, 0.1);
+}
+
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: #0a0f1e;
-  color: #e2e8f0;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow: hidden;
+  height: 100vh;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
+#root { height: 100vh; }
 
-.glass-effect {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(100, 200, 255, 0.1);
-}
-
-/* 自定义 Tailwind 工具类 */
-.bg-space-darker {
-  background-color: #0a0f1e;
-}
-
-.bg-space-dark {
-  background-color: #0f172a;
-}
-
-.border-glass-border {
-  border-color: rgba(100, 200, 255, 0.1);
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-tertiary); }

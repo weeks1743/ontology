@@ -10,7 +10,7 @@ export const db = new Database(dbPath);
 
 // 初始化数据库表
 export function initDatabase() {
-  // 技能表
+  // 技能表（先创建基础表结构，不包含 ontology_id）
   db.exec(`
     CREATE TABLE IF NOT EXISTS skills (
       id TEXT PRIMARY KEY,
@@ -25,6 +25,37 @@ export function initDatabase() {
       updated_at TEXT NOT NULL
     )
   `);
+
+  // 数据迁移：检查并添加 ontology_id 列（如果表已存在但没有此列）
+  try {
+    const columns = db.prepare('PRAGMA table_info(skills)').all() as any[];
+    const hasOntologyId = columns.some(col => col.name === 'ontology_id');
+
+    if (!hasOntologyId) {
+      console.log('🔄 Adding ontology_id column to existing skills table...');
+      db.exec('ALTER TABLE skills ADD COLUMN ontology_id TEXT');
+      console.log('✅ Added ontology_id column to skills table');
+    }
+
+    // 创建索引（确保列已存在）
+    db.exec('CREATE INDEX IF NOT EXISTS idx_skills_ontology_id ON skills(ontology_id)');
+  } catch (error) {
+    console.error('Error adding ontology_id column:', error);
+  }
+
+  // 运行迁移：将现有 ontology 技能关联到 crm-v1
+  try {
+    const result = db.prepare(`
+      UPDATE skills
+      SET ontology_id = 'crm-v1'
+      WHERE category = 'ontology' AND ontology_id IS NULL
+    `).run();
+    if (result.changes > 0) {
+      console.log(`✅ Migrated ${result.changes} ontology skills to crm-v1`);
+    }
+  } catch (error) {
+    console.error('Error migrating ontology_id:', error);
+  }
 
   // 执行日志表
   db.exec(`

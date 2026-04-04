@@ -387,31 +387,31 @@ export default function SkillTestPage() {
   };
 
   return (
-    <div className="h-full overflow-auto bg-space-darker">
+    <div className="h-full overflow-auto bg-[#0A0A0B]">
       <div className="p-8 max-w-7xl mx-auto space-y-8">
         <div>
-          <h1 className="text-3xl font-bold text-blue-400">技能测试</h1>
-          <p className="text-gray-400 mt-2">运行测试用例验证技能功能</p>
+          <h1 className="text-xl font-semibold text-white">技能测试</h1>
+          <p className="text-sm text-white/40 mt-1">运行测试用例验证技能功能</p>
         </div>
 
         {/* Tab 切换 */}
         <div className="flex gap-4">
           <button
             onClick={() => setActiveTab('ontology')}
-            className={`px-6 py-3 rounded-lg transition-colors ${
+            className={`px-6 py-3 rounded-xl transition-colors ${
               activeTab === 'ontology'
-                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                : 'glass-effect text-gray-300 hover:bg-white/5'
+                ? 'bg-indigo-600/20 text-white border border-indigo-500/30'
+                : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/8'
             }`}
           >
             本体技能测试 ({ontologyTests.length})
           </button>
           <button
             onClick={() => setActiveTab('external')}
-            className={`px-6 py-3 rounded-lg transition-colors ${
+            className={`px-6 py-3 rounded-xl transition-colors ${
               activeTab === 'external'
-                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                : 'glass-effect text-gray-300 hover:bg-white/5'
+                ? 'bg-indigo-600/20 text-white border border-indigo-500/30'
+                : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/8'
             }`}
           >
             外部技能测试 ({externalTests.length})

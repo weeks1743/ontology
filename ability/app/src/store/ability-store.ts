@@ -1,14 +1,21 @@
 import { create } from 'zustand';
-import { Skill, ExecutionLog, DatabaseStatus } from '../types';
-import { skillsApi, logsApi, databaseApi, ontologySkillsApi } from '../api/client';
+import { Skill, ExecutionLog, DatabaseStatus, Ontology } from '../types';
+import { skillsApi, logsApi, databaseApi, ontologySkillsApi, ontologiesApi } from '../api/client';
 
 interface AbilityStore {
   // 状态
+  currentOntologyId: string | null;
+  currentOntology: Ontology | null;
+  ontologies: Ontology[];
   skills: Skill[];
   logs: ExecutionLog[];
   databaseStatus: DatabaseStatus | null;
   loading: boolean;
   error: string | null;
+
+  // 本体操作
+  fetchOntologies: () => Promise<void>;
+  setCurrentOntologyId: (id: string) => Promise<void>;
 
   // 技能操作
   fetchSkills: () => Promise<void>;
@@ -24,16 +31,43 @@ interface AbilityStore {
 }
 
 export const useAbilityStore = create<AbilityStore>((set, get) => ({
+  currentOntologyId: null,
+  currentOntology: null,
+  ontologies: [],
   skills: [],
   logs: [],
   databaseStatus: null,
   loading: false,
   error: null,
 
-  fetchSkills: async () => {
+  fetchOntologies: async () => {
     set({ loading: true, error: null });
     try {
-      const skills = await skillsApi.getAll();
+      const ontologies = await ontologiesApi.getAll();
+      set({ ontologies, loading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, loading: false });
+    }
+  },
+
+  setCurrentOntologyId: async (id: string) => {
+    set({ loading: true, error: null, currentOntologyId: id });
+    try {
+      const ontology = await ontologiesApi.getById(id);
+      set({ currentOntology: ontology, loading: false });
+      // 设置后刷新技能和日志
+      await get().fetchSkills();
+      await get().fetchLogs();
+    } catch (error) {
+      set({ error: (error as Error).message, loading: false });
+    }
+  },
+
+  fetchSkills: async () => {
+    const { currentOntologyId } = get();
+    set({ loading: true, error: null });
+    try {
+      const skills = await skillsApi.getAll(currentOntologyId || undefined);
       set({ skills, loading: false });
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
@@ -65,9 +99,14 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
   },
 
   deleteAllOntologySkills: async () => {
+    const { currentOntologyId } = get();
+    if (!currentOntologyId) {
+      set({ error: 'No ontology selected' });
+      return;
+    }
     set({ loading: true, error: null });
     try {
-      await ontologySkillsApi.deleteAll();
+      await ontologySkillsApi.deleteAll(currentOntologyId);
       // 删除后刷新技能列表
       await get().fetchSkills();
       set({ loading: false });
@@ -77,9 +116,14 @@ export const useAbilityStore = create<AbilityStore>((set, get) => ({
   },
 
   fetchLogs: async (params) => {
+    const { currentOntologyId } = get();
+    if (!currentOntologyId) {
+      set({ logs: [], loading: false });
+      return;
+    }
     set({ loading: true, error: null });
     try {
-      const logs = await logsApi.getAll(params);
+      const logs = await logsApi.getAll({ ...params, ontology_id: currentOntologyId });
       set({ logs, loading: false });
     } catch (error) {
       set({ error: (error as Error).message, loading: false });

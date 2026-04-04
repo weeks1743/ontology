@@ -8,8 +8,27 @@ const router = Router();
 // 获取所有技能（合并 SQLite + skill-core registry）
 router.get('/', (req, res) => {
   try {
-    // 1. 从 SQLite 获取旧系统技能
-    const sqliteSkills = db.prepare('SELECT * FROM skills ORDER BY created_at DESC').all();
+    const { ontology_id } = req.query;
+
+    // ontology_id 为必传参数（对于 ontology 类技能）
+    // external 类技能不按 ontology_id 过滤（全局共享）
+
+    // 1. 从 SQLite 获取技能
+    let sqliteSkills;
+    if (ontology_id) {
+      // 获取指定 ontology_id 的 ontology 技能 + 所有 external 技能
+      sqliteSkills = db.prepare(`
+        SELECT * FROM skills
+        WHERE (ontology_id = ? AND category = 'ontology') OR category = 'external'
+        ORDER BY created_at DESC
+      `).all(ontology_id as string);
+    } else {
+      // 如果没有 ontology_id，只返回 external 技能
+      sqliteSkills = db.prepare(`
+        SELECT * FROM skills WHERE category = 'external' ORDER BY created_at DESC
+      `).all();
+    }
+
     const parsedSqliteSkills = sqliteSkills.map(skill => ({
       ...skill,
       metadata: JSON.parse(skill.metadata as string),
@@ -17,25 +36,27 @@ router.get('/', (req, res) => {
       output_schema: skill.output_schema ? JSON.parse(skill.output_schema as string) : undefined,
     }));
 
-    // 2. 从 skill-core registry 获取新系统技能
-    const skillCoreSkills = getAllSkills().map(skill => ({
-      id: skill.id,
-      name: skill.frontmatter.name || skill.id,
-      description: skill.frontmatter.description || '',
-      category: skill.loadedFrom === 'external' ? 'external' : skill.loadedFrom,
-      source: skill.skillDir,
-      metadata: {
-        ...skill.frontmatter.metadata,
-        emoji: skill.frontmatter.metadata?.emoji,
-        context: skill.frontmatter.context,
-        arguments: skill.frontmatter.arguments,
-        when_to_use: skill.frontmatter.when_to_use,
-        version: skill.frontmatter.version,
-        user_invocable: skill.frontmatter['user-invocable'],
-      },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
+    // 2. 从 skill-core registry 获取新系统技能（仅 external）
+    const skillCoreSkills = getAllSkills()
+      .filter(skill => skill.loadedFrom === 'external')
+      .map(skill => ({
+        id: skill.id,
+        name: skill.frontmatter.name || skill.id,
+        description: skill.frontmatter.description || '',
+        category: 'external',
+        source: skill.skillDir,
+        metadata: {
+          ...skill.frontmatter.metadata,
+          emoji: skill.frontmatter.metadata?.emoji,
+          context: skill.frontmatter.context,
+          arguments: skill.frontmatter.arguments,
+          when_to_use: skill.frontmatter.when_to_use,
+          version: skill.frontmatter.version,
+          user_invocable: skill.frontmatter['user-invocable'],
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
 
     // 3. 合并列表（去重：优先使用 skill-core 的数据）
     const skillMap = new Map<string, any>();
@@ -84,14 +105,15 @@ router.post('/', (req, res) => {
     const now = new Date().toISOString();
 
     db.prepare(`
-      INSERT INTO skills (id, name, description, category, source, metadata, input_schema, output_schema, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO skills (id, name, description, category, source, ontology_id, metadata, input_schema, output_schema, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       skill.id,
       skill.name,
       skill.description,
       skill.category,
       skill.source,
+      skill.ontology_id || null,
       JSON.stringify(skill.metadata),
       skill.input_schema ? JSON.stringify(skill.input_schema) : null,
       skill.output_schema ? JSON.stringify(skill.output_schema) : null,

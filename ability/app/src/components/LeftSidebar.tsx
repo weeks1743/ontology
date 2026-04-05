@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { LayoutDashboard, Database, ShoppingCart, FileText, FlaskConical, ArrowLeft, Share2 } from 'lucide-react';
+import { LayoutDashboard, Database, ShoppingCart, FileText, FlaskConical, ArrowLeft, Share2, Zap } from 'lucide-react';
 import { useAbilityStore } from '../store/ability-store';
 
 const PALETTE_COLORS = [
@@ -16,7 +16,8 @@ export default function LeftSidebar() {
     { path: 'dashboard', icon: LayoutDashboard, label: '总览仪表盘' },
     { path: 'ontology-skills', icon: Database, label: '本体技能' },
     { path: 'skills', icon: ShoppingCart, label: '技能市场' },
-    { path: 'test', icon: FlaskConical, label: '技能测试' },
+    { path: 'test', icon: FlaskConical, label: '本体技能测试' },
+    { path: 'test-external', icon: Zap, label: '外部技能测试' },
     { path: 'logs', icon: FileText, label: '执行历史' },
   ];
 

@@ -204,13 +204,62 @@ class MongoDBClient {
     try {
       const coll = this.db.collection(collection);
       const result = await coll.updateOne(
-        { _id: id },
+        { _id: id as any },
         { $set: { ...data, updated_at: new Date().toISOString() } }
       );
       return result.modifiedCount > 0;
     } catch (error) {
       console.error('MongoDB updateDocument error:', error);
       return false;
+    }
+  }
+
+  // Generic insert for write-plan-executor
+  async insertDocument(collection: string, data: any): Promise<string | null> {
+    if (!this.isOnline() || !this.db) {
+      return null;
+    }
+
+    try {
+      const coll = this.db.collection(collection);
+      const doc = {
+        ...data,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      const result = await coll.insertOne(doc);
+      return result.insertedId.toString();
+    } catch (error) {
+      console.error('MongoDB insertDocument error:', error);
+      return null;
+    }
+  }
+
+  // Clear all collections for a specific ontology
+  async clearOntologyCollections(ontologyId: string): Promise<{ collections: string[]; deletedCount: number }> {
+    if (!this.isOnline() || !this.db) {
+      return { collections: [], deletedCount: 0 };
+    }
+
+    try {
+      const collections = await this.db.listCollections().toArray();
+      const prefix = `${ontologyId}_`;
+      const matchingCollections = collections
+        .map(c => c.name)
+        .filter(name => name.startsWith(prefix));
+
+      let totalDeleted = 0;
+      for (const collectionName of matchingCollections) {
+        const coll = this.db.collection(collectionName);
+        const result = await coll.deleteMany({});
+        totalDeleted += result.deletedCount;
+      }
+
+      console.log(`✅ MongoDB cleared ${matchingCollections.length} collections (${totalDeleted} documents) for ontology: ${ontologyId}`);
+      return { collections: matchingCollections, deletedCount: totalDeleted };
+    } catch (error) {
+      console.error('MongoDB clearOntologyCollections error:', error);
+      return { collections: [], deletedCount: 0 };
     }
   }
 }

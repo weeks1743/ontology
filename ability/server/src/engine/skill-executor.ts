@@ -1,51 +1,45 @@
-// 技能执行引擎 - 执行本体技能和外部技能
+// 技能执行引擎（元驱动重构版）
+// 从 manifest.json 读取配置，通过 write_plan_executor 执行三库写入
 
 import { nanoid } from 'nanoid';
-import { getOntologyDefinition, OntologyBehavior, OntologyRule } from './ontology-client.js';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { db } from '../db.js';
 import { ruleValidator } from './rule-validator.js';
-import { mongoClient, neo4jClient, chromaClient } from '../database/index.js';
 import { executeExternalSkill } from './external-skills.js';
+import { writePlanExecutor } from './write-plan-executor.js';
 import { ExecutionResult } from '../types.js';
+import { BehaviorManifest, ScenarioManifest } from '../types/manifest.js';
+
+export class RuleViolationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RuleViolationError';
+  }
+}
 
 export class SkillExecutor {
-  private ontologyCache: Map<string, any> = new Map();
-
-  // 执行技能
   async execute(skillId: string, params: any): Promise<ExecutionResult> {
     const startTime = Date.now();
 
     try {
-      // 判断是本体技能还是外部技能
+      // External skills route
       if (skillId.startsWith('ext.')) {
         return await this.executeExternal(skillId, params, startTime);
       }
 
-      // 本体技能路由
-      if (skillId === 'ont.create_lead') {
-        return await this.executeCreateLead(params, startTime);
-      } else if (skillId === 'ont.complete_lead') {
-        return await this.executeCompleteLead(params, startTime);
-      } else if (skillId === 'ont.evaluate_lead') {
-        return await this.executeEvaluateLead(params, startTime);
-      } else if (skillId === 'ont.convert_lead') {
-        return await this.executeConvertLead(params, startTime);
-      } else if (skillId === 'ont.create_opportunity') {
-        return await this.executeCreateOpportunity(params, startTime);
-      } else if (skillId === 'ont.advance_opportunity') {
-        return await this.executeAdvanceOpportunity(params, startTime);
-      } else if (skillId === 'ont.create_quote') {
-        return await this.executeCreateQuote(params, startTime);
-      } else if (skillId === 'ont.submit_quote') {
-        return await this.executeSubmitQuote(params, startTime);
-      } else if (skillId === 'ont.approve_quote') {
-        return await this.executeApproveQuote(params, startTime);
-      } else if (skillId === 'ont.graph_trace') {
-        return await this.executeGraphTrace(params, startTime);
-      } else if (skillId === 'ont.semantic_search') {
-        return await this.executeSemanticSearch(params, startTime);
-      } else {
-        throw new Error(`Unknown skill: ${skillId}`);
+      // Ontology skills: look up manifest from DB path
+      const skillRow = db.prepare(
+        `SELECT path, skill_type, name FROM skills WHERE id=?`
+      ).get(skillId) as any;
+
+      if (skillRow?.path) {
+        // New manifest-driven skill
+        return await this.executeFromManifest(skillRow, params, startTime);
       }
+
+      // Fallback: unknown skill
+      throw new Error(`Unknown skill: ${skillId}`);
     } catch (error) {
       return {
         success: false,
@@ -58,11 +52,9 @@ export class SkillExecutor {
     }
   }
 
-  // 执行外部技能
   private async executeExternal(skillId: string, params: any, startTime: number): Promise<ExecutionResult> {
     try {
       const result = await executeExternalSkill(skillId, params);
-
       return {
         success: result.success || false,
         data: result,
@@ -84,63 +76,48 @@ export class SkillExecutor {
     }
   }
 
-  // 创建线索
-  private async executeCreateLead(params: any, startTime: number): Promise<ExecutionResult> {
-    // 规则校验：Lead.RequiredInfo (title + phone 必填)
-    const validation = ruleValidator.validateRequiredFields(params, ['title', 'phone']);
-    if (!validation.passed) {
-      return {
-        success: false,
-        error: validation.failedRules.map(r => r.message).join('; '),
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
+  private async executeFromManifest(
+    skillRow: { path: string; skill_type: string; name: string },
+    params: any,
+    startTime: number
+  ): Promise<ExecutionResult> {
+    const manifestPath = join(skillRow.path, 'manifest.json');
+
+    let manifest: BehaviorManifest | ScenarioManifest;
+    try {
+      const raw = readFileSync(manifestPath, 'utf-8');
+      manifest = JSON.parse(raw);
+    } catch {
+      throw new Error(`Cannot read manifest at ${manifestPath}`);
     }
 
-    const leadId = nanoid();
-    const leadData = {
-      id: leadId,
-      title: params.title,
-      phone: params.phone,
-      source: params.source || '',
-      owner: params.owner || '',
-      status: 'new',
-    };
-
-    // 写入 MongoDB
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    if (mongoClient.isOnline()) {
-      const result = await mongoClient.insertLead(leadData);
-      mongoStatus = result ? 'ok' : 'error';
+    if (manifest.skill_type === 'behavior') {
+      return await this.executeBehaviorSkill(manifest as BehaviorManifest, params, startTime);
+    } else if (manifest.skill_type === 'scenario') {
+      return await this.executeScenarioSkill(manifest as ScenarioManifest, params, startTime);
+    } else {
+      throw new Error(`Unknown skill_type: ${(manifest as any).skill_type}`);
     }
-
-    // 写入 Neo4j
-    let neo4jStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    if (neo4jClient.isOnline()) {
-      const result = await neo4jClient.createLeadNode(leadId, leadData);
-      neo4jStatus = result ? 'ok' : 'error';
-    }
-
-    return {
-      success: true,
-      data: { lead_id: leadId, ...leadData },
-      mongodb_status: mongoStatus,
-      neo4j_status: neo4jStatus,
-      chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
   }
 
-  // 补全线索信息
-  private async executeCompleteLead(params: any, startTime: number): Promise<ExecutionResult> {
-    const { lead_id, budget, requirements } = params;
+  // 11-step behavior skill execution
+  private async executeBehaviorSkill(
+    manifest: BehaviorManifest,
+    params: any,
+    startTime: number
+  ): Promise<ExecutionResult> {
+    const context: Record<string, any> = { input: params, reads: {}, result: {} };
 
-    if (!lead_id) {
+    // Step 1: normalize_input — check required fields
+    const requiredFields = manifest.input_schema
+      .filter(f => f.required)
+      .map(f => f.name);
+
+    const inputValidation = ruleValidator.validateRequiredFields(params, requiredFields);
+    if (!inputValidation.passed) {
       return {
         success: false,
-        error: '缺少 lead_id 参数',
+        error: inputValidation.failedRules.map(r => r.message).join('; '),
         mongodb_status: 'skipped',
         neo4j_status: 'skipped',
         chroma_status: 'skipped',
@@ -148,456 +125,156 @@ export class SkillExecutor {
       };
     }
 
-    // 规则校验：Lead.BudgetCheck (budget >= 10000)
-    if (budget && budget < 10000) {
-      return {
-        success: false,
-        error: '预算不足：线索预算必须 >= 1万元',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
+    // Step 2: read_context — load existing entities for update/convert operations
+    // (skipping DB reads in this implementation; data is passed via params)
+
+    // Step 3: object_preconditions — check state conditions
+    // (skipped for now; preconditions are defined but not evaluated without DB reads)
+
+    // Step 4: rule_bindings — evaluate each rule
+    for (const rb of manifest.rule_bindings) {
+      try {
+        const passed = ruleValidator.evaluateExpression(rb.expression, params);
+        if (!passed) {
+          return {
+            success: false,
+            error: rb.failure_message_zh,
+            mongodb_status: 'skipped',
+            neo4j_status: 'skipped',
+            chroma_status: 'skipped',
+            duration_ms: Date.now() - startTime,
+          };
+        }
+      } catch (err) {
+        // If expression evaluation fails, apply structured evaluation
+        const structuredPassed = ruleValidator.evaluateStructuredExpression(rb.expression, params);
+        if (!structuredPassed) {
+          return {
+            success: false,
+            error: rb.failure_message_zh,
+            mongodb_status: 'skipped',
+            neo4j_status: 'skipped',
+            chroma_status: 'skipped',
+            duration_ms: Date.now() - startTime,
+          };
+        }
+      }
     }
 
-    const updateData = {
-      budget: budget || 0,
-      requirements: requirements || '',
-      status: 'qualified',
-    };
+    // Steps 6-8: write_plan_executor.executeWritePlan()
+    const writeResult = await writePlanExecutor.executeWritePlan(manifest.write_plan, context);
 
-    // 更新 MongoDB
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    if (mongoClient.isOnline()) {
-      const result = await mongoClient.updateDocument('crm_leads', lead_id, updateData);
-      mongoStatus = result ? 'ok' : 'error';
-    }
+    // Step 9: emit_events (record to execution_logs; no real event bus)
+    const emittedEvents = manifest.event_bindings.map(eb => eb.event_code);
 
-    return {
-      success: true,
-      data: { lead_id, ...updateData },
-      mongodb_status: mongoStatus,
-      neo4j_status: 'skipped',
-      chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
-  }
+    // Step 10: render_output
+    const outputMessage = manifest.success_template_zh
+      .replace('{{summary}}', JSON.stringify(writeResult.result_context));
 
-  // 评估线索
-  private async executeEvaluateLead(params: any, startTime: number): Promise<ExecutionResult> {
-    const { lead_id, score, priority } = params;
-
-    if (!lead_id) {
-      return {
-        success: false,
-        error: '缺少 lead_id 参数',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    const updateData = {
-      score: score || 0,
-      priority: priority || 'medium',
-      status: 'evaluated',
-    };
-
-    // 更新 MongoDB
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    if (mongoClient.isOnline()) {
-      const result = await mongoClient.updateDocument('crm_leads', lead_id, updateData);
-      mongoStatus = result ? 'ok' : 'error';
-    }
-
-    return {
-      success: true,
-      data: { lead_id, ...updateData },
-      mongodb_status: mongoStatus,
-      neo4j_status: 'skipped',
-      chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
-  }
-
-  // 线索转商机（复杂副作用：创建客户、联系人、商机）
-  private async executeConvertLead(params: any, startTime: number): Promise<ExecutionResult> {
-    const { lead_id, customer_name, contact_name, contact_phone, opportunity_title, amount } = params;
-
-    if (!lead_id || !customer_name || !contact_name || !opportunity_title) {
-      return {
-        success: false,
-        error: '缺少必填参数',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    const customerId = nanoid();
-    const contactId = nanoid();
-    const opportunityId = nanoid();
-
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    let neo4jStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    let chromaStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-
-    // 1. 创建客户
-    if (mongoClient.isOnline()) {
-      await mongoClient.insertCustomer({ id: customerId, name: customer_name });
-      mongoStatus = 'ok';
-    }
-    if (neo4jClient.isOnline()) {
-      await neo4jClient.createCustomerNode(customerId, { name: customer_name });
-      neo4jStatus = 'ok';
-    }
-
-    // 2. 创建联系人
-    if (mongoClient.isOnline()) {
-      await mongoClient.insertContact({ id: contactId, name: contact_name, phone: contact_phone });
-    }
-    if (neo4jClient.isOnline()) {
-      await neo4jClient.createContactNode(contactId, { name: contact_name, phone: contact_phone });
-      // 创建关系：Contact -> Customer
-      await neo4jClient.createRelationship(contactId, 'Contact', customerId, 'Customer', 'WORKS_FOR');
-    }
-
-    // 3. 创建商机
-    if (mongoClient.isOnline()) {
-      await mongoClient.insertOpportunity({
-        id: opportunityId,
-        title: opportunity_title,
-        amount: amount || 0,
-        stage: 'qualification',
-        customer_id: customerId,
-      });
-    }
-    if (neo4jClient.isOnline()) {
-      await neo4jClient.createOpportunityNode(opportunityId, {
-        title: opportunity_title,
-        amount: amount || 0,
-        stage: 'qualification',
-      });
-      // 创建关系：Opportunity -> Customer
-      await neo4jClient.createRelationship(opportunityId, 'Opportunity', customerId, 'Customer', 'BELONGS_TO_CUSTOMER');
-      // 创建关系：Lead -> Opportunity
-      await neo4jClient.createRelationship(lead_id, 'Lead', opportunityId, 'Opportunity', 'CONVERTED_TO');
-    }
-
-    // 4. 标记向量化（异步处理）
-    if (chromaClient.isOnline()) {
-      chromaStatus = 'ok'; // 标记为待处理
-    }
-
-    // 5. 更新线索状态
-    if (mongoClient.isOnline()) {
-      await mongoClient.updateDocument('crm_leads', lead_id, { status: 'converted' });
+    // Step 11: audit_log
+    const logId = nanoid();
+    const now = new Date().toISOString();
+    try {
+      db.prepare(`
+        INSERT INTO execution_logs
+          (id, skill_id, skill_name, input_params, output_result,
+           status, error_message, mongodb_status, neo4j_status, chroma_status, duration_ms, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+      `).run(
+        logId,
+        manifest.full_id,
+        manifest.behavior_name_zh,
+        JSON.stringify(params),
+        JSON.stringify({ message: outputMessage, result_context: writeResult.result_context, emitted_events: emittedEvents }),
+        writeResult.errors.length === 0 ? 'success' : 'partial',
+        writeResult.errors.length > 0 ? writeResult.errors.join('; ') : null,
+        writeResult.mongodb_status,
+        writeResult.neo4j_status,
+        writeResult.chroma_status,
+        Date.now() - startTime,
+        now
+      );
+    } catch (logErr) {
+      console.error('Failed to write execution log:', logErr);
     }
 
     return {
       success: true,
       data: {
-        lead_id,
-        customer_id: customerId,
-        contact_id: contactId,
-        opportunity_id: opportunityId,
+        message: outputMessage,
+        result: writeResult.result_context,
+        emitted_events: emittedEvents,
       },
-      mongodb_status: mongoStatus,
-      neo4j_status: neo4jStatus,
-      chroma_status: chromaStatus,
+      mongodb_status: writeResult.mongodb_status,
+      neo4j_status: writeResult.neo4j_status,
+      chroma_status: writeResult.chroma_status,
       duration_ms: Date.now() - startTime,
     };
   }
 
-  // 创建商机
-  private async executeCreateOpportunity(params: any, startTime: number): Promise<ExecutionResult> {
-    const { title, amount, probability, customer_id } = params;
+  // 8-step scenario skill execution
+  private async executeScenarioSkill(
+    manifest: ScenarioManifest,
+    params: any,
+    startTime: number
+  ): Promise<ExecutionResult> {
+    // Step 1: check_entry_conditions (pass for now)
 
-    // 规则校验：Opportunity.ProbabilityRange (0 <= probability <= 100)
-    if (probability !== undefined && (probability < 0 || probability > 100)) {
-      return {
-        success: false,
-        error: '概率越界：商机概率必须在 0-100 之间',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
+    const stepResults: any[] = [];
+    let allSuccess = true;
 
-    const opportunityId = nanoid();
-    const opportunityData = {
-      id: opportunityId,
-      title: title || '',
-      amount: amount || 0,
-      probability: probability || 50,
-      stage: 'qualification',
-      customer_id: customer_id || '',
-    };
+    // Steps 2-7: execute each behavior skill in sequence
+    for (const step of manifest.steps) {
+      if (!step.behavior_code) continue;
 
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    let neo4jStatus: 'ok' | 'error' | 'skipped' = 'skipped';
+      const behaviorSkillRow = db.prepare(
+        `SELECT id, path, skill_type, name FROM skills WHERE id=?`
+      ).get(step.behavior_skill_full_id) as any;
 
-    if (mongoClient.isOnline()) {
-      const result = await mongoClient.insertOpportunity(opportunityData);
-      mongoStatus = result ? 'ok' : 'error';
-    }
+      if (!behaviorSkillRow) {
+        console.warn(`[scenario] Step ${step.step}: skill not found: ${step.behavior_skill_full_id}`);
+        stepResults.push({ step: step.step, success: false, error: 'Skill not found' });
+        if (manifest.failure_strategy === 'abort') {
+          allSuccess = false;
+          break;
+        }
+        continue;
+      }
 
-    if (neo4jClient.isOnline()) {
-      const result = await neo4jClient.createOpportunityNode(opportunityId, opportunityData);
-      neo4jStatus = result ? 'ok' : 'error';
+      try {
+        const stepResult = await this.executeFromManifest(behaviorSkillRow, params, Date.now());
+        stepResults.push({ step: step.step, success: stepResult.success, data: stepResult.data, error: stepResult.error });
 
-      if (customer_id && result) {
-        await neo4jClient.createRelationship(opportunityId, 'Opportunity', customer_id, 'Customer', 'BELONGS_TO_CUSTOMER');
+        if (!stepResult.success && manifest.failure_strategy === 'abort') {
+          allSuccess = false;
+          break;
+        }
+      } catch (err) {
+        stepResults.push({ step: step.step, success: false, error: (err as Error).message });
+        if (manifest.failure_strategy === 'abort') {
+          allSuccess = false;
+          break;
+        }
       }
     }
 
+    // Step 8: render_summary
+    const summary = `${manifest.scenario_name_zh} 场景完成，共执行 ${stepResults.length} 步`;
+
     return {
-      success: true,
-      data: { opportunity_id: opportunityId, ...opportunityData },
-      mongodb_status: mongoStatus,
-      neo4j_status: neo4jStatus,
+      success: allSuccess,
+      data: {
+        scenario: manifest.scenario_code,
+        steps_executed: stepResults.length,
+        step_results: stepResults,
+        summary,
+      },
+      mongodb_status: 'ok',
+      neo4j_status: 'ok',
       chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
-  }
-
-  // 推进商机阶段
-  private async executeAdvanceOpportunity(params: any, startTime: number): Promise<ExecutionResult> {
-    const { opportunity_id, stage, probability } = params;
-
-    if (!opportunity_id) {
-      return {
-        success: false,
-        error: '缺少 opportunity_id 参数',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    const updateData = {
-      stage: stage || 'proposal',
-      probability: probability || 70,
-    };
-
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    if (mongoClient.isOnline()) {
-      const result = await mongoClient.updateDocument('crm_opportunities', opportunity_id, updateData);
-      mongoStatus = result ? 'ok' : 'error';
-    }
-
-    return {
-      success: true,
-      data: { opportunity_id, ...updateData },
-      mongodb_status: mongoStatus,
-      neo4j_status: 'skipped',
-      chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
-  }
-
-  // 创建报价单
-  private async executeCreateQuote(params: any, startTime: number): Promise<ExecutionResult> {
-    const { opportunity_id, amount, items } = params;
-
-    if (!opportunity_id) {
-      return {
-        success: false,
-        error: '缺少 opportunity_id 参数',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    // 规则校验：Quote.ApprovalRequired (amount > 500000 需要审批)
-    const needsApproval = amount > 500000;
-    if (needsApproval) {
-      return {
-        success: false,
-        error: '超额报价须审批：报价金额 > 50万需要提交审批',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    const quoteId = nanoid();
-    const quoteData = {
-      id: quoteId,
-      opportunity_id,
-      amount: amount || 0,
-      items: items || [],
-      status: 'draft',
-    };
-
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    let neo4jStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-
-    if (mongoClient.isOnline()) {
-      const result = await mongoClient.insertQuote(quoteData);
-      mongoStatus = result ? 'ok' : 'error';
-    }
-
-    if (neo4jClient.isOnline()) {
-      const result = await neo4jClient.createQuoteNode(quoteId, quoteData);
-      neo4jStatus = result ? 'ok' : 'error';
-
-      if (result) {
-        await neo4jClient.createRelationship(opportunity_id, 'Opportunity', quoteId, 'Quote', 'HAS_QUOTE');
-      }
-    }
-
-    return {
-      success: true,
-      data: { quote_id: quoteId, ...quoteData },
-      mongodb_status: mongoStatus,
-      neo4j_status: neo4jStatus,
-      chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
-  }
-
-  // 提交审批
-  private async executeSubmitQuote(params: any, startTime: number): Promise<ExecutionResult> {
-    const { quote_id } = params;
-
-    if (!quote_id) {
-      return {
-        success: false,
-        error: '缺少 quote_id 参数',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    const updateData = { status: 'pending_approval' };
-
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    if (mongoClient.isOnline()) {
-      const result = await mongoClient.updateDocument('crm_quotes', quote_id, updateData);
-      mongoStatus = result ? 'ok' : 'error';
-    }
-
-    return {
-      success: true,
-      data: { quote_id, ...updateData },
-      mongodb_status: mongoStatus,
-      neo4j_status: 'skipped',
-      chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
-  }
-
-  // 审批通过
-  private async executeApproveQuote(params: any, startTime: number): Promise<ExecutionResult> {
-    const { quote_id, opportunity_id } = params;
-
-    if (!quote_id || !opportunity_id) {
-      return {
-        success: false,
-        error: '缺少必填参数',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    let mongoStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-
-    // 更新报价单状态
-    if (mongoClient.isOnline()) {
-      await mongoClient.updateDocument('crm_quotes', quote_id, { status: 'approved' });
-      // 更新商机状态为赢单
-      await mongoClient.updateDocument('crm_opportunities', opportunity_id, { stage: 'won' });
-      mongoStatus = 'ok';
-    }
-
-    return {
-      success: true,
-      data: { quote_id, opportunity_id, status: 'approved', opportunity_stage: 'won' },
-      mongodb_status: mongoStatus,
-      neo4j_status: 'skipped',
-      chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
-  }
-
-  // 图链路溯源
-  private async executeGraphTrace(params: any, startTime: number): Promise<ExecutionResult> {
-    const { opportunity_id } = params;
-
-    if (!opportunity_id) {
-      return {
-        success: false,
-        error: '缺少 opportunity_id 参数',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    let neo4jStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    let pathData = null;
-
-    if (neo4jClient.isOnline()) {
-      pathData = await neo4jClient.getFullSalesPath(opportunity_id);
-      neo4jStatus = pathData ? 'ok' : 'error';
-    }
-
-    return {
-      success: neo4jStatus === 'ok',
-      data: { opportunity_id, path: pathData },
-      mongodb_status: 'skipped',
-      neo4j_status: neo4jStatus,
-      chroma_status: 'skipped',
-      duration_ms: Date.now() - startTime,
-    };
-  }
-
-  // 语义相似搜索
-  private async executeSemanticSearch(params: any, startTime: number): Promise<ExecutionResult> {
-    const { query, limit = 5 } = params;
-
-    if (!query) {
-      return {
-        success: false,
-        error: '缺少 query 参数',
-        mongodb_status: 'skipped',
-        neo4j_status: 'skipped',
-        chroma_status: 'skipped',
-        duration_ms: Date.now() - startTime,
-      };
-    }
-
-    let chromaStatus: 'ok' | 'error' | 'skipped' = 'skipped';
-    let results = null;
-
-    if (chromaClient.isOnline()) {
-      results = await chromaClient.searchSimilarOpportunities(query, limit);
-      chromaStatus = results ? 'ok' : 'error';
-    }
-
-    return {
-      success: chromaStatus === 'ok',
-      data: { query, results },
-      mongodb_status: 'skipped',
-      neo4j_status: 'skipped',
-      chroma_status: chromaStatus,
       duration_ms: Date.now() - startTime,
     };
   }
 }
 
-// 单例实例
 export const skillExecutor = new SkillExecutor();

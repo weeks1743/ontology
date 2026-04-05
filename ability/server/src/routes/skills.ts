@@ -13,7 +13,7 @@ const router = Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const skillNamesPath = join(__dirname, '../../config/skill-names.json');
-let skillNamesMap: Record<string, { display_name: string; emoji?: string }> = {};
+let skillNamesMap: Record<string, { display_name: string; emoji?: string; github_path?: string }> = {};
 
 try {
   if (existsSync(skillNamesPath)) {
@@ -33,19 +33,19 @@ router.get('/', (req, res) => {
     // external 类技能不按 ontology_id 过滤（全局共享）
 
     // 1. 从 SQLite 获取技能
-    let sqliteSkills;
+    let sqliteSkills: any[];
     if (ontology_id) {
       // 获取指定 ontology_id 的 ontology 技能 + 所有 external 技能
       sqliteSkills = db.prepare(`
         SELECT * FROM skills
         WHERE (ontology_id = ? AND category = 'ontology') OR category = 'external'
         ORDER BY created_at DESC
-      `).all(ontology_id as string);
+      `).all(ontology_id as string) as any[];
     } else {
       // 如果没有 ontology_id，只返回 external 技能
       sqliteSkills = db.prepare(`
         SELECT * FROM skills WHERE category = 'external' ORDER BY created_at DESC
-      `).all();
+      `).all() as any[];
     }
 
     const parsedSqliteSkills = sqliteSkills.map(skill => ({
@@ -68,8 +68,8 @@ router.get('/', (req, res) => {
           category: 'external',
           source: skill.skillDir,
           metadata: {
-            ...skill.frontmatter.metadata,
-            emoji: nameMapping.emoji || skill.frontmatter.metadata?.emoji,
+            ...(typeof skill.frontmatter.metadata === 'object' ? skill.frontmatter.metadata : {}),
+            emoji: nameMapping.emoji || (typeof skill.frontmatter.metadata === 'object' ? (skill.frontmatter.metadata as any)?.emoji : undefined),
             context: skill.frontmatter.context,
             arguments: skill.frontmatter.arguments,
             when_to_use: skill.frontmatter.when_to_use,
@@ -124,18 +124,41 @@ router.get('/:id', (req, res) => {
 // 获取技能详情（README.md 或 SKILL.md body）
 router.get('/:id/detail', (req, res) => {
   try {
-    const skill = getSkillById(req.params.id);
-    if (!skill) {
-      return res.status(404).json({ error: 'Skill not found' });
+    // 先尝试从 skill-core registry 获取（外部技能）
+    let skill = getSkillById(req.params.id);
+    let skillDir: string;
+    let skillBody: string | undefined;
+
+    if (skill) {
+      // 外部技能
+      skillDir = skill.skillDir;
+      skillBody = skill.body;
+    } else {
+      // 尝试从 SQLite 查询（本体技能）
+      const dbSkill = db.prepare('SELECT * FROM skills WHERE id = ?').get(req.params.id) as any;
+      if (!dbSkill) {
+        return res.status(404).json({ error: 'Skill not found' });
+      }
+
+      // 构建技能目录路径
+      if (dbSkill.path) {
+        skillDir = dbSkill.path;
+      } else if (dbSkill.ontology_id && dbSkill.skill_slug) {
+        skillDir = join(__dirname, '../../../skills/ontology', dbSkill.ontology_id, dbSkill.skill_slug);
+      } else {
+        return res.status(404).json({ error: 'Skill directory not found' });
+      }
+
+      // 本体技能没有 pre-parsed body，后续读取完整文件
+      skillBody = undefined;
     }
 
-    const skillDir = skill.skillDir;
     const readmeZhPath = join(skillDir, 'README.zh-CN.md');
     const readmePath = join(skillDir, 'README.md');
     const skillMdPath = join(skillDir, 'SKILL.md');
 
-    // 获取 GitHub 仓库信息
-    const nameMapping = skillNamesMap[skill.id] || {};
+    // 获取 GitHub 仓库信息（仅外部技能）
+    const nameMapping = skillNamesMap[req.params.id] || {};
     const githubBaseUrl = skillNamesMap['_github_base_url'] || '';
     const githubPath = nameMapping.github_path || '';
 
@@ -143,7 +166,7 @@ router.get('/:id/detail', (req, res) => {
     if (existsSync(readmeZhPath)) {
       const content = readFileSync(readmeZhPath, 'utf-8');
       return res.json({
-        skill_id: skill.id,
+        skill_id: req.params.id,
         content,
         source: 'README.zh-CN.md',
         github_base_url: githubBaseUrl,
@@ -155,7 +178,7 @@ router.get('/:id/detail', (req, res) => {
     if (existsSync(readmePath)) {
       const content = readFileSync(readmePath, 'utf-8');
       return res.json({
-        skill_id: skill.id,
+        skill_id: req.params.id,
         content,
         source: 'README.md',
         github_base_url: githubBaseUrl,
@@ -163,11 +186,22 @@ router.get('/:id/detail', (req, res) => {
       });
     }
 
-    // 最后返回 SKILL.md 的 body（不含 frontmatter）
+    // 最后返回 SKILL.md
     if (existsSync(skillMdPath)) {
+      // 对于本体技能，读取完整文件；对于外部技能，使用已解析的 body
+      let content = skillBody || readFileSync(skillMdPath, 'utf-8');
+
+      // 移除 YAML frontmatter（如果存在）
+      if (content.startsWith('---\n')) {
+        const endIndex = content.indexOf('\n---\n', 4);
+        if (endIndex !== -1) {
+          content = content.substring(endIndex + 5).trim();
+        }
+      }
+
       return res.json({
-        skill_id: skill.id,
-        content: skill.body,
+        skill_id: req.params.id,
+        content,
         source: 'SKILL.md',
         github_base_url: githubBaseUrl,
         github_path: githubPath,

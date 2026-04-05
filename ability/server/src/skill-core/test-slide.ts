@@ -87,7 +87,7 @@ console.log('');
 // 7. 验证技能有效性
 console.log('7. 验证技能配置:');
 const hasValidName = slideSkill.id.length > 0;
-const hasDescription = slideSkill.frontmatter.description?.length > 0;
+const hasDescription = (slideSkill.frontmatter.description?.length ?? 0) > 0;
 const hasBody = slideSkill.body.length > 100;
 const isExternal = slideSkill.loadedFrom === 'external';
 

@@ -158,6 +158,33 @@ class ChromaDBClient {
     }
   }
 
+  // Generic upsert document for write-plan-executor
+  async upsertDocument(collectionName: string, id: string, document: string, metadata: Record<string, any> = {}): Promise<boolean> {
+    if (!this.isOnline() || !this.client) {
+      return false;
+    }
+
+    try {
+      let coll: Collection;
+      try {
+        coll = await this.client.getCollection({ name: collectionName });
+      } catch {
+        coll = await this.client.createCollection({ name: collectionName });
+      }
+
+      await coll.upsert({
+        ids: [id],
+        documents: [document],
+        metadatas: [{ ...metadata, updated_at: new Date().toISOString() }],
+      });
+
+      return true;
+    } catch (error) {
+      console.error('ChromaDB upsertDocument error:', error);
+      return false;
+    }
+  }
+
   // 批量向量化待处理的商机
   async batchVectorize(opportunities: Array<{ id: string; data: any }>): Promise<number> {
     if (!this.isOnline() || !this.collection) {
@@ -196,6 +223,37 @@ class ChromaDBClient {
     } catch (error) {
       console.error('ChromaDB batchVectorize error:', error);
       return 0;
+    }
+  }
+
+  // Clear all collections for a specific ontology
+  async clearOntologyCollections(ontologyId: string): Promise<{ collections: string[]; deletedCount: number }> {
+    if (!this.isOnline() || !this.client) {
+      return { collections: [], deletedCount: 0 };
+    }
+
+    try {
+      const collections = await this.client.listCollections();
+      const prefix = `${ontologyId}_`;
+      const matchingCollections = collections.filter(c => c.name.startsWith(prefix));
+
+      let totalDeleted = 0;
+      for (const coll of matchingCollections) {
+        // Get collection to count documents
+        const collection = await this.client.getCollection({ name: coll.name });
+        const existingDocs = await collection.get();
+        const count = existingDocs.ids?.length || 0;
+
+        // Delete the collection
+        await this.client.deleteCollection({ name: coll.name });
+        totalDeleted += count;
+      }
+
+      console.log(`✅ ChromaDB cleared ${matchingCollections.length} collections (${totalDeleted} documents) for ontology: ${ontologyId}`);
+      return { collections: matchingCollections.map(c => c.name), deletedCount: totalDeleted };
+    } catch (error) {
+      console.error('ChromaDB clearOntologyCollections error:', error);
+      return { collections: [], deletedCount: 0 };
     }
   }
 }

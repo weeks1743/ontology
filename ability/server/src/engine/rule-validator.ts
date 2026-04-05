@@ -40,38 +40,135 @@ export class RuleValidator {
     };
   }
 
-  // 表达式求值
-  private evaluateExpression(expression: string, data: any): boolean {
+  // Public expression evaluation (supports string expressions and structured objects)
+  evaluateExpression(expression: any, data: any): boolean {
+    if (expression === null || expression === undefined) return true;
+
+    if (typeof expression === 'object') {
+      return this.evaluateStructuredExpression(expression, data);
+    }
+
+    if (typeof expression !== 'string') return true;
+
+    return this.evaluateStringExpression(expression, data);
+  }
+
+  // Evaluate a structured (AST-like) expression object
+  evaluateStructuredExpression(expression: any, data: any): boolean {
+    if (!expression || typeof expression !== 'object') return true;
+
+    const type = expression.type;
+
+    if (type === 'logical_and' || type === 'and') {
+      const operands: any[] = expression.operands || [];
+      return operands.every(op => this.evaluateExpression(op, data));
+    }
+
+    if (type === 'logical_or' || type === 'or') {
+      const operands: any[] = expression.operands || [];
+      return operands.some(op => this.evaluateExpression(op, data));
+    }
+
+    if (type === 'logical_not' || type === 'not') {
+      return !this.evaluateExpression(expression.operand || expression.operands?.[0], data);
+    }
+
+    if (type === 'comparison') {
+      const leftVal = this.resolveValue(expression.left, data);
+      const rightVal = expression.right;
+      const op = expression.operator;
+      return this.compareValues(leftVal, op, rightVal);
+    }
+
+    if (type === 'is_null') {
+      const val = this.resolveValue(expression.field, data);
+      return val === null || val === undefined;
+    }
+
+    if (type === 'is_not_null') {
+      const val = this.resolveValue(expression.field, data);
+      return val !== null && val !== undefined;
+    }
+
+    if (type === 'in') {
+      const val = this.resolveValue(expression.field || expression.left, data);
+      const values: any[] = expression.values || expression.right || [];
+      return values.includes(val);
+    }
+
+    if (type === 'not_in') {
+      const val = this.resolveValue(expression.field || expression.left, data);
+      const values: any[] = expression.values || expression.right || [];
+      return !values.includes(val);
+    }
+
+    // required_fields shorthand
+    if (expression.required_fields) {
+      const fields: string[] = expression.required_fields;
+      return fields.every(f => data[f] !== undefined && data[f] !== null && data[f] !== '');
+    }
+
+    // Fallback: treat as truthy
+    return true;
+  }
+
+  private resolveValue(ref: any, data: any): any {
+    if (typeof ref !== 'string') return ref;
+    // Support dot paths like "input.amount"
+    const parts = ref.split('.');
+    let val: any = data;
+    for (const part of parts) {
+      val = val?.[part];
+    }
+    return val !== undefined ? val : data[ref];
+  }
+
+  private compareValues(left: any, op: string, right: any): boolean {
+    switch (op) {
+      case '>=': return left >= right;
+      case '<=': return left <= right;
+      case '>': return left > right;
+      case '<': return left < right;
+      case '==': case '===': return left == right;
+      case '!=': case '!==': return left != right;
+      case 'contains': return typeof left === 'string' && left.includes(String(right));
+      case 'starts_with': return typeof left === 'string' && left.startsWith(String(right));
+      case 'ends_with': return typeof left === 'string' && left.endsWith(String(right));
+      default: return true;
+    }
+  }
+
+  // String expression evaluation (legacy)
+  private evaluateStringExpression(expression: string, data: any): boolean {
     try {
-      // 替换变量引用
       let processedExpr = expression;
 
-      // 支持的操作符
-      const operators = ['&&', '||', '>=', '<=', '!=', '==', '>', '<'];
+      // Handle dot-notation references like "lead.title", "opportunity.probability"
+      // by replacing them with the flat data field value
+      const dotPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\.([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
+      processedExpr = processedExpr.replace(dotPattern, (_match, _prefix, field) => {
+        const value = data[field] !== undefined ? data[field] : data[`${_prefix}.${field}`];
+        return this.serializeValue(value);
+      });
 
-      // 查找所有变量引用（如 title, phone, amount 等）
+      // Handle remaining bare variable names
       const varPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g;
-      const matches = expression.match(varPattern);
+      const matches = processedExpr.match(varPattern);
 
       if (matches) {
         for (const varName of matches) {
-          // 跳过操作符关键字
           if (['true', 'false', 'null', 'undefined', 'and', 'or', 'not'].includes(varName)) {
             continue;
           }
 
-          // 替换变量为实际值
           const value = data[varName];
           const valueStr = this.serializeValue(value);
 
-          // 使用正则替换，确保只替换完整的单词
           const regex = new RegExp(`\\b${varName}\\b`, 'g');
           processedExpr = processedExpr.replace(regex, valueStr);
         }
       }
 
-      // 执行表达式求值
-      // 注意：这里使用 Function 构造函数而不是 eval，相对更安全
       const result = new Function(`return ${processedExpr}`)();
       return Boolean(result);
     } catch (error) {

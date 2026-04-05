@@ -3,9 +3,13 @@ import { Play, CheckCircle, XCircle, AlertCircle, ExternalLink, Download, Loader
 
 interface TestCase {
   id: string;
-  name: string;
-  description: string;
-  skillId: string;
+  // Support both old field names and new DB-style field names
+  name?: string;
+  case_name_zh?: string;
+  description?: string;
+  description_zh?: string;
+  skillId?: string;
+  skill_id?: string;
   params: any;
   expectedResult?: any;
   status: 'pending' | 'running' | 'passed' | 'failed';
@@ -19,7 +23,7 @@ interface TestCase {
 
 interface TestCaseRunnerProps {
   testCases: TestCase[];
-  onRunTest: (testCase: TestCase) => Promise<void>;
+  onRunTest: (testCase: any) => Promise<void>;
   onRunAll: () => Promise<void>;
 }
 
@@ -49,7 +53,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
     if (testCase.htmlUrl && testCase.htmlUrl.startsWith('/tmp/')) {
       const link = document.createElement('a');
       link.href = testCase.htmlUrl;
-      link.download = `${testCase.skillId}-${testCase.id}.html`;
+      link.download = `${testCase.skillId || testCase.skill_id}-${testCase.id}.html`;
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
@@ -68,7 +72,7 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${testCase.skillId}-${testCase.id}.html`;
+      link.download = `${testCase.skillId || testCase.skill_id}-${testCase.id}.html`;
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
@@ -154,9 +158,9 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold">{testCase.id}</span>
-                    <span className="text-sm text-gray-400">{testCase.name}</span>
+                    <span className="text-sm text-gray-400">{testCase.name || testCase.case_name_zh}</span>
                   </div>
-                  <p className="text-sm text-gray-400 mb-2">{testCase.description}</p>
+                  <p className="text-sm text-gray-400 mb-2">{testCase.description || testCase.description_zh}</p>
 
                   {/* 运行中进度反馈 - 简洁静态方案 */}
                   {testCase.status === 'running' && (

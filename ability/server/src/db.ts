@@ -90,5 +90,91 @@ export function initDatabase() {
     )
   `);
 
+  // 迁移：扩展 skills 表新增列
+  try {
+    const columns = db.prepare('PRAGMA table_info(skills)').all() as any[];
+    const colNames = columns.map(c => c.name);
+
+    const newCols: [string, string][] = [
+      ['skill_slug', 'TEXT'],
+      ['display_name_zh', 'TEXT'],
+      ['skill_type', "TEXT CHECK(skill_type IN ('behavior','scenario','query'))"],
+      ['path', 'TEXT'],
+      ['snapshot_hash', 'TEXT'],
+      ['build_version', 'TEXT'],
+      ['is_active', 'INTEGER DEFAULT 1'],
+    ];
+
+    for (const [col, def] of newCols) {
+      if (!colNames.includes(col)) {
+        db.exec(`ALTER TABLE skills ADD COLUMN ${col} ${def}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error extending skills table:', error);
+  }
+
+  // 构建记录表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS skill_builds (
+      id TEXT PRIMARY KEY,
+      ontology_id TEXT NOT NULL,
+      build_version TEXT NOT NULL,
+      snapshot_hash TEXT NOT NULL,
+      build_mode TEXT NOT NULL CHECK(build_mode IN ('full','incremental')),
+      status TEXT NOT NULL CHECK(status IN ('success','failed','partial')),
+      generated_count INTEGER DEFAULT 0,
+      updated_count INTEGER DEFAULT 0,
+      skipped_count INTEGER DEFAULT 0,
+      error_message TEXT,
+      started_at TEXT NOT NULL,
+      finished_at TEXT,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  // 构建报告表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS skill_build_reports (
+      id TEXT PRIMARY KEY,
+      build_id TEXT NOT NULL,
+      build_version TEXT NOT NULL,
+      ontology_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  // 测试方案表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS skill_test_plans (
+      id TEXT PRIMARY KEY,
+      build_version TEXT NOT NULL,
+      ontology_id TEXT NOT NULL,
+      snapshot_hash TEXT NOT NULL,
+      total_cases INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  // 测试用例表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS skill_test_cases (
+      id TEXT PRIMARY KEY,
+      plan_id TEXT NOT NULL,
+      skill_id TEXT NOT NULL,
+      skill_slug TEXT NOT NULL,
+      case_code TEXT NOT NULL,
+      case_name_zh TEXT NOT NULL,
+      case_type TEXT NOT NULL CHECK(case_type IN ('positive','negative','rule_block','scenario')),
+      description_zh TEXT,
+      params TEXT NOT NULL,
+      expected_result TEXT,
+      db_assertions TEXT,
+      sequence INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    )
+  `);
+
   console.log('✅ Database initialized at:', dbPath);
 }

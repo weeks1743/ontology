@@ -59,7 +59,7 @@ export async function getOntologyBehaviors(ontologyId: string): Promise<Ontology
     if (!response.ok) {
       throw new Error(`Failed to fetch behaviors: ${response.statusText}`);
     }
-    return await response.json();
+    return await response.json() as OntologyBehavior[];
   } catch (error) {
     console.error('Error fetching ontology behaviors:', error);
     throw error;
@@ -73,7 +73,7 @@ export async function getOntologyRules(ontologyId: string): Promise<OntologyRule
     if (!response.ok) {
       throw new Error(`Failed to fetch rules: ${response.statusText}`);
     }
-    return await response.json();
+    return await response.json() as OntologyRule[];
   } catch (error) {
     console.error('Error fetching ontology rules:', error);
     throw error;
@@ -87,7 +87,7 @@ export async function getOntologyObjects(ontologyId: string): Promise<OntologyOb
     if (!response.ok) {
       throw new Error(`Failed to fetch objects: ${response.statusText}`);
     }
-    return await response.json();
+    return await response.json() as OntologyObject[];
   } catch (error) {
     console.error('Error fetching ontology objects:', error);
     throw error;
@@ -101,7 +101,7 @@ export async function getOntologyEvents(ontologyId: string): Promise<OntologyEve
     if (!response.ok) {
       throw new Error(`Failed to fetch events: ${response.statusText}`);
     }
-    return await response.json();
+    return await response.json() as OntologyEvent[];
   } catch (error) {
     console.error('Error fetching ontology events:', error);
     throw error;

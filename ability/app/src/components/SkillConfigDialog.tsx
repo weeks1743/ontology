@@ -77,7 +77,7 @@ export default function SkillConfigDialog({
         <div className="mb-4">
           <p className="text-sm text-gray-400 mb-4">{skillName}</p>
 
-          {skillId === 'ext.baidu_search' && (
+          {skillId === 'baidu-search' && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -97,7 +97,7 @@ export default function SkillConfigDialog({
             </div>
           )}
 
-          {skillId === 'ext.volcengine_web_search' && (
+          {skillId === 'volcengine-web-search' && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -117,13 +117,13 @@ export default function SkillConfigDialog({
             </div>
           )}
 
-          {skillId === 'ext.kai_report_creator' && (
+          {skillId === 'kai-report-creator' && (
             <div className="text-sm text-gray-400">
               此技能无需配置
             </div>
           )}
 
-          {!['ext.baidu_search', 'ext.volcengine_web_search', 'ext.kai_report_creator'].includes(skillId) && (
+          {!['baidu-search', 'volcengine-web-search', 'kai-report-creator'].includes(skillId) && (
             <div className="text-sm text-gray-400">
               此技能无需配置
             </div>

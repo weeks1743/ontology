@@ -1,0 +1,63 @@
+skill_id: ont.crm.opportunity_create
+skill_slug: opportunity_create
+full_id: ont.crm.opportunity_create
+skill_type: behavior
+build_version: v20260405033335
+snapshot_hash: bc951cb57451e860a96ed451a42f1f0af14b9530c75fe6043b563be1e9e016b1
+ontology_id: crm
+behavior_code: Opportunity.Create
+behavior_name_zh: 创建商机
+owner_object: Opportunity
+trigger_type: USER_ACTION
+input_schema:
+  - name: name
+    display_name_zh: 商机名称
+    type: string
+    required: true
+reads: []
+object_preconditions: []
+rule_bindings:
+  - rule_code: Opportunity.ProbabilityRange
+    rule_name_zh: 商机赢单概率范围
+    expression: opportunity.probability >= 0 && opportunity.probability <= 100
+    failure_message_zh: 赢单概率必须在0-100之间
+    severity: medium
+write_plan:
+  mongodb:
+    required: true
+    ops:
+      - op: insert
+        collection: crm_opportunitys
+        alias: opportunity_id
+        document:
+          id: $result.generated_id
+  neo4j:
+    required: true
+    ops:
+      - op: upsert_node
+        label: Opportunity
+        id_field: opportunity_id
+        alias: opportunity_node
+        properties:
+          id: $result.opportunity_id
+          name: $input.name
+          amount: $input.amount
+          probability: $input.probability
+          closeDate: $input.closeDate
+          stage: $input.stage
+  chroma:
+    required: false
+    ops:
+      - op: upsert
+        collection: crm_opportunitys
+        id: $result.opportunity_id
+        document: $input.name
+        metadata:
+          object_type: Opportunity
+event_bindings:
+  - event_code: opportunity.created
+    event_name_zh: 商机已创建
+    trigger: on_success
+success_template_zh: 创建商机成功：操作已完成
+failure_template_zh: 创建商机失败：{{error_message}}
+generated_at: '2026-04-05T03:33:35.636Z'

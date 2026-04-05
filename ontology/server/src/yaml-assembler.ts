@@ -68,7 +68,7 @@ export function assembleYaml(ontologyId: number): YamlBundle {
   const objectsDoc = rawObjects.map((o) => {
     const attributes = parseJson<any[]>(o['attributes'], []);
     const relations = parseJson<any[]>(o['relations_detail'], []);
-    const lifecycleEnhanced = parseJson<any[]>(o['lifecycle_enhanced'], null);
+    const lifecycleEnhanced = parseJson<any[]>(o['lifecycle_enhanced'], [] as any);
     const aliases = parseJson<string[]>(o['aliases'], []);
     const nlExamples = parseJson<string[]>(o['nl_examples'], []);
     const negativeExamples = parseJson<string[]>(o['negative_examples'], []);
@@ -126,9 +126,9 @@ export function assembleYaml(ontologyId: number): YamlBundle {
 
     const aliases = parseJson<string[]>(b['aliases'], []);
     const nlExamples = parseJson<string[]>(b['nl_examples'], []);
-    const inputsSchema = parseJson<any[]>(b['inputs_schema'], null);
+    const inputsSchema = parseJson<any[]>(b['inputs_schema'], [] as any);
     const preconditions = parseJson<any[]>(b['preconditions'], []);
-    const resultSchema = parseJson<any[]>(b['result_schema'], null);
+    const resultSchema = parseJson<any[]>(b['result_schema'], [] as any);
     const postconditions = parseJson<any[]>(b['postconditions'], []);
     const sideEffects = parseJson<any[]>(b['side_effects'], []);
 
@@ -235,7 +235,7 @@ export function assembleYaml(ontologyId: number): YamlBundle {
   const scenariosDoc = rawScenarios.map((s) => {
     const steps = parseJson<any[]>(s['steps'], []);
     const startConditions = parseJson<string[]>(s['start_conditions'], []);
-    const decisionPointsEnhanced = parseJson<any[]>(s['decision_points_enhanced'], null);
+    const decisionPointsEnhanced = parseJson<any[]>(s['decision_points_enhanced'], [] as any);
     const rollbackCompensation = parseJson<any[]>(s['rollback_compensation'], []);
     const observabilityMetrics = parseJson<string[]>(s['observability_metrics'], []);
 

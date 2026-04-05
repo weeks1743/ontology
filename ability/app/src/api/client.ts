@@ -70,9 +70,72 @@ export const ontologySkillsApi = {
     return res.json();
   },
 
+  build: async (ontologyId: string, forceFull?: boolean): Promise<{
+    success: boolean; build_version: string; build_id: string;
+    build_mode: string; generated_count: number; updated_count: number;
+    skipped_count: number; test_cases_count: number;
+  }> => {
+    const res = await fetch(`${API_BASE}/ontology-skills/build`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ontology_id: ontologyId, force_full: forceFull }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to trigger build');
+    }
+    return res.json();
+  },
+
   deleteAll: async (ontologyId: string): Promise<{ success: boolean; deleted_count: number }> => {
     const res = await fetch(`${API_BASE}/ontology-skills/all?ontology_id=${ontologyId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Failed to delete ontology skills');
+    return res.json();
+  },
+
+  getBuilds: async (ontologyId: string): Promise<any[]> => {
+    const res = await fetch(`${API_BASE}/ontology-skills/builds/${ontologyId}`);
+    if (!res.ok) throw new Error('Failed to fetch builds');
+    return res.json();
+  },
+
+  getBuildReport: async (buildVersion: string): Promise<any> => {
+    const res = await fetch(`${API_BASE}/ontology-skills/builds/${buildVersion}/report`);
+    if (!res.ok) throw new Error('Failed to fetch build report');
+    return res.json();
+  },
+
+  getTestPlan: async (buildVersion: string): Promise<any> => {
+    const res = await fetch(`${API_BASE}/ontology-skills/builds/${buildVersion}/test-plan`);
+    if (!res.ok) throw new Error('Failed to fetch test plan');
+    return res.json();
+  },
+
+  executeSkill: async (skillId: string, params: any): Promise<any> => {
+    const res = await fetch(`${API_BASE}/ontology-skills/${skillId}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) throw new Error('Failed to execute skill');
+    return res.json();
+  },
+
+  clearData: async (ontologyId: string): Promise<{
+    success: boolean;
+    ontology_id: string;
+    cleared: {
+      mongodb: { collections: string[]; documents_deleted: number };
+      neo4j: { nodes_deleted: number; relationships_deleted: number };
+      chroma: { collections: string[]; documents_deleted: number };
+    };
+  }> => {
+    const res = await fetch(`${API_BASE}/ontology-skills/clear-data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ontology_id: ontologyId }),
+    });
+    if (!res.ok) throw new Error('Failed to clear data');
     return res.json();
   },
 };

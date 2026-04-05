@@ -1,0 +1,111 @@
+skill_id: ont.crm.lead_convert_to_opportunity
+skill_slug: lead_convert_to_opportunity
+full_id: ont.crm.lead_convert_to_opportunity
+skill_type: behavior
+build_version: v20260405033335
+snapshot_hash: bc951cb57451e860a96ed451a42f1f0af14b9530c75fe6043b563be1e9e016b1
+ontology_id: crm
+behavior_code: Lead.ConvertToOpportunity
+behavior_name_zh: 转化为商机
+owner_object: Lead
+trigger_type: USER_ACTION
+input_schema:
+  - name: budget
+    display_name_zh: 预算金额
+    type: number
+    required: true
+    description: 预算金额
+  - name: company
+    display_name_zh: 公司名称
+    type: string
+    required: true
+    description: 公司名称
+  - name: conversion_reason
+    display_name_zh: 转化原因
+    type: string
+    required: false
+    description: 转化原因
+result_schema:
+  - name: opportunity_id
+    type: string
+    description: 创建的商机ID
+  - name: customer_id
+    type: string
+    description: 创建的客户ID
+  - name: contact_id
+    type: string
+    description: 创建的联系人ID
+  - name: success
+    type: boolean
+    description: 是否成功
+reads: []
+object_preconditions: []
+rule_bindings:
+  - rule_code: Lead.RequiredInfo
+    rule_name_zh: 线索必填信息校验
+    expression: lead.title != null && lead.phone != null
+    failure_message_zh: 线索标题和联系电话为必填项
+    severity: high
+  - rule_code: Lead.BudgetThreshold
+    rule_name_zh: 线索预算门槛
+    expression:
+      type: logical_or
+      operands:
+        - type: comparison
+          left: lead.budget
+          operator: '>='
+          right: 10000
+        - type: is_null
+          field: lead.budget
+    failure_message_zh: 预算低于最低门槛1万元
+    severity: medium
+write_plan:
+  mongodb:
+    required: true
+    ops:
+      - op: insert
+        collection: crm_leads
+        alias: lead_id
+        document:
+          id: $result.lead_id
+      - op: insert
+        collection: crm_opportunitys
+        alias: opportunity_id
+        document:
+          id: $result.opportunity_id
+  neo4j:
+    required: true
+    ops:
+      - op: upsert_node
+        label: Lead
+        id_field: lead_id
+        properties:
+          id: $result.lead_id
+      - op: upsert_node
+        label: Opportunity
+        id_field: opportunity_id
+        properties:
+          id: $result.opportunity_id
+      - op: upsert_edge
+        from_label: Lead
+        from_id: $input.lead_id
+        to_label: Opportunity
+        to_id: $result.opportunity_id
+        relationship: CONVERTED_TO
+  chroma:
+    required: false
+    ops:
+      - op: upsert
+        collection: crm_opportunities
+        id: $result.opportunity_id
+        document: $result.opportunity_title
+        metadata:
+          object_type: Opportunity
+          source: converted
+event_bindings:
+  - event_code: lead.converted
+    event_name_zh: 线索已转化
+    trigger: on_success
+success_template_zh: 转化为商机成功：操作已完成
+failure_template_zh: 转化为商机失败：{{error_message}}
+generated_at: '2026-04-05T03:33:35.630Z'

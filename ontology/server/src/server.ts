@@ -10,6 +10,7 @@ import scenariosRouter from './routes/scenarios';
 import yamlRouter from './routes/yaml';
 import validationRouter from './routes/validation';
 import seedRouter from './routes/seed';
+import snapshotRouter from './routes/snapshot';
 
 const app = express();
 const PORT = process.env['PORT'] ?? 3001;
@@ -31,6 +32,7 @@ app.use('/api/ontologies/:id/scenarios', scenariosRouter);
 app.use('/api/ontologies/:id/yaml', yamlRouter);
 app.use('/api/ontologies/:id/validation', validationRouter);
 app.use('/api/ontologies/:id/seed', seedRouter);
+app.use('/api/ontologies/:id/definition-snapshot', snapshotRouter);
 
 // Health
 app.get('/health', (_req, res) => res.json({ ok: true }));

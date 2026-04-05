@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAbilityStore } from '../store/ability-store';
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function ExecutionLogsPage() {
   const { logs, fetchLogs } = useAbilityStore();
   const [filter, setFilter] = useState<'all' | 'success' | 'error' | 'partial'>('all');
+  const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLogs();
@@ -48,64 +49,135 @@ export default function ExecutionLogsPage() {
           </button>
         </div>
 
-        {/* 日志表格 */}
-        <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold">状态</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">技能名称</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">时间</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">耗时</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">数据库状态</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                    暂无执行记录
-                  </td>
-                </tr>
-              ) : (
-                filteredLogs.map(log => (
-                  <tr key={log.id} className="border-t border-white/10 hover:bg-white/5">
-                    <td className="px-6 py-4">
-                      {log.status === 'success' ? (
-                        <CheckCircle className="text-green-400" size={20} />
-                      ) : log.status === 'error' ? (
-                        <XCircle className="text-red-400" size={20} />
-                      ) : (
-                        <AlertCircle className="text-yellow-400" size={20} />
-                      )}
-                    </td>
-                    <td className="px-6 py-4 font-medium">{log.skill_name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-400">
-                      {new Date(log.created_at).toLocaleString('zh-CN')}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono">{log.duration_ms}ms</td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2 text-xs">
-                        <span className={`px-2 py-1 rounded ${getStatusColor(log.mongodb_status)}`}>
-                          M: {log.mongodb_status}
-                        </span>
-                        <span className={`px-2 py-1 rounded ${getStatusColor(log.neo4j_status)}`}>
-                          N: {log.neo4j_status}
-                        </span>
-                        <span className={`px-2 py-1 rounded ${getStatusColor(log.chroma_status)}`}>
-                          C: {log.chroma_status}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        {/* 日志列表 */}
+        <div className="space-y-2">
+          {filteredLogs.length === 0 ? (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center text-white/40">
+              暂无执行记录
+            </div>
+          ) : (
+            filteredLogs.map(log => (
+              <div key={log.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                {/* 日志行 */}
+                <div
+                  className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-white/5"
+                  onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
+                >
+                  <div className="flex-shrink-0">
+                    {log.status === 'success' ? (
+                      <CheckCircle className="text-green-400" size={18} />
+                    ) : log.status === 'error' ? (
+                      <XCircle className="text-red-400" size={18} />
+                    ) : (
+                      <AlertCircle className="text-yellow-400" size={18} />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-white">{log.skill_name}</span>
+                  </div>
+                  <span className="text-xs text-white/40 flex-shrink-0">
+                    {new Date(log.created_at).toLocaleString('zh-CN')}
+                  </span>
+                  <span className="text-xs font-mono text-white/40 flex-shrink-0">{log.duration_ms}ms</span>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded ${getStatusColor(log.mongodb_status)}`}>M</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${getStatusColor(log.neo4j_status)}`}>N</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${getStatusColor(log.chroma_status)}`}>C</span>
+                  </div>
+                  {expandedLog === log.id
+                    ? <ChevronUp size={14} className="text-white/40 flex-shrink-0" />
+                    : <ChevronDown size={14} className="text-white/40 flex-shrink-0" />
+                  }
+                </div>
+
+                {/* 展开区：执行结果 */}
+                {expandedLog === log.id && (
+                  <div className="border-t border-white/10 px-5 py-4 space-y-3">
+                    {log.output_result && (
+                      <OutputResultViewer raw={log.output_result} />
+                    )}
+                    {!log.output_result && (
+                      <p className="text-xs text-white/30">无输出数据</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+function OutputResultViewer({ raw }: { raw: any }) {
+  const [showHtml, setShowHtml] = useState(false);
+
+  let parsed: any = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch { parsed = raw; }
+  }
+
+  // Extract output text
+  const outputText: string = (() => {
+    if (typeof parsed === 'string') return parsed;
+    if (parsed?.output) return typeof parsed.output === 'string' ? parsed.output : JSON.stringify(parsed.output, null, 2);
+    if (parsed?.message) return parsed.message;
+    return JSON.stringify(parsed, null, 2);
+  })();
+
+  // Detect HTML content
+  const htmlContent = extractHtmlContent(outputText);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-white/40 uppercase tracking-wide">执行结果</span>
+        {htmlContent && (
+          <button
+            onClick={() => setShowHtml(!showHtml)}
+            className="text-xs text-indigo-400 hover:text-indigo-300"
+          >
+            {showHtml ? '查看文本' : '预览 HTML'}
+          </button>
+        )}
+      </div>
+
+      {showHtml && htmlContent ? (
+        <iframe
+          srcDoc={htmlContent}
+          className="w-full rounded-lg border border-white/10"
+          style={{ height: '480px' }}
+          sandbox="allow-scripts allow-same-origin"
+          title="执行结果预览"
+        />
+      ) : (
+        <pre className="text-xs text-white/70 bg-black/30 rounded-lg p-4 overflow-auto max-h-64 whitespace-pre-wrap break-words">
+          {outputText}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function extractHtmlContent(raw: string): string | null {
+  if (!raw) return null;
+
+  const mdMatch = raw.match(/```(?:html)?\s*\n([\s\S]*?)```/);
+  if (mdMatch) {
+    const extracted = mdMatch[1].trim();
+    if (/<(?:html|body|!doctype)/i.test(extracted)) return extracted;
+  }
+
+  const htmlMatch = raw.match(/<(!doctype|html)[\s\S]*<\/html>/i);
+  if (htmlMatch) return htmlMatch[0];
+
+  const bodyMatch = raw.match(/<body[\s\S]*<\/body>/i);
+  if (bodyMatch) {
+    return `<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n${bodyMatch[0]}\n</html>`;
+  }
+
+  return null;
 }
 
 function getStatusColor(status: 'ok' | 'error' | 'skipped') {

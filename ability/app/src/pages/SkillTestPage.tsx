@@ -1,11 +1,26 @@
-import { useState } from 'react';
-import { skillsApi } from '../api/client';
+import { useState, useEffect } from 'react';
+import { skillsApi, ontologySkillsApi } from '../api/client';
+import { useAbilityStore } from '../store/ability-store';
 import TestCaseRunner from '../components/TestCaseRunner';
+import { TestCase } from '../types';
 
-// 本体技能用旧 API（后端业务逻辑），外部技能用 v2 API（LLM 执行）
-async function executeSkillByType(skillId: string, params: any) {
-  // 本体技能（ont.*）→ 旧 API
-  if (skillId.startsWith('ont.')) {
+// 本体技能用新 manifest-driven API
+async function executeOntologySkill(skillId: string, params: any) {
+  try {
+    const res = await fetch(`/api/ontology-skills/${encodeURIComponent(skillId)}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    const result = await res.json();
+    return {
+      success: result.success,
+      spawnOutput: result.data,
+      error: result.error,
+      durationMs: result.duration_ms,
+    };
+  } catch {
+    // Fallback to old API
     const result = await skillsApi.execute(skillId, params);
     return {
       success: result.success,
@@ -14,73 +29,9 @@ async function executeSkillByType(skillId: string, params: any) {
       durationMs: result.duration_ms,
     };
   }
-  // 外部技能 → v2 API（LLM 执行）
-  const res = await fetch(`/api/v2/skills/${skillId}/execute`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ params }),
-  });
-  const data = await res.json();
-  if (!res.ok || !data.success) {
-    throw new Error(data.error || `Failed to execute skill: ${res.statusText}`);
-  }
-  return data;
 }
 
-/**
- * 从 LLM 输出中提取纯 HTML 内容
- * 处理 DeepSeek 等模型用 markdown 代码块包裹 HTML 的情况
- */
-function extractHtmlContent(raw: string): string | null {
-  if (!raw) {
-    console.log('[extractHtml] Empty input');
-    return null;
-  }
-
-  console.log('[extractHtml] Input length:', raw.length);
-
-  // 1. 尝试从 markdown 代码块中提取（支持 ```html 和 ``` 两种格式）
-  const mdMatch = raw.match(/```(?:html)?\s*\n([\s\S]*?)```/);
-  if (mdMatch) {
-    const extracted = mdMatch[1].trim();
-    console.log('[extractHtml] Found markdown block, checking for HTML tags');
-    // 检查是否包含 HTML 标签（放宽条件，只要有 <html 或 <body 即可）
-    if (/<(?:html|body|!doctype)/i.test(extracted)) {
-      console.log('[extractHtml] ✓ Extracted from markdown block');
-      return extracted;
-    }
-  }
-
-  // 2. 尝试查找完整的 HTML 文档（从 <!DOCTYPE 或 <html 开始）
-  const htmlMatch = raw.match(/<(!doctype|html)[\s\S]*<\/html>/i);
-  if (htmlMatch) {
-    console.log('[extractHtml] ✓ Found complete HTML document');
-    return htmlMatch[0];
-  }
-
-  // 3. 尝试查找部分 HTML（包含 body）
-  const bodyMatch = raw.match(/<body[\s\S]*<\/body>/i);
-  if (bodyMatch) {
-    console.log('[extractHtml] ✓ Found body tag, wrapping as complete HTML');
-    // 包装为完整 HTML
-    return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-${bodyMatch[0]}
-</html>`;
-  }
-
-  console.log('[extractHtml] ✗ No HTML content found');
-  return null;
-}
-
-interface TestCase {
-  id: string;
-  name: string;
-  description: string;
-  skillId: string;
-  params: any;
-  expectedResult?: any;
+type RuntimeTestCase = TestCase & {
   status: 'pending' | 'running' | 'passed' | 'failed';
   actualResult?: any;
   error?: string;
@@ -88,386 +39,85 @@ interface TestCase {
   htmlUrl?: string;
   htmlContent?: string;
   progress?: string;
-}
-
-// CRM 业务流程测试用例
-const CRM_TEST_CASES: TestCase[] = [
-  {
-    id: 'UC001',
-    name: '创建线索（规则通过）',
-    description: '创建线索，提供 title + phone，规则校验通过',
-    skillId: 'ont.create_lead',
-    params: {
-      title: '测试线索-大客户',
-      phone: '13800138000',
-      source: '网站推广',
-      owner: '张三'
-    },
-    status: 'pending'
-  },
-  {
-    id: 'UC002',
-    name: '创建线索（缺电话阻断）',
-    description: '创建线索，缺少 phone 字段，规则校验阻断',
-    skillId: 'ont.create_lead',
-    params: {
-      title: '测试线索-无电话'
-    },
-    status: 'pending',
-    expectedResult: { success: false, error: '缺少必填字段: phone' }
-  },
-  {
-    id: 'UC003',
-    name: '补全线索（预算达标）',
-    description: '补全线索信息，预算 >= 1万，规则通过',
-    skillId: 'ont.complete_lead',
-    params: {
-      lead_id: 'test-lead-001',
-      budget: 50000,
-      requirements: '需要 CRM 系统'
-    },
-    status: 'pending'
-  },
-  {
-    id: 'UC004',
-    name: '补全线索（预算不足阻断）',
-    description: '补全线索信息，预算 < 1万，规则阻断',
-    skillId: 'ont.complete_lead',
-    params: {
-      lead_id: 'test-lead-002',
-      budget: 5000,
-      requirements: '小型项目'
-    },
-    status: 'pending',
-    expectedResult: { success: false, error: '预算不足：线索预算必须 >= 1万元' }
-  },
-  {
-    id: 'UC005',
-    name: '评估线索',
-    description: '评估线索质量，设置评分和优先级',
-    skillId: 'ont.evaluate_lead',
-    params: {
-      lead_id: 'test-lead-001',
-      score: 85,
-      priority: 'high'
-    },
-    status: 'pending'
-  },
-  {
-    id: 'UC006',
-    name: '线索转商机',
-    description: '线索转商机，自动创建客户、联系人、商机',
-    skillId: 'ont.convert_lead',
-    params: {
-      lead_id: 'test-lead-001',
-      customer_name: '测试科技有限公司',
-      contact_name: '李经理',
-      contact_phone: '13900139000',
-      opportunity_title: '测试商机-CRM项目',
-      amount: 500000
-    },
-    status: 'pending'
-  },
-  {
-    id: 'UC007',
-    name: '创建商机（概率合法）',
-    description: '创建商机，概率在 0-100 之间，规则通过',
-    skillId: 'ont.create_opportunity',
-    params: {
-      title: '测试商机-ERP项目',
-      amount: 800000,
-      probability: 60,
-      customer_id: 'test-customer-001'
-    },
-    status: 'pending'
-  },
-  {
-    id: 'UC008',
-    name: '创建商机（概率越界阻断）',
-    description: '创建商机，概率 > 100，规则阻断',
-    skillId: 'ont.create_opportunity',
-    params: {
-      title: '测试商机-越界',
-      amount: 100000,
-      probability: 150
-    },
-    status: 'pending',
-    expectedResult: { success: false, error: '概率越界：商机概率必须在 0-100 之间' }
-  },
-  {
-    id: 'UC009',
-    name: '推进商机阶段',
-    description: '推进商机到下一阶段，更新概率',
-    skillId: 'ont.advance_opportunity',
-    params: {
-      opportunity_id: 'test-opp-001',
-      stage: 'proposal',
-      probability: 70
-    },
-    status: 'pending'
-  },
-  {
-    id: 'UC010',
-    name: '创建报价单（50万内免审批）',
-    description: '创建报价单，金额 <= 50万，无需审批',
-    skillId: 'ont.create_quote',
-    params: {
-      opportunity_id: 'test-opp-001',
-      amount: 400000,
-      items: ['CRM系统', '实施服务']
-    },
-    status: 'pending'
-  },
-  {
-    id: 'UC011',
-    name: '创建报价单（超额需审批阻断）',
-    description: '创建报价单，金额 > 50万，需要审批阻断',
-    skillId: 'ont.create_quote',
-    params: {
-      opportunity_id: 'test-opp-002',
-      amount: 600000,
-      items: ['ERP系统', '定制开发']
-    },
-    status: 'pending',
-    expectedResult: { success: false, error: '超额报价须审批：报价金额 > 50万需要提交审批' }
-  },
-  {
-    id: 'UC012',
-    name: '提交报价审批',
-    description: '提交报价单审批，更新状态为待审批',
-    skillId: 'ont.submit_quote',
-    params: {
-      quote_id: 'test-quote-001'
-    },
-    status: 'pending'
-  },
-  {
-    id: 'UC013',
-    name: '审批通过赢单',
-    description: '审批通过报价单，更新商机状态为赢单',
-    skillId: 'ont.approve_quote',
-    params: {
-      quote_id: 'test-quote-001',
-      opportunity_id: 'test-opp-001'
-    },
-    status: 'pending'
-  }
-];
-
-// 外部技能测试用例
-const EXTERNAL_TEST_CASES: TestCase[] = [
-  {
-    id: 'EXT001',
-    name: '百度搜索',
-    description: '测试百度搜索功能',
-    skillId: 'baidu-search',
-    params: {
-      query: '人工智能最新进展',
-      limit: 5
-    },
-    status: 'pending'
-  },
-  {
-    id: 'EXT002',
-    name: '生成销售报告',
-    description: '测试报告生成器 - 销售报告',
-    skillId: 'kai-report-creator',
-    params: {
-      template: 'sales_report',
-      data: {
-        period: '2026-Q1',
-        total_revenue: 5000000,
-        opportunities: 25,
-        conversion_rate: 0.35
-      },
-      format: 'markdown'
-    },
-    status: 'pending'
-  },
-  {
-    id: 'EXT003',
-    name: '生成商机分析报告',
-    description: '测试报告生成器 - 商机分析',
-    skillId: 'kai-report-creator',
-    params: {
-      template: 'opportunity_analysis',
-      data: {
-        title: '大客户 CRM 项目',
-        amount: 800000,
-        stage: 'proposal',
-        probability: 70,
-        customer_name: '测试科技有限公司'
-      },
-      format: 'markdown'
-    },
-    status: 'pending'
-  },
-  {
-    id: 'EXT004',
-    name: '生成公司研究报告（HTML）',
-    description: '测试报告生成器 - 公司研究报告（松井机械案例）',
-    skillId: 'kai-report-creator',
-    params: {
-      template: 'company_research_report',
-      data: {
-        company_name: '上海松井机械有限公司',
-        report_date: '2026年04月03日',
-        core_conclusion: '上海松井机械有限公司作为日本松井制作所100%控股的外资制造企业，具备规范的管理体系、稳定的经营状况、明确的数字化升级需求，是协同办公SaaS产品的优质目标客户。',
-        full_name: '上海松井机械有限公司',
-        established_date: '1997年06月03日',
-        company_type: '有限责任公司（外国法人独资）',
-        registered_capital: '1026万美元',
-        business_status: '存续',
-        employee_count: '121人（2024年数据）',
-        org_structure: '兼具生产制造、销售服务、技术研发职能，为松井全球重要生产基地与中国区运营总部',
-        management_features: '外资背景，管理流程规范，重视合规与权限管控，跨部门协作需求明确',
-        tax_credit: '连续2年（2023、2024）获评A级',
-        ip_count: 28,
-        licenses: 16,
-        core_business: '塑料成型辅助机械专业制造商，核心业务覆盖注塑机周边设备研发、生产、销售与系统集成',
-        industry_position: '母公司松井制作所全球销售额排名第二、日本第一，在华布局超30年，拥有13个国内据点',
-        core_advantages: '技术积淀：百年行业经验，拥有28项专利；客户覆盖：服务汽车、电子电气、医疗等多领域头部客户；绿色理念：推行Factor4环保理念',
-        key_findings: [
-          '跨部门协同效率低，定制化方案沟通周期长',
-          '与日本总部跨时区协作低效，国内多据点业务联动不顺畅',
-          '设备运行数据、生产进度、售后数据与管理系统独立',
-          '外资企业需严格权限分级，专利、客户数据等敏感信息需隔离',
-          '定制化系统工程项目进度、交付、成本管控不透明'
-        ],
-        cooperation_suggestions: '建议立即启动需求对接，本周内联系公司IT部门与核心业务负责人；基于调研结果，1周内提交定制化试点方案，突出跨区域协作、合规管控、数据集成三大核心能力',
-        risks: [
-          { type: '决策流程', level: '中', description: '外资企业总部决策层级多，推进周期长' },
-          { type: '系统集成', level: '中高', description: '与现有生产设备系统、ERP系统对接存在技术壁垒' },
-          { type: '员工接受度', level: '低', description: '生产现场员工对新工具可能存在抵触' }
-        ],
-        summary: '松井机械作为规范运营、技术领先、付费能力强的外资制造企业，其协同办公核心痛点与SaaS产品能力高度匹配，具备快速落地、深度合作、长期增值的三重潜力。',
-        report_author: '协同办公SaaS厂商销售'
-      },
-      format: 'html'
-    },
-    status: 'pending'
-  },
-  {
-    id: 'EXT005',
-    name: '火山方舟联网搜索',
-    description: '测试火山方舟 Web Search - 搜索大模型领域最新进展',
-    skillId: 'volcengine-web-search',
-    params: {
-      query: '大模型领域最近有什么热门的科技新闻？火山方舟最近发布了什么新模型',
-      max_keyword: 3,
-      limit: 10,
-      sources: ['douyin', 'toutiao', 'moji']
-    },
-    status: 'pending'
-  },
-  {
-    id: 'EXT006',
-    name: '生成产品发布幻灯片（HTML）',
-    description: '测试幻灯片生成器 - 生成一份产品发布演示文稿（5页，含封面、痛点、方案、数据、结尾）',
-    skillId: 'kai-slide-creator',
-    params: {
-      command: '--generate',
-      topic: '协同办公 SaaS 产品发布会',
-      style: 'aurora-mesh',
-      language: 'zh-CN',
-      slides: [
-        { type: 'cover', title: 'AIFlux 协同办公平台', subtitle: '让协作更智能，让工作更高效', date: '2026年4月' },
-        { type: 'pain-point', title: '企业协作痛点', points: ['跨部门沟通成本高', '数据孤岛严重', '远程协作效率低', '信息安全难保障'] },
-        { type: 'solution', title: 'AIFlux 解决方案', features: ['智能工作流引擎', '实时协同编辑', '全链路数据打通', '企业级权限管控'] },
-        { type: 'data', title: '客户成效', metrics: [{ label: '协作效率提升', value: '65%' }, { label: '沟通成本降低', value: '40%' }, { label: '项目交付加速', value: '2x' }] },
-        { type: 'closing', title: '开启智能协作新时代', subtitle: '联系我们：contact@aiflux.com', cta: '立即预约演示' }
-      ],
-      output_format: 'html'
-    },
-    status: 'pending'
-  }
-];
+};
 
 export default function SkillTestPage() {
-  const [activeTab, setActiveTab] = useState<'ontology' | 'external'>('ontology');
-  const [ontologyTests, setOntologyTests] = useState<TestCase[]>(CRM_TEST_CASES);
-  const [externalTests, setExternalTests] = useState<TestCase[]>(EXTERNAL_TEST_CASES);
+  const { currentOntologyId, currentOntology, builds, fetchBuilds } = useAbilityStore();
 
-  const currentTests = activeTab === 'ontology' ? ontologyTests : externalTests;
-  const setCurrentTests = activeTab === 'ontology' ? setOntologyTests : setExternalTests;
+  const [selectedBuildVersion, setSelectedBuildVersion] = useState<string>('');
+  const [ontologyTests, setOntologyTests] = useState<RuntimeTestCase[]>([]);
+  const [loadingTestPlan, setLoadingTestPlan] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearResult, setClearResult] = useState<any>(null);
 
-  const runTest = async (testCase: TestCase) => {
+  useEffect(() => {
+    // Use ontology_code (e.g. "crm") not the numeric URL id
+    const ontologyCode = currentOntology?.ontology_code || currentOntologyId;
+    if (ontologyCode) {
+      fetchBuilds(ontologyCode);
+    }
+  }, [currentOntologyId, currentOntology, fetchBuilds]);
+
+  // Auto-select latest build version
+  useEffect(() => {
+    if (builds.length > 0 && !selectedBuildVersion) {
+      setSelectedBuildVersion(builds[0].build_version);
+    }
+  }, [builds, selectedBuildVersion]);
+
+  // Load test plan when build version changes
+  useEffect(() => {
+    if (!selectedBuildVersion) return;
+
+    setLoadingTestPlan(true);
+    ontologySkillsApi.getTestPlan(selectedBuildVersion)
+      .then(plan => {
+        if (plan?.cases) {
+          setOntologyTests(plan.cases.map((tc: TestCase) => ({ ...tc, status: 'pending' as const })));
+        }
+      })
+      .catch(() => {
+        setOntologyTests([]);
+      })
+      .finally(() => setLoadingTestPlan(false));
+  }, [selectedBuildVersion]);
+
+  const runTest = async (testCase: RuntimeTestCase) => {
     const runId = testCase.id;
 
-    // 辅助：只更新当前测试用例
-    const updateTc = (patch: Partial<TestCase>) => {
-      setCurrentTests(tests =>
-        tests.map(tc => tc.id === runId ? { ...tc, ...patch } : tc)
-      );
+    const updateTc = (patch: Partial<RuntimeTestCase>) => {
+      setOntologyTests(tests => tests.map(tc => tc.id === runId ? { ...tc, ...patch } : tc));
     };
 
     updateTc({ status: 'running', htmlUrl: undefined, htmlContent: undefined, progress: '正在执行...', duration: undefined });
 
     const startTime = Date.now();
-
-    // 简洁的计时器：仅显示已等待时长，不频繁切换消息
     const timerRef = setInterval(() => {
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
       updateTc({ progress: `正在执行... (${elapsed}s)` });
     }, 1000);
 
     try {
-      const result = await executeSkillByType(testCase.skillId, testCase.params);
+      const result = await executeOntologySkill(testCase.skill_id, testCase.params);
       const duration = Date.now() - startTime;
       clearInterval(timerRef);
 
-      const success = result.success;
+      // Determine pass/fail based on expected_result
+      // rule_block cases expect success=false, so raw success is not the right indicator
+      const expectedSuccess = testCase.expected_result?.success;
+      const testPassed = expectedSuccess !== undefined
+        ? (result.success === expectedSuccess)
+        : result.success;
+
       const output = result.spawnOutput;
       const outputStr = typeof output === 'string' ? output : JSON.stringify(output);
 
-      let htmlContent: string | undefined;
-      let htmlUrl: string | undefined;
-
-      // 调试：查看原始输出
-      console.log('[extractHtml] Raw output length:', outputStr.length);
-      console.log('[extractHtml] First 200 chars:', outputStr.substring(0, 200));
-
-      const extractedHtml = extractHtmlContent(outputStr);
-      console.log('[extractHtml] Extracted HTML:', extractedHtml ? `${extractedHtml.length} chars` : 'null');
-
-      if (success && extractedHtml) {
-        htmlContent = extractedHtml;
-        // 保存 HTML 到服务器 tmp 目录，获取持久化 URL
-        try {
-          const saveRes = await fetch('/api/v2/skills/save-html', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              html: extractedHtml,
-              testId: testCase.id,
-              skillId: testCase.skillId,
-            }),
-          });
-          const saveData = await saveRes.json();
-          if (saveRes.ok && saveData.url) {
-            htmlUrl = saveData.url;
-            console.log('[extractHtml] Saved to server:', saveData.url);
-          } else {
-            console.warn('[extractHtml] Save failed, falling back to blob URL');
-            const blob = new Blob([extractedHtml], { type: 'text/html' });
-            htmlUrl = URL.createObjectURL(blob);
-          }
-        } catch (e) {
-          console.warn('[extractHtml] Save request failed, falling back to blob URL:', e);
-          const blob = new Blob([extractedHtml], { type: 'text/html' });
-          htmlUrl = URL.createObjectURL(blob);
-        }
-      } else if (success) {
-        console.warn('[extractHtml] Success but no HTML extracted');
-      }
-
       updateTc({
-        status: success ? 'passed' : 'failed',
-        actualResult: output ? { format: htmlUrl ? 'html' : 'text', length: outputStr.length, preview: outputStr.substring(0, 500) } : undefined,
+        status: testPassed ? 'passed' : 'failed',
+        actualResult: output ? { format: 'text', length: outputStr.length, preview: outputStr.substring(0, 500) } : undefined,
         error: result.error,
         duration,
-        htmlUrl,
-        htmlContent,
         progress: undefined,
       });
     } catch (error) {
@@ -482,52 +132,140 @@ export default function SkillTestPage() {
   };
 
   const runAllTests = async () => {
-    for (const testCase of currentTests) {
+    for (const testCase of ontologyTests) {
       await runTest(testCase);
-      // 短暂延迟，避免请求过快
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  };
+
+  const caseTypeCounts = {
+    positive: ontologyTests.filter(t => t.case_type === 'positive').length,
+    rule_block: ontologyTests.filter(t => t.case_type === 'rule_block').length,
+    scenario: ontologyTests.filter(t => t.case_type === 'scenario').length,
+  };
+
+  const handleClearData = async () => {
+    const ontologyCode = currentOntology?.ontology_code || currentOntologyId;
+    if (!ontologyCode) return;
+
+    setClearing(true);
+    setClearResult(null);
+    try {
+      const result = await ontologySkillsApi.clearData(ontologyCode);
+      setClearResult(result);
+      setShowClearConfirm(false);
+    } catch (error) {
+      console.error('Clear data error:', error);
+      alert('清空数据失败: ' + (error as Error).message);
+    } finally {
+      setClearing(false);
     }
   };
 
   return (
     <div className="h-full overflow-auto bg-[#0A0A0B]">
       <div className="p-8 max-w-7xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-xl font-semibold text-white">技能测试</h1>
-          <p className="text-sm text-white/40 mt-1">运行测试用例验证技能功能</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-white">本体技能测试</h1>
+            <p className="text-sm text-white/40 mt-1">运行测试用例验证本体技能功能</p>
+          </div>
+          <button
+            onClick={() => setShowClearConfirm(true)}
+            className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 text-sm flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            清空数据
+          </button>
         </div>
 
-        {/* Tab 切换 */}
-        <div className="flex gap-4">
-          <button
-            onClick={() => setActiveTab('ontology')}
-            className={`px-6 py-3 rounded-xl transition-colors ${
-              activeTab === 'ontology'
-                ? 'bg-indigo-600/20 text-white border border-indigo-500/30'
-                : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/8'
-            }`}
+        {/* 构建版本选择 */}
+        <div className="flex items-center gap-4">
+          <label className="text-sm text-white/60">构建版本</label>
+          <select
+            value={selectedBuildVersion}
+            onChange={e => setSelectedBuildVersion(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white"
           >
-            本体技能测试 ({ontologyTests.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('external')}
-            className={`px-6 py-3 rounded-xl transition-colors ${
-              activeTab === 'external'
-                ? 'bg-indigo-600/20 text-white border border-indigo-500/30'
-                : 'bg-white/5 border border-white/10 text-white/50 hover:bg-white/8'
-            }`}
-          >
-            外部技能测试 ({externalTests.length})
-          </button>
+            <option value="">-- 选择版本 --</option>
+            {builds.map(b => (
+              <option key={b.id} value={b.build_version}>{b.build_version} ({b.status})</option>
+            ))}
+          </select>
+          {loadingTestPlan && <span className="text-sm text-white/40">加载中...</span>}
+          {ontologyTests.length > 0 && (
+            <div className="flex gap-3 text-xs text-white/40">
+              <span>正向 {caseTypeCounts.positive}</span>
+              <span>规则阻断 {caseTypeCounts.rule_block}</span>
+              <span>场景 {caseTypeCounts.scenario}</span>
+            </div>
+          )}
         </div>
 
         {/* 测试用例运行器 */}
         <TestCaseRunner
-          testCases={currentTests}
+          testCases={ontologyTests}
           onRunTest={runTest}
           onRunAll={runAllTests}
         />
       </div>
+
+      {/* 清空数据确认对话框 */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-[#1A1A1B] border border-white/10 rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-2">确认清空数据</h3>
+            <p className="text-sm text-white/60 mb-4">
+              将清空本体 <span className="text-white font-medium">{currentOntology?.ontology_code || currentOntologyId}</span> 在 MongoDB、Neo4j、ChromaDB 中的所有数据。
+            </p>
+            <p className="text-sm text-red-400 mb-6">此操作不可恢复，确定继续吗？</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="px-4 py-2 bg-white/5 text-white/60 rounded-lg hover:bg-white/10 text-sm"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleClearData}
+                disabled={clearing}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm disabled:opacity-50"
+              >
+                {clearing ? '清空中...' : '确认清空'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 清空结果提示 */}
+      {clearResult && (
+        <div className="fixed bottom-4 right-4 bg-[#1A1A1B] border border-white/10 rounded-xl p-4 max-w-sm z-50">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-green-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm text-white font-medium">数据已清空</p>
+              <div className="text-xs text-white/50 mt-1 space-y-0.5">
+                <p>MongoDB: {clearResult.cleared.mongodb.documents_deleted} 条文档</p>
+                <p>Neo4j: {clearResult.cleared.neo4j.nodes_deleted} 个节点, {clearResult.cleared.neo4j.relationships_deleted} 条关系</p>
+                <p>ChromaDB: {clearResult.cleared.chroma.documents_deleted} 条向量</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setClearResult(null)}
+              className="text-white/40 hover:text-white/60"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import OntologySkillsPage from './pages/OntologySkillsPage';
 import SkillMarketPage from './pages/SkillMarketPage';
 import SkillDetailPage from './pages/SkillDetailPage';
 import SkillTestPage from './pages/SkillTestPage';
+import ExternalSkillTestPage from './pages/ExternalSkillTestPage';
 import ExecutionLogsPage from './pages/ExecutionLogsPage';
 import OntologyLayout from './components/OntologyLayout';
 
@@ -24,6 +25,7 @@ function App() {
           <Route path="skills" element={<SkillMarketPage />} />
           <Route path="skills/:id" element={<SkillDetailPage />} />
           <Route path="test" element={<SkillTestPage />} />
+          <Route path="test-external" element={<ExternalSkillTestPage />} />
           <Route path="logs" element={<ExecutionLogsPage />} />
         </Route>
       </Routes>

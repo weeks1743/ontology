@@ -33,11 +33,11 @@ router.get('/', (req, res) => {
     query += ' ORDER BY el.created_at DESC LIMIT ? OFFSET ?';
     params.push(parseInt(limit as string), parseInt(offset as string));
 
-    const logs = db.prepare(query).all(...params);
+    const logs = db.prepare(query).all(...params) as any[];
     const parsed = logs.map(log => ({
       ...log,
-      input_params: JSON.parse((log as any).input_params),
-      output_result: JSON.parse((log as any).output_result),
+      input_params: JSON.parse(log.input_params),
+      output_result: JSON.parse(log.output_result),
     }));
 
     res.json(parsed);

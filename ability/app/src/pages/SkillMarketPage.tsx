@@ -6,7 +6,7 @@ import SkillConfigDialog from '../components/SkillConfigDialog';
 import SkillDetailDialog from '../components/SkillDetailDialog';
 
 export default function SkillMarketPage() {
-  const { skills, fetchSkills, loading } = useAbilityStore();
+  const { skills, fetchSkills } = useAbilityStore();
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);

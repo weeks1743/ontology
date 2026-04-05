@@ -240,6 +240,34 @@ class Neo4jClient {
     }
   }
 
+  // Generic upsert node for write-plan-executor
+  async upsertNode(label: string, id: string, properties: Record<string, any>): Promise<boolean> {
+    if (!this.isOnline() || !this.driver) {
+      return false;
+    }
+
+    const session = this.driver.session();
+    try {
+      // Build property string excluding id
+      const propsWithoutId = Object.entries(properties)
+        .filter(([k]) => k !== 'id')
+        .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {});
+
+      await session.run(
+        `MERGE (n:${label} {id: $id})
+         ON CREATE SET n += $props, n.created_at = $now
+         ON MATCH SET n += $props, n.updated_at = $now`,
+        { id, props: propsWithoutId, now: new Date().toISOString() }
+      );
+      return true;
+    } catch (error) {
+      console.error(`Neo4j upsertNode (${label}) error:`, error);
+      return false;
+    } finally {
+      await session.close();
+    }
+  }
+
   // 图查询：获取完整销售链路
   async getFullSalesPath(opportunityId: string): Promise<any> {
     if (!this.isOnline() || !this.driver) {
@@ -258,6 +286,50 @@ class Neo4jClient {
     } catch (error) {
       console.error('Neo4j getFullSalesPath error:', error);
       return null;
+    } finally {
+      await session.close();
+    }
+  }
+
+  // Clear all nodes and relationships for a specific ontology
+  async clearOntologyNodes(ontologyId: string): Promise<{ nodesDeleted: number; relationshipsDeleted: number }> {
+    if (!this.isOnline() || !this.driver) {
+      return { nodesDeleted: 0, relationshipsDeleted: 0 };
+    }
+
+    const session = this.driver.session();
+    try {
+      // First count nodes and relationships
+      const countResult = await session.run(
+        `MATCH (n {ontology_id: $ontologyId})
+         OPTIONAL MATCH (n)-[r]-()
+         RETURN count(DISTINCT n) AS nodes, count(r) AS rels`,
+        { ontologyId }
+      );
+
+      const record = countResult.records[0];
+      const nodesCount = record.get('nodes').toNumber();
+      const relsCount = record.get('rels').toNumber();
+
+      // Delete relationships first (to avoid constraint errors)
+      await session.run(
+        `MATCH (n {ontology_id: $ontologyId})-[r]-()
+         DELETE r`,
+        { ontologyId }
+      );
+
+      // Then delete nodes
+      await session.run(
+        `MATCH (n {ontology_id: $ontologyId})
+         DELETE n`,
+        { ontologyId }
+      );
+
+      console.log(`✅ Neo4j cleared ${nodesCount} nodes and ${relsCount} relationships for ontology: ${ontologyId}`);
+      return { nodesDeleted: nodesCount, relationshipsDeleted: relsCount };
+    } catch (error) {
+      console.error('Neo4j clearOntologyNodes error:', error);
+      return { nodesDeleted: 0, relationshipsDeleted: 0 };
     } finally {
       await session.close();
     }

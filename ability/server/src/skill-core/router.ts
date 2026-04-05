@@ -15,7 +15,7 @@ import {
 } from './discovery.js';
 import { executeSkill } from './executor.js';
 import { validateSkillMd } from './parser.js';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -34,11 +34,39 @@ export const skillCoreRouter = Router();
 // 启动时自动扫描 skills/ 目录
 export function initSkillCore(): number {
   const externalDir = join(SKILLS_DIR, 'external');
-  const ontologyDir = join(SKILLS_DIR, 'ontology');
+  const ontologyBaseDir = join(SKILLS_DIR, 'ontology');
 
   let count = 0;
   if (existsSync(externalDir)) count += discoverAndLoadSkills(externalDir, 'external');
-  if (existsSync(ontologyDir)) count += discoverAndLoadSkills(ontologyDir, 'ontology');
+
+  // Support two-level structure: skills/ontology/<ontologyId>/<skillSlug>/SKILL.md
+  if (existsSync(ontologyBaseDir)) {
+    try {
+      const entries = readdirSync(ontologyBaseDir, { withFileTypes: true });
+      let foundOntologySubdirs = false;
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const subDir = join(ontologyBaseDir, entry.name);
+        // Check if this looks like an ontologyId dir (contains skill dirs, not SKILL.md directly)
+        const subEntries = readdirSync(subDir, { withFileTypes: true });
+        const hasDirectSkillMd = subEntries.some(e => e.name === 'SKILL.md');
+
+        if (!hasDirectSkillMd) {
+          // Two-level: skills/ontology/<ontologyId>/
+          count += discoverAndLoadSkills(subDir, 'ontology');
+          foundOntologySubdirs = true;
+        }
+      }
+
+      if (!foundOntologySubdirs) {
+        // Old single-level: skills/ontology/<skillSlug>/SKILL.md
+        count += discoverAndLoadSkills(ontologyBaseDir, 'ontology');
+      }
+    } catch {
+      count += discoverAndLoadSkills(ontologyBaseDir, 'ontology');
+    }
+  }
 
   console.log(`[skill-core] Loaded ${count} skills`);
   return count;

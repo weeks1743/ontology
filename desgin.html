@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>从低代码到 AI 原生应用构建平台</title>
+    <style>
+      :root {
+        --bg: #f4efe6;
+        --paper: rgba(255, 251, 245, 0.9);
+        --paper-strong: rgba(255, 255, 255, 0.98);
+        --ink: #17232b;
+        --muted: #61707a;
+        --line: rgba(23, 35, 43, 0.1);
+        --teal: #147a77;
+        --teal-soft: rgba(20, 122, 119, 0.1);
+        --amber: #b46c35;
+        --amber-soft: rgba(180, 108, 53, 0.12);
+        --navy: #173849;
+        --navy-soft: rgba(23, 56, 73, 0.08);
+        --shadow: 0 24px 72px rgba(28, 42, 48, 0.14);
+        --radius-xl: 30px;
+        --radius-lg: 22px;
+        --radius-md: 18px;
+        --maxw: 1360px;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "PingFang SC", "Hiragino Sans GB", "Source Han Sans SC",
+          "Microsoft YaHei", sans-serif;
+        line-height: 1.72;
+        background:
+          radial-gradient(circle at top left, rgba(20, 122, 119, 0.12), transparent 24%),
+          radial-gradient(circle at top right, rgba(180, 108, 53, 0.1), transparent 24%),
+          linear-gradient(180deg, #fcfaf6 0%, #f3ede3 46%, #f8f3eb 100%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(23, 35, 43, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(23, 35, 43, 0.025) 1px, transparent 1px);
+        background-size: 28px 28px;
+        mask-image: radial-gradient(circle at center, black 57%, transparent 100%);
+      }
+
+      a { color: inherit; }
+
+      .shell {
+        width: min(var(--maxw), calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .hero {
+        padding: 40px 0 24px;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.3fr 0.9fr;
+        gap: 22px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .section-card,
+      .summary-card,
+      .diagram-card,
+      .focus-card,
+      .table-card,
+      .layer-card,
+      .compare-card,
+      .scenario-card,
+      .infra-card,
+      .upgrade-card {
+        border: 1px solid rgba(23, 35, 43, 0.08);
+        background: var(--paper);
+        backdrop-filter: blur(18px);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-main {
+        padding: 38px;
+        border-radius: 36px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero-main::after {
+        content: "";
+        position: absolute;
+        right: -72px;
+        bottom: -92px;
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(20, 122, 119, 0.22), transparent 68%);
+      }
+
+      .hero-side {
+        padding: 22px;
+        border-radius: 28px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        width: fit-content;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: rgba(20, 122, 119, 0.08);
+        border: 1px solid rgba(20, 122, 119, 0.18);
+        color: var(--teal);
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1, h2, h3, h4 {
+        margin: 0;
+        font-family: "STZhongsong", "Songti SC", "Noto Serif SC", serif;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      h1 {
+        margin-top: 18px;
+        font-size: clamp(2.3rem, 4.9vw, 4.15rem);
+        line-height: 1.08;
+        max-width: 12em;
+      }
+
+      .hero-copy {
+        margin: 18px 0 0;
+        max-width: 60em;
+        color: var(--muted);
+        font-size: 1.03rem;
+      }
+
+      .hero-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 24px;
+      }
+
+      .badge {
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(23, 35, 43, 0.08);
+        color: var(--navy);
+        font-size: 0.91rem;
+      }
+
+      .mini-panel {
+        padding: 18px;
+        border-radius: 20px;
+        background: var(--paper-strong);
+        border: 1px solid rgba(23, 35, 43, 0.07);
+      }
+
+      .mini-panel h3 {
+        margin-bottom: 8px;
+        font-size: 1.05rem;
+      }
+
+      .mini-panel p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .sticky-nav {
+        position: sticky;
+        top: 12px;
+        z-index: 10;
+        margin: 12px auto 34px;
+        width: min(var(--maxw), calc(100% - 32px));
+      }
+
+      .nav-wrap {
+        display: flex;
+        gap: 10px;
+        padding: 10px;
+        border-radius: 999px;
+        background: rgba(255, 251, 245, 0.9);
+        border: 1px solid rgba(23, 35, 43, 0.08);
+        box-shadow: 0 12px 28px rgba(23, 35, 43, 0.08);
+        overflow-x: auto;
+      }
+
+      .nav-wrap::-webkit-scrollbar { display: none; }
+
+      .nav-pill {
+        border: 0;
+        background: transparent;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 0.92rem;
+        color: var(--muted);
+        white-space: nowrap;
+        cursor: pointer;
+        transition: background 0.22s ease, color 0.22s ease, transform 0.22s ease;
+      }
+
+      .nav-pill:hover,
+      .nav-pill.active {
+        background: rgba(20, 122, 119, 0.12);
+        color: var(--teal);
+        transform: translateY(-1px);
+      }
+
+      main { padding-bottom: 60px; }
+      .section { margin: 28px 0; }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .section-head p {
+        margin: 10px 0 0;
+        max-width: 68em;
+        color: var(--muted);
+      }
+
+      .section-card, .table-card {
+        padding: 28px;
+        border-radius: 30px;
+      }
+
+      .table-card { overflow: auto; }
+
+      .summary-grid,
+      .layer-grid,
+      .infra-grid,
+      .scenario-grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      .summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .layer-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-top: 14px;
+      }
+
+      .infra-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 16px;
+      }
+
+      .scenario-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 16px;
+      }
+
+      .upgrade-grid,
+      .compare-grid,
+      .focus-grid,
+      .principle-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .upgrade-grid,
+      .compare-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .focus-grid,
+      .principle-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 14px;
+      }
+
+      .summary-card,
+      .layer-card,
+      .upgrade-card,
+      .infra-card {
+        padding: 22px;
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(20, 122, 119, 0.08), rgba(255, 255, 255, 0.72));
+      }
+
+      .summary-card:nth-child(2n),
+      .layer-card:nth-child(2n),
+      .upgrade-card:nth-child(2n),
+      .infra-card:nth-child(2n) {
+        background: linear-gradient(180deg, rgba(180, 108, 53, 0.08), rgba(255, 255, 255, 0.72));
+      }
+
+      .summary-card strong,
+      .layer-card strong,
+      .upgrade-card strong,
+      .infra-card strong,
+      .compare-card strong,
+      .scenario-card strong {
+        display: block;
+        margin-bottom: 10px;
+        color: var(--navy);
+        font-size: 1rem;
+      }
+
+      .summary-card p,
+      .layer-card p,
+      .upgrade-card p,
+      .infra-card p,
+      .compare-card p,
+      .scenario-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .compare-card,
+      .scenario-card {
+        padding: 22px;
+        border-radius: 24px;
+      }
+
+      .compare-card ul,
+      .scenario-card ul {
+        margin: 12px 0 0;
+        padding-left: 18px;
+        color: var(--muted);
+      }
+
+      .scenario-card .scenario-meta {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .scenario-card .scenario-line {
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(23, 56, 73, 0.06);
+        border: 1px solid rgba(23, 35, 43, 0.07);
+        color: var(--ink);
+        font-size: 0.92rem;
+      }
+
+      .scenario-card .scenario-line span {
+        color: var(--navy);
+        font-weight: 700;
+      }
+
+      .callout {
+        margin-top: 16px;
+        padding: 18px 20px;
+        border-radius: 20px;
+        background: rgba(23, 56, 73, 0.94);
+        color: rgba(248, 250, 252, 0.94);
+      }
+
+      .diagram-stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .diagram-card {
+        padding: 24px;
+        border-radius: 28px;
+      }
+
+      .diagram-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 16px;
+      }
+
+      .diagram-title {
+        display: grid;
+        gap: 8px;
+      }
+
+      .diagram-title p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        padding: 7px 12px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        background: rgba(23, 56, 73, 0.08);
+        color: var(--navy);
+      }
+
+      .diagram-note {
+        max-width: 25em;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(20, 122, 119, 0.08);
+        border: 1px solid rgba(20, 122, 119, 0.14);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .diagram-frame {
+        padding: 16px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(23, 35, 43, 0.08);
+        overflow: auto;
+      }
+
+      .diagram-frame .mermaid { min-width: 880px; }
+
+      .focus-card {
+        padding: 16px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(23, 35, 43, 0.08);
+      }
+
+      .focus-card strong {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--navy);
+        font-size: 0.96rem;
+      }
+
+      .focus-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .foundation-strip {
+        margin-top: 16px;
+        padding: 20px 22px;
+        border-radius: 22px;
+        background: linear-gradient(90deg, rgba(23, 56, 73, 0.96), rgba(20, 122, 119, 0.9));
+        color: rgba(248, 250, 252, 0.96);
+      }
+
+      .foundation-strip strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 1rem;
+      }
+
+      .foundation-strip p {
+        margin: 0;
+        font-size: 0.95rem;
+      }
+
+      table {
+        width: 100%;
+        min-width: 860px;
+        border-collapse: collapse;
+      }
+
+      thead th {
+        text-align: left;
+        padding: 14px 16px;
+        background: rgba(23, 56, 73, 0.08);
+        color: var(--navy);
+      }
+
+      tbody td {
+        padding: 16px;
+        border-top: 1px solid rgba(23, 35, 43, 0.08);
+        vertical-align: top;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      tbody td strong { color: var(--ink); }
+
+      .footer-note {
+        margin-top: 16px;
+        padding: 18px 20px;
+        border-radius: 20px;
+        background: rgba(20, 122, 119, 0.08);
+        border: 1px solid rgba(20, 122, 119, 0.16);
+        color: var(--ink);
+      }
+
+      .timeline-list {
+        display: grid;
+        gap: 14px;
+      }
+
+      .timeline-item {
+        padding: 18px 20px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(23, 35, 43, 0.08);
+      }
+
+      .timeline-item strong {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--navy);
+      }
+
+      .timeline-item p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      footer {
+        padding: 12px 0 46px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      @media (max-width: 1200px) {
+        .hero-grid,
+        .summary-grid,
+        .layer-grid,
+        .upgrade-grid,
+        .compare-grid,
+        .focus-grid,
+        .principle-grid,
+        .infra-grid,
+        .scenario-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .diagram-head {
+          flex-direction: column;
+        }
+
+        .diagram-note { max-width: none; }
+      }
+
+      @media (max-width: 820px) {
+        .hero { padding-top: 22px; }
+
+        .hero-main,
+        .hero-side,
+        .section-card,
+        .summary-card,
+        .diagram-card,
+        .focus-card,
+        .table-card,
+        .layer-card,
+        .compare-card,
+        .scenario-card,
+        .infra-card,
+        .upgrade-card {
+          border-radius: 22px;
+        }
+
+        .hero-main { padding: 26px; }
+        .hero-side,
+        .section-card,
+        .diagram-card,
+        .table-card { padding: 20px; }
+
+        .sticky-nav {
+          top: 8px;
+          margin-bottom: 22px;
+        }
+
+        h1 { max-width: none; }
+      }
+    </style>
+</head>
+<body>
+    <header class="hero shell">
+      <div class="hero-grid">
+        <section class="hero-main">
+          <span class="eyebrow">AI-Native App Construction Platform</span>
+          <h1>从低代码到 AI 原生应用构建平台</h1>
+          <p class="hero-copy">
+            这不是“加了 AI 的低代码平台”，而是一套借鉴
+            <strong>Palantir / AIP 的语义控制思想</strong>、结合
+            <strong>中国企业低代码实施现实</strong>重新整理出来的 AI 原生平台设计。
+            它以<strong>本体定义业务世界</strong>，以<strong>技能沉淀执行能力</strong>，
+            以<strong>场景组织业务运行</strong>，以<strong>交互承接人机协作</strong>，
+            并由统一的<strong>智能底座</strong>为整个平台提供智能能力支撑。
+          </p>
+          <div class="hero-badges">
+            <span class="badge">4 层业务架构</span>
+            <span class="badge">智能底座</span>
+            <span class="badge">场景即交付</span>
+            <span class="badge">语义控制面</span>
+            <span class="badge">经营闭环</span>
+          </div>
+        </section>
+
+        <aside class="hero-side">
+          <div class="mini-panel">
+            <h3>平台定位</h3>
+            <p>
+              从“搭应用的工具”升级为“定义业务世界、组织业务运行并沉淀组织智能”的构建平台。
+            </p>
+          </div>
+          <div class="mini-panel">
+            <h3>核心判断</h3>
+            <p>
+              四层是业务架构，智能能力沉到底座。客户买到的是业务场景，不是技术框架。
+            </p>
+          </div>
+          <div class="mini-panel">
+            <h3>一句话理解</h3>
+            <p>
+              本体定义业务世界，技能提供执行能力，场景组织业务运行，交互承接人机协作，智能底座提供统一支撑。
+            </p>
+          </div>
+        </aside>
+      </div>
+    </header>
+
+    <div class="sticky-nav">
+      <div class="nav-wrap">
+        <button class="nav-pill active" data-target="core-judgment">核心判断</button>
+        <button class="nav-pill" data-target="why-upgrade">为什么升级</button>
+        <button class="nav-pill" data-target="architecture">架构总图</button>
+        <button class="nav-pill" data-target="responsibility">层级职责</button>
+        <button class="nav-pill" data-target="infrastructure">智能底座</button>
+        <button class="nav-pill" data-target="compare">区别低代码</button>
+        <button class="nav-pill" data-target="crm-scenes">CRM 场景</button>
+        <button class="nav-pill" data-target="evolution">演进方向</button>
+      </div>
+    </div>
+
+    <main class="shell">
+      <section class="section" id="core-judgment">
+        <div class="section-head">
+          <div>
+            <h2>核心判断</h2>
+            <p>
+              这次升级不是给低代码平台再加一个 AI 模块，而是把平台的控制面、交付单位和运行逻辑整体上移。
+            </p>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="summary-grid">
+            <article class="summary-card">
+              <strong>企业系统的核心不再只是 CRUD</strong>
+              <p>
+                真正决定系统价值的，已经不是表单、流程和报表本身，而是企业经营活动如何被组织、解释、执行和复盘。
+              </p>
+            </article>
+            <article class="summary-card">
+              <strong>AI 不能只是外挂助手</strong>
+              <p>
+                AI 必须进入业务现场，但必须在语义、动作、权限、审计边界内工作，成为受控执行能力，而不是自由发挥的聊天外挂。
+              </p>
+            </article>
+            <article class="summary-card">
+              <strong>智能能力不该再被当作业务层</strong>
+              <p>
+                模型、知识支撑和协作执行更适合下沉为基础设施。业务层真正稳定的抽象应该是本体、技能、场景和交互。
+              </p>
+            </article>
+          </div>
+
+          <div class="callout">
+            借鉴 Palantir / AIP 最有价值的地方，不是把产品界面照搬过来，而是吸收它的核心方法论：
+            <strong>用统一语义模型做控制面，用受控动作体系做执行面，用角色工作台承接业务现场，让 AI 在可追溯、可治理的边界内参与经营活动。</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="why-upgrade">
+        <div class="section-head">
+          <div>
+            <h2>为什么要从低代码升级</h2>
+            <p>
+              中国企业已经用低代码证明了“应用可以更快搭出来”，但 AI 原生阶段要解决的问题已经不只是交付效率，而是经营质量、组织协同和知识沉淀。
+            </p>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="upgrade-grid">
+            <article class="upgrade-card">
+              <strong>传统低代码已经解决了什么</strong>
+              <p>
+                表单、流程、权限、组织、集成、门户、报表，这些能力已经很好地解决了“应用如何被搭建出来”和“流程如何被跑起来”。
+              </p>
+            </article>
+            <article class="upgrade-card">
+              <strong>AI 原生平台新增要解决什么</strong>
+              <p>
+                对象如何被统一理解、动作如何被受控执行、场景如何被装配成交付单位、AI 如何参与经营活动并形成行动闭环，这些是低代码天然不擅长的部分。
+              </p>
+            </article>
+          </div>
+
+          <div class="callout">
+            宜搭类平台提升的是<strong>装配效率</strong>，我们要提升的是<strong>经营质量、执行效率与组织智能</strong>。
+          </div>
+
+          <div class="focus-grid">
+            <div class="focus-card">
+              <strong>保留低代码的底座能力</strong>
+              <p>权限、组织、流程、集成、实施方法论仍然重要，但它们应该成为底盘，而不是平台叙事中心。</p>
+            </div>
+            <div class="focus-card">
+              <strong>升级控制面</strong>
+              <p>控制面从页面与流程升级为本体、技能与场景，业务变化先映射为语义和执行规则的变化。</p>
+            </div>
+            <div class="focus-card">
+              <strong>升级交付单位</strong>
+              <p>客户最终交付的不再只是应用，而是业务场景包、角色工作台、协同机制和 AI 副驾。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="architecture">
+        <div class="section-head">
+          <div>
+            <h2>四层业务架构与智能底座总图</h2>
+            <p>
+              这套架构把业务架构与智能底座清晰分开：四层负责定义业务如何成立，底座负责提供统一的智能支撑。
+            </p>
+          </div>
+        </div>
+
+        <div class="diagram-stack">
+          <article class="diagram-card">
+            <div class="diagram-head">
+              <div class="diagram-title">
+                <span class="chip">Business Architecture + AI Foundation</span>
+                <h3>四层负责业务成立，底座负责智能运行</h3>
+                <p>这张图强调“系统承担什么世界责任”，而不是“代码应该放在哪个目录”。</p>
+              </div>
+              <div class="diagram-note">
+                对外只讲四层业务架构；智能能力不再被当作业务层，而是统一沉到底座。
+              </div>
+            </div>
+            <div class="diagram-frame">
+              <pre class="mermaid">
+flowchart TB
+    L4["交互层<br/>角色工作台 / 地图 / 对话 / 卡片 / 列表 / API"] --> L3["场景层<br/>场景包 / 角色工作台定义 / 协同链 / 推荐动作 / Scene Copilot"]
+    L3 --> L2["技能层<br/>行为技能 / 查询技能 / 诊断技能 / 生成技能 / 集成技能"]
+    L2 --> L1["本体层<br/>对象 / 关系 / 生命周期 / 规则 / 事件 / 场景定义"]
+
+    B["智能底座<br/>模型能力 / 知识支撑 / 协作执行 / 效果观察"] -.支撑交互与执行.- L4
+    B -.支撑交互与执行.- L3
+    B -.支撑技能调用.- L2
+              </pre>
+            </div>
+            <div class="layer-grid">
+              <div class="layer-card">
+                <strong>定义业务世界</strong>
+                <p>本体层统一对象、规则、事件与业务边界，是整个平台的语义控制面。</p>
+              </div>
+              <div class="layer-card">
+                <strong>沉淀执行能力</strong>
+                <p>技能层把业务语义转成可复用、可治理、可追溯的受控动作与查询能力。</p>
+              </div>
+              <div class="layer-card">
+                <strong>装配业务场景</strong>
+                <p>场景层用业务目标组织技能、规则、角色工作台与 AI 副驾，形成真正可交付的运行机制。</p>
+              </div>
+              <div class="layer-card">
+                <strong>进入业务现场</strong>
+                <p>交互层通过地图、工作台、对话、列表和卡片，把系统自然暴露给销售、主管、总经理和运营。</p>
+              </div>
+            </div>
+            <div class="foundation-strip">
+              <strong>智能底座</strong>
+              <p>
+                它服务四层，但不替代四层。底座负责提供统一的智能能力、知识支撑和效果观察，业务定义仍然由上层完成。
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="responsibility">
+        <div class="section-head">
+          <div>
+            <h2>每层回答什么问题</h2>
+            <p>
+              四层的关键不是名字，而是边界稳定。每一层都回答不同的问题，混在一起后系统就会重新退化成“低代码页面 + AI 聊天框”。
+            </p>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>层级</th>
+                <th>回答什么问题</th>
+                <th>核心资产</th>
+                <th>典型 CRM 能力</th>
+                <th>边界说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>本体层</strong></td>
+                <td>业务世界由什么组成、允许什么、约束什么</td>
+                <td>对象、关系、生命周期、行为定义、规则、事件、经营口径</td>
+                <td>Customer、Opportunity、阶段门槛、风险规则、追溯关系、区域口径</td>
+                <td>它定义业务真相与边界，但不直接承担业务执行与交互</td>
+              </tr>
+              <tr>
+                <td><strong>技能层</strong></td>
+                <td>这些语义如何变成可执行能力</td>
+                <td>行为技能、查询技能、诊断技能、生成技能、集成技能</td>
+                <td>创建商机、推进阶段、发起售前协同、解释风险原因、生成 briefing</td>
+                <td>它是执行原语层，不是控制面，也不是用户界面</td>
+              </tr>
+              <tr>
+                <td><strong>场景层</strong></td>
+                <td>这些能力如何围绕业务目标被组织成一套工作方式</td>
+                <td>场景包、角色工作台定义、协同链、推荐动作、Scene Copilot、自动化边界</td>
+                <td>客户洞察与话术辅助、团队经营洞察、全国经营地图、赢输单复盘</td>
+                <td>它是平台最关键的交付层，负责装配和运行机制，而不是定义底层语义</td>
+              </tr>
+              <tr>
+                <td><strong>交互层</strong></td>
+                <td>人如何自然进入这些场景并持续工作</td>
+                <td>角色工作台、地图、对话、卡片、列表、详情抽屉、开放接口</td>
+                <td>销售工作台、主管经营雷达、总经理全国地图、右侧 AI 边栏</td>
+                <td>它负责业务入口与呈现，不定义业务规则，也不直接决定执行边界</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="footer-note">
+            <strong>关键抽象：</strong>
+            本体层是控制面，技能层是执行面，场景层是交付面，交互层是入口面。
+            智能能力统一沉到底座，服务于四层，而不是替代四层。
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="infrastructure">
+        <div class="section-head">
+          <div>
+            <h2>为什么把智能能力放到底座</h2>
+            <p>
+              这是这次重写最重要的结构调整。客户买的是业务场景，实施顾问配置的是场景包，底层智能能力则由平台统一承接。
+            </p>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="infra-grid">
+            <article class="infra-card">
+              <strong>统一智能能力</strong>
+              <p>统一承接底层智能能力，让上层场景不用关心底层差异。</p>
+            </article>
+            <article class="infra-card">
+              <strong>协作执行能力</strong>
+              <p>支撑对话、副驾和任务执行，让 AI 能稳定参与业务协作。</p>
+            </article>
+            <article class="infra-card">
+              <strong>知识与上下文</strong>
+              <p>为场景提供所需资料、历史与当前语境，让输出更贴近业务现场。</p>
+            </article>
+            <article class="infra-card">
+              <strong>规则与边界</strong>
+              <p>统一约束输出方式、动作边界和使用规范，避免每个场景各自维护。</p>
+            </article>
+            <article class="infra-card">
+              <strong>观察与优化</strong>
+              <p>持续观察效果、复盘问题、优化体验，让平台越用越稳。</p>
+            </article>
+          </div>
+
+          <div class="callout">
+            更合理的说法是：
+            <strong>四层是业务架构，智能底座是统一支撑。</strong>
+            这样客户能听懂，实施能落地，平台也能持续升级而不破坏上层业务结构。
+          </div>
+
+          <div class="principle-grid">
+            <div class="focus-card">
+              <strong>对客户更清楚</strong>
+              <p>客户看到的是场景、工作台、地图和行动闭环，而不是底层智能细节。</p>
+            </div>
+            <div class="focus-card">
+              <strong>对实施更现实</strong>
+              <p>实施顾问配置的是规则、技能、场景和工作台，而不是管理复杂的技术组件。</p>
+            </div>
+            <div class="focus-card">
+              <strong>对研发更解耦</strong>
+              <p>底座能力可以独立升级，而不频繁重构业务层定义。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="compare">
+        <div class="section-head">
+          <div>
+            <h2>与传统低代码平台的根本区别</h2>
+            <p>
+              这不是否定低代码，而是明确我们借鉴的底层思想和继续往上升级的方向。低代码仍然重要，但它应该退到底座，而不是继续占据叙事中心。
+            </p>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="compare-grid">
+            <article class="compare-card">
+              <strong>我们保留了低代码的哪些价值</strong>
+              <p>组织、权限、流程、集成、页面装配、实施体系，这些仍然是中国企业项目交付不可或缺的现实能力。</p>
+              <ul>
+                <li>表单、权限与组织配置能力</li>
+                <li>流程与审批的治理能力</li>
+                <li>开放集成和连接器体系</li>
+                <li>交付实施方法和模板复制能力</li>
+                <li>面向业务运营的可配置工作方式</li>
+              </ul>
+            </article>
+            <article class="compare-card">
+              <strong>我们真正升级了什么</strong>
+              <p>升级点在于把“应用配置”提升为“业务场景构建”，让 AI 能在语义和动作边界内真正参与经营活动。</p>
+              <ul>
+                <li>从表结构升级为本体控制面</li>
+                <li>从按钮与接口升级为技能体系</li>
+                <li>从页面模板升级为场景包</li>
+                <li>从问答助手升级为受控副驾</li>
+                <li>从通知机制升级为行动闭环</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>维度</th>
+                <th>传统低代码平台</th>
+                <th>AI 原生应用构建平台</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>建模中心</strong></td>
+                <td>表单 / 流程 / 页面 / 权限</td>
+                <td>本体 / 技能 / 场景 / 交互</td>
+              </tr>
+              <tr>
+                <td><strong>交付单位</strong></td>
+                <td>应用、表单、审批流、报表</td>
+                <td>场景包、角色工作台、协同机制、AI 副驾</td>
+              </tr>
+              <tr>
+                <td><strong>运行方式</strong></td>
+                <td>人工点表单、走流程、看报表</td>
+                <td>人机协同、技能调用、场景驱动、行动回写</td>
+              </tr>
+              <tr>
+                <td><strong>AI 角色</strong></td>
+                <td>页面侧外挂助手</td>
+                <td>受控执行能力，服务于场景但不越权</td>
+              </tr>
+              <tr>
+                <td><strong>价值目标</strong></td>
+                <td>提升交付效率和流程装配效率</td>
+                <td>提升经营质量、执行效率与组织智能沉淀</td>
+              </tr>
+              <tr>
+                <td><strong>一句话总结</strong></td>
+                <td><strong>交付应用</strong></td>
+                <td><strong>交付场景</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="footer-note">
+            如果说宜搭类平台解决的是“如何更快把系统搭出来”，那么这套平台要解决的是“如何先把业务世界定义清楚，再让 AI 和人一起在这个业务世界里工作”。
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="crm-scenes">
+        <div class="section-head">
+          <div>
+            <h2>CRM 场景如何把这套架构逼出来</h2>
+            <p>
+              这套架构不是从技术名词里推出来的，而是被 CRM 样板间中的真实角色、真实动作和真实经营问题一步步逼出来的。
+            </p>
+          </div>
+        </div>
+
+        <div class="scenario-grid">
+          <article class="scenario-card">
+            <strong>商机建档场景</strong>
+            <p>火亮在路上说一句“新增一个商机”，系统就要接住意图、追问缺项、创建草稿并生成后续动作。</p>
+            <div class="scenario-meta">
+              <div class="scenario-line"><span>业务目标：</span>让销售用最少操作完成建档，并把口语输入转成可推进的业务档案。</div>
+              <div class="scenario-line"><span>场景层负责：</span>配置最小建档条件、AI 追问策略、默认待办和后续推进动作。</div>
+              <div class="scenario-line"><span>这层交付的是：</span>隐形建档机制。</div>
+            </div>
+          </article>
+
+          <article class="scenario-card">
+            <strong>客户洞察与话术辅助场景</strong>
+            <p>销售在会前、会中、会后需要的不是另一个聊天框，而是一套围绕当前客户和商机上下文运转的销售副驾。</p>
+            <div class="scenario-meta">
+              <div class="scenario-line"><span>业务目标：</span>让销售快速获得客户洞察、异议应对、案例参考与下一步建议。</div>
+              <div class="scenario-line"><span>场景层负责：</span>装配客户画像、竞品策略、话术模板、推荐动作和会后回写能力。</div>
+              <div class="scenario-line"><span>这层交付的是：</span>销售副驾机制。</div>
+            </div>
+          </article>
+
+          <article class="scenario-card">
+            <strong>售前协同场景</strong>
+            <p>火亮一句话发起售前支持，请求要自动带上下文、可追踪、可回写，而不是再跳去另一个 OA 流程填表。</p>
+            <div class="scenario-meta">
+              <div class="scenario-line"><span>业务目标：</span>让跨部门协同从“流程申请”升级为“上下文驱动的业务协作”。</div>
+              <div class="scenario-line"><span>场景层负责：</span>装配协同入口、SLA、升级路径、回写规则和角色通知机制。</div>
+              <div class="scenario-line"><span>这层交付的是：</span>跨部门协同机制。</div>
+            </div>
+          </article>
+
+          <article class="scenario-card">
+            <strong>团队经营洞察场景</strong>
+            <p>晨路要看的不是静态报表，而是高风险商机、停滞阶段、需主管介入事项，以及可直接生成的干预清单。</p>
+            <div class="scenario-meta">
+              <div class="scenario-line"><span>业务目标：</span>让主管从结果管理走向过程干预。</div>
+              <div class="scenario-line"><span>场景层负责：</span>配置风险口径、默认面板、诊断技能、自然语言筛选和干预动作模板。</div>
+              <div class="scenario-line"><span>这层交付的是：</span>经营雷达机制。</div>
+            </div>
+          </article>
+
+          <article class="scenario-card">
+            <strong>总经理全国经营地图场景</strong>
+            <p>总经理不是来看全国热力图，而是在地图上看全国经营状态、重点项目、资源失衡和可立即采取的动作。</p>
+            <div class="scenario-meta">
+              <div class="scenario-line"><span>业务目标：</span>让总经理站在全国视角做区域诊断、资源调度和经营决策。</div>
+              <div class="scenario-line"><span>场景层负责：</span>配置地图图层、区域口径、重点项目 watchlist、建议动作和自动处理边界。</div>
+              <div class="scenario-line"><span>这层交付的是：</span>全国经营指挥机制。</div>
+            </div>
+          </article>
+
+          <article class="scenario-card">
+            <strong>赢输单复盘场景</strong>
+            <p>系统不能只记下“赢了”或“输了”，还要把过程证据转成案例资产，并在后续相似机会中自动回流。</p>
+            <div class="scenario-meta">
+              <div class="scenario-line"><span>业务目标：</span>把结果变成资产，不让 CRM 只停留在记账。</div>
+              <div class="scenario-line"><span>场景层负责：</span>定义触发时机、证据收集、参与角色、输出模板与知识回流规则。</div>
+              <div class="scenario-line"><span>这层交付的是：</span>知识回流机制。</div>
+            </div>
+          </article>
+        </div>
+
+        <div class="callout">
+          这些场景共同说明了一件事：
+          <strong>平台真正要交付的不是页面，而是业务跑法；不是 AI 功能点，而是人、规则、技能、协同和行动闭环共同组成的场景包。</strong>
+        </div>
+      </section>
+
+      <section class="section" id="evolution">
+        <div class="section-head">
+          <div>
+            <h2>平台演进方向</h2>
+            <p>
+              CRM 只是第一块样板间。真正的价值在于，当这套方法跑通后，平台能够把“本体 + 技能 + 场景 + 交互”的能力复制到更多经营场景。
+            </p>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="timeline-list">
+            <div class="timeline-item">
+              <strong>第一阶段：用 CRM 验证方法论</strong>
+              <p>先把线索、商机、报价、合同、经营洞察、老板地图、复盘飞轮这些前链路关键场景做扎实。</p>
+            </div>
+            <div class="timeline-item">
+              <strong>第二阶段：复制到更多业务域</strong>
+              <p>把场景包能力复制到供应链、项目管理、服务管理、合同管理、渠道运营等更广泛的业务现场。</p>
+            </div>
+            <div class="timeline-item">
+              <strong>第三阶段：沉淀组织级经营基础设施</strong>
+              <p>让平台从“样板应用工厂”成长为“可定义业务世界、可组织业务运行、可持续沉淀组织智能”的企业经营底座。</p>
+            </div>
+          </div>
+
+          <div class="focus-grid">
+            <div class="focus-card">
+              <strong>稳定不变的东西</strong>
+              <p>本体作为控制面、技能作为执行面、场景作为交付单位、交互作为业务入口，这四层应保持稳定。</p>
+            </div>
+            <div class="focus-card">
+              <strong>持续演进的东西</strong>
+              <p>智能能力、知识支撑、地图、工作台和诊断能力都可以作为底座持续升级。</p>
+            </div>
+            <div class="focus-card">
+              <strong>最终目标</strong>
+              <p>平台的终点不是更聪明的聊天框，而是更强的业务定义能力、更高的经营执行质量和更厚的组织智能资产。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell">
+      本页用于从业务架构视角重新定义 AI 原生应用构建平台：以本体为控制面、以技能为执行面、以场景为交付单位、以交互为业务入口，并由统一智能底座提供支撑。
+    </footer>
+
+    <script type="module">
+      import mermaid from "https://unpkg.com/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      mermaid.initialize({
+        startOnLoad: true,
+        securityLevel: "loose",
+        theme: "base",
+        themeVariables: {
+          fontFamily: '"PingFang SC","Microsoft YaHei",sans-serif',
+          background: "#ffffff",
+          primaryColor: "#edf8f7",
+          primaryTextColor: "#17232b",
+          primaryBorderColor: "#147a77",
+          lineColor: "#425766",
+          secondaryColor: "#fbf4ea",
+          tertiaryColor: "#f6efe4",
+          clusterBkg: "#fbf8f2",
+          clusterBorder: "#d9cab5",
+          edgeLabelBackground: "#fffaf4",
+          actorBkg: "#effafa",
+          actorBorder: "#147a77",
+          actorTextColor: "#17232b",
+          signalColor: "#173849",
+          signalTextColor: "#17232b",
+          labelBoxBkgColor: "#fffaf4",
+          labelBoxBorderColor: "#d9cab5",
+          nodeBorder: "#d6c5ad"
+        },
+        flowchart: {
+          htmlLabels: true,
+          curve: "basis"
+        }
+      });
+
+      const navButtons = Array.from(document.querySelectorAll(".nav-pill"));
+      const sections = navButtons
+        .map((button) => document.getElementById(button.dataset.target))
+        .filter(Boolean);
+
+      navButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = document.getElementById(button.dataset.target);
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        });
+      });
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+          if (!visible) return;
+
+          const activeId = visible.target.id;
+          navButtons.forEach((button) => {
+            button.classList.toggle("active", button.dataset.target === activeId);
+          });
+        },
+        {
+          rootMargin: "-35% 0px -45% 0px",
+          threshold: [0.2, 0.35, 0.5, 0.7]
+        }
+      );
+
+      sections.forEach((section) => observer.observe(section));
+    </script>
+  </body>
+</html>

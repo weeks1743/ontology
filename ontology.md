@@ -80,8 +80,7 @@ relations:
   - hasQuote
 ```
 
-> 图片占位 1：对象实体工作区。建议放一张商机对象含属性、生命周期、关系的界面图。
-![](docs/articles/img/02/1.png)
+![图谱](docs/articles/img/02/1.png)
 
 ### 2. 行为
 
@@ -321,7 +320,7 @@ scenarios: scenarios.yaml
 
 这也是 Palantir 相关材料反复提醒的一点: 图谱展示本身不是目的，真正的重点是用户能否从任意对象节点出发，沿着关系、动作和推演结果继续工作。也就是说，图不是最终产品，图只是让语义系统进入运营现场的一种观察面。
 
-![](docs/articles/img/02/1.png)
+![](docs/articles/img/02/0.png)
 
 ### 5. 它已经在朝"AI 可理解的本体"继续演进
 
@@ -369,3 +368,6 @@ CRM 正好把这件事暴露得非常彻底。它让我们看到，企业系统�
 因为它定义的不是一个页面怎么工作，而是整个业务世界，如何第一次被系统真正理解。
 
 而一旦这件事成立，系统就不再只是记录业务的地方，它会开始成为推动业务、解释业务、沉淀业务的地方。
+
+参考
+https://www.palantir.com/docs/zh/foundry/ontology-manager/overview

@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIFlux 协同办公平台 - 产品发布会</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* === AURORA MESH BASE === */
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #06b6d4;
+            --accent: #8b5cf6;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --gray: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            --mesh-gradient: radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                             radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
+                             radial-gradient(circle at 40% 40%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--mesh-gradient);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* === PRESENTATION MODE === */
+        body.presenting {
+            overflow: hidden;
+        }
+        body.presenting .slide {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 10000;
+            background: var(--bg-gradient);
+            overflow: hidden;
+        }
+        body.presenting .slide.active {
+            display: block;
+        }
+        body.presenting #present-counter {
+            display: block;
+        }
+        body.presenting #present-btn,
+        body.presenting .edit-hotzone,
+        body.presenting #notes-panel {
+            display: none !important;
+        }
+
+        #present-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        #present-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(99, 102, 241, 0.4);
+        }
+
+        #present-counter {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            padding: 10px 24px;
+            font-size: 14px;
+            color: var(--gray);
+            z-index: 10001;
+        }
+        #present-counter .current {
+            color: white;
+            font-weight: bold;
+        }
+
+        /* === EDIT MODE === */
+        .edit-hotzone {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 999;
+        }
+        #edit-toggle {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--gray);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #edit-toggle:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+        .editing #edit-toggle {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        #notes-panel {
+            position: fixed;
+            top: 70px;
+            left: 20px;
+            width: 300px;
+            max-height: calc(100vh - 90px);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 998;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .editing #notes-panel {
+            display: block;
+        }
+        #notes-panel h3 {
+            color: var(--secondary);
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #notes-content {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--gray);
+        }
+        #notes-content p {
+            margin-bottom: 12px;
+        }
+
+        /* === SLIDE CONTAINER === */
+        .slides-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* === SLIDE BASE === */
+        .slide {
+            width: 100%;
+            min-height: 90vh;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 60px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--mesh-gradient);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .slide-number {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            color: rgba(255, 255, 255, 0.1);
+            font-size: 18px;
+            font-weight: 300;
+        }
+
+        /* === TYPOGRAPHY === */
+        h1, h2, h3 {
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 4.5rem;
+            background: linear-gradient(135deg, #fff 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 1.5rem;
+        }
+
+        h2 {
+            font-size: 3.5rem;
+            color: white;
+        }
+
+        h3 {
+            font-size: 2.5rem;
+            color: var(--secondary);
+        }
+
+        p {
+            font-size: 1.5rem;
+            line-height: 1.6;
+            color: var(--gray);
+            margin-bottom: 1.5rem;
+        }
+
+        .subtitle {
+            font-size: 2rem;
+            color: var(--gray);
+            margin-bottom: 2rem;
+        }
+
+        /* === COVER SLIDE === */
+        .slide-cover {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            padding-top: 80px;
+        }
+        .slide-cover .logo {
+            font-size: 1.2rem;
+            color: var(--secondary);
+            letter-spacing: 4px;
+            margin-bottom: 40px;
+            opacity: 0.8;
+        }
+        .slide-cover .date {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            color: var(--gray);
+        }
+        .slide-cover .accent-line {
+            width: 120px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            margin: 30px auto;
+            border-radius: 2px;
+        }
+
+        /* === PAIN POINT SLIDE === */
+        .slide-pain-point .points-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-top: 50px;
+        }
+        .pain-point-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .pain-point-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-5px);
+        }
+        .pain-point-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--danger), var(--warning));
+        }
+        .pain-point-card i {
+            color: var(--danger);
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+        .pain-point-card h4 {
+            font-size: 1.8rem;
+            color: white;
+            margin-bottom: 15px;
+        }
+        .pain-point-card p {
+            font-size: 1.3rem;
+            margin-bottom: 0;
+            color: var(--gray);
+        }
+
+        /* === SOLUTION SLIDE === */
+        .slide-solution {
+            text-align: center;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            margin-top: 60px;
+        }
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            padding: 40px 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(6, 182, 212, 0.3);
+            transform: translateY(-5px);
+        }
+        .feature-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--secondary), var(--accent));
+        }
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(99, 102, 241, 0.1));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+        }
+        .feature-icon i {
+            font-size: 2.5rem;
+            color: var(--secondary);
+        }
+        .feature-card h4 {
+            font-size: 1.8rem;
+            color: white;
+            margin-bottom: 15px;
+        }
+        .feature-card p {
+            font-size: 1.3rem;
+            color: var(--gray);
+            margin-bottom: 0;
+        }
+
+        /* === DATA SLIDE === */
+        .slide-data {
+            text-align: center;
+        }
+        .metrics-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 80px;
+            gap: 30px;
+        }
+        .metric-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            padding: 40px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+        }
+        .metric-value {
+            font-size: 5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            line-height: 1;
+            margin-bottom: 15px;
+        }
+        .metric-label {
+            font-size: 1.5rem;
+            color: var(--gray);
+        }
+        .metric-trend {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 6px 15px;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        /* === CLOSING SLIDE === */
+        .slide-closing {
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+        }
+        .cta-button {
+            display: inline-block;
+            margin-top: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 22px 50px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 15px 40px rgba(99, 102, 241, 0.3);
+        }
+        .cta-button:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 25px 50px rgba(99, 102, 241, 0.4);
+        }
+        .contact-info {
+            margin-top: 40px;
+            font-size: 1.8rem;
+            color: var(--gray);
+        }
+        .contact-info a {
+            color: var(--secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        .contact-info a:hover {
+            color: white;
+            text-decoration: underline;
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 1024px) {
+            h1 { font-size: 3.5rem; }
+            h2 { font-size: 2.8rem; }
+            h3 { font-size: 2rem; }
+            .slide { padding: 40px; }
+            .features-grid,
+            .slide-pain-point .points-container {
+                grid-template-columns: 1fr;
+            }
+            .metrics-container {
+                flex-direction: column;
+                gap: 30px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.8rem; }
+            h2 { font-size: 2.2rem; }
+            h3 { font-size: 1.8rem; }
+            .slide { padding: 30px; min-height: 80vh; }
+            .slides-container { padding: 20px 15px; gap: 30px; }
+            #present-btn { bottom: 15px; right: 15px; padding: 12px 20px; font-size: 14px; }
+            #notes-panel { width: calc(100% - 40px); left: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Edit Mode Hotzone -->
+    <div class="edit-hotzone">
+        <button id="edit-toggle"><i class="fas fa-edit"></i> ✏ 编辑</button>
+    </div>
+
+    <!-- Notes Panel -->
+    <div id="notes-panel">
+        <h3><i class="fas fa-sticky-note"></i> 演讲者备注</h3>
+        <div id="notes-content">
+            <p><strong>幻灯片 1 - 封面:</strong> 自信开场，介绍产品名称和核心理念。</p>
+            <p><strong>幻灯片 2 - 痛点:</strong> 引发共鸣，描述当前企业协作的普遍问题。</p>
+            <p><strong>幻灯片 3 - 解决方案:</strong> 展示AIFlux如何精准解决上述痛点。</p>
+            <p><strong>幻灯片 4 - 数据成效:</strong> 用具体数据证明产品价值，增强说服力。</p>
+            <p><strong>幻灯片 5 - 结尾:</strong> 呼吁行动，提供明确的下一步联系途径。</p>
+        </div>
+    </div>
+
+    <!-- Presentation Mode Button -->
+    <button id="present-btn"><i class="fas fa-play"></i> 开始演示 (F5)</button>
+    <div id="present-counter"><span class="current">1</span> / 5</div>
+
+    <!-- Slides Container -->
+    <div class="slides-container">
+        <!-- Slide 1: Cover -->
+        <div class="slide slide-cover active" id="slide-1">
+            <div class="logo">AIFLUX</div>
+            <h1 contenteditable="true">AIFlux 协同办公平台</h1>
+            <div class="accent-line"></div>
+            <p class="subtitle" contenteditable="true">让协作更智能，让工作更高效</p>
+            <div class="date" contenteditable="true">2026年4月</div>
+            <div class="slide-number">1</div>
+        </div>
+
+        <!-- Slide 2: Pain Point -->
+        <div class="slide slide-pain-point" id="slide-2">
+            <h2 contenteditable="true">企业协作痛点</h2>
+            <p contenteditable="true">在数字化转型的浪潮中，传统协作方式已成为企业发展的主要瓶颈。</p>
+            <div class="points-container">
+                <div class="pain-point-card">
+                    <i class="fas fa-comments"></i>
+                    <h4 contenteditable="true">跨部门沟通成本高</h4>
+                    <p contenteditable="true">信息传递链条长，决策缓慢，部门墙现象严重。</p>
+                </div>
+                <div class="pain-point-card">
+                    <i class="fas fa-database"></i>
+                    <h4 contenteditable="true">数据孤岛严重</h4>
+                    <p contenteditable="true">系统间数据不互通，分析决策缺乏全局视角。</p>
+                </div>
+                <div class="pain-point-card">
+                    <i class="fas fa-house-laptop"></i>
+                    <h4 contenteditable="true">远程协作效率低</h4>
+                    <p contenteditable="true">工具分散，体验割裂，难以保障远程团队生产力。</p>
+                </div>
+                <div class="pain-point-card">
+                    <i class="fas fa-shield-alt"></i>
+                    <h4 contenteditable="true">信息安全难保障</h4>
+                    <p contenteditable="true">敏感数据分散在多平台，权限管理复杂，泄露风险高。</p>
+                </div>
+            </div>
+            <div class="slide-number">2</div>
+        </div>
+
+        <!-- Slide 3: Solution -->
+        <div class="slide slide-solution" id="slide-3">
+            <h2 contenteditable="true">AIFlux 解决方案</h2>
+            <p contenteditable="true">一体化智能协同平台，重新定义企业工作方式</p>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h4 contenteditable="true">智能工作流引擎</h4>
+                    <p contenteditable="true">AI驱动流程自动化，智能分配任务，预测项目风险。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h4 contenteditable="true">实时协同编辑</h4>
+                    <p contenteditable="true">文档、表格、白板实时协作，毫秒级同步，体验如一体。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <h4 contenteditable="true">全链路数据打通</h4>
+                    <p contenteditable="true">连接所有业务系统，构建企业统一数据视图。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-user-lock"></i>
+                    </div>
+                    <h4 contenteditable="true">企业级权限管控</h4>
+                    <p contenteditable="true">细粒度权限模型，合规审计，端到端加密保障。</p>
+                </div>
+            </div>
+            <div class="slide-number">3</div>
+        </div>
+
+        <!-- Slide 4: Data -->
+        <div class="slide slide-data" id="slide-4">
+            <h2 contenteditable="true">客户成效</h2>
+            <p contenteditable="true">已服务超过 500 家企业客户，持续创造可衡量的商业价值</p>
+            <div class="metrics-container">
+                <div class="metric-card">
+                    <div class="metric-value" contenteditable="true">65%</div>
+                    <div class="metric-label" contenteditable="true">协作效率提升</div>
+                    <div class="metric-trend">↑ 行业平均的2倍</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" contenteditable="true">40%</div>
+                    <div class="metric-label" contenteditable="true">沟通成本降低</div>
+                    <div class="metric-trend">↑ 会议时间减少35%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" contenteditable="true">2x</div>
+                    <div class="metric-label" contenteditable="true">项目交付加速</div>
+                    <div class="metric-trend">↑ 交付周期缩短50%</div>
+                </div>
+            </div>
+            <div class="slide-number">4</div>
+        </div>
+
+        <!-- Slide 5: Closing -->
+        <div class="slide slide-closing" id="slide-5">
+            <h2 contenteditable="true">开启智能协作新时代</h2>
+            <p class="subtitle" contenteditable="true">与AIFlux一起，构建未来型组织</p>
+            <a href="#" class="cta-button" contenteditable="true">立即预约演示</a>
+            <div class="contact-info">
+                <p contenteditable="true">联系我们：<a href="mailto:contact@aiflux.com">contact@aiflux.com</a></p>
+            </div>
+            <div class="slide-number">5</div>
+        </div>
+    </div>
+
+    <script>
+        // === EDIT MODE TOGGLE ===
+        const editToggle = document.getElementById('edit-toggle');
+        const notesPanel = document.getElementById('notes-panel');
+        let isEditing = true; // Default ON as per contract
+
+        function toggleEditMode() {
+            isEditing = !isEditing;
+            document.body.classList.toggle('editing', isEditing);
+            editToggle.innerHTML = isEditing 
+                ? '<i class="fas fa-edit"></i> ✏ 编辑中' 
+                : '<i class="fas fa-edit"></i> ✏ 编辑';
+            
+            // Toggle contenteditable on all editable elements
+            document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+                el.contentEditable = isEditing;
+            });
+        }
+
+        editToggle.addEventListener('click', toggleEditMode);
+
+        // Initialize edit mode
+        document.body.classList.add('editing');
+        document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+            el.contentEditable = true;
+        });
+
+        // === PRESENTATION MODE ===
+        const presentBtn = document.getElementById('present-btn');
+        const presentCounter = document.getElementById('present-counter');
+        const slides = document.querySelectorAll('.slide');
+        let currentSlideIndex = 0;
+        let isPresenting = false;
+
+        function enterPresentationMode() {
+            isPresenting = true;
+            document.body.classList.add('presenting');
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index === currentSlideIndex) {
+                    slide.classList.add('active');
+                }
+            });
+            updateCounter();
+            document.documentElement.requestFullscreen?.().catch(console.log);
+        }
+
+        function exitPresentationMode() {
+            isPresenting = false;
+            document.body.classList.remove('presenting');
+            document.exitFullscreen?.().catch(console.log);
+        }
+
+        function updateCounter() {
+            presentCounter.querySelector('.current').textContent = currentSlideIndex + 1;
+        }
+
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= slides.length) index = slides.length - 1;
+            currentSlideIndex = index;
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('active', i === currentSlideIndex);
+            });
+            updateCounter();
+        }
+
+        function nextSlide() {
+            goToSlide(currentSlideIndex + 1);
+        }
+
+        function prevSlide() {
+            goToSlide(currentSlideIndex - 1);
+        }
+
+        // Event Listeners
+        presentBtn.addEventListener('click', enterPresentationMode);
+
+        document.addEventListener('keydown', (e) => {
+            if (!isPresenting) return;
+            
+            switch(e.key) {
+                case 'ArrowRight':
+                case 'PageDown':
+                case ' ':
+                    e.preventDefault();
+                    nextSlide();
+                    break;
+                case 'ArrowLeft':
+                case 'PageUp':
+                    e.preventDefault();
+                    prevSlide();
+                    break;
+                case 'Escape':
+                    exitPresentationMode();
+                    break;
+                case 'F5':
+                    e.preventDefault();
+                    if (!isPresenting) enterPresentationMode();
+                    break;
+            }
+        });
+
+        // Fullscreen change listener
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isPresenting) {
+                exitPresentationMode();
+            }
+        });
+
+        // F5 to start presentation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F5') {
+                e.preventDefault();
+                if (!isPresenting) enterPresentationMode();
+            }
+        });
+
+        // Click to advance in presentation mode
+        document.addEventListener('click', (e) => {
+            if (isPresenting && e.target.closest('.slide')) {
+                nextSlide();
+            }
+        });
+    </script>
+</body>
+</html>

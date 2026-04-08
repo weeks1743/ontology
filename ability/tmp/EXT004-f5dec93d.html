@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上海松井机械有限公司 - 协同办公SaaS客户研究报告</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c5282;
+            --secondary-color: #38b2ac;
+            --accent-color: #ed8936;
+            --background-color: #ffffff;
+            --surface-color: #f7fafc;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --border-color: #e2e8f0;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --danger-color: #f56565;
+            --info-color: #4299e1;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 8px;
+            --font-family: 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            --header-height: 60px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--background-color);
+            padding: 0;
+            margin: 0;
+        }
+
+        .report-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .report-header {
+            background: linear-gradient(135deg, var(--primary-color), #1a365d);
+            color: white;
+            padding: 30px;
+            border-radius: var(--radius);
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .report-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+            opacity: 0.1;
+            z-index: 0;
+        }
+
+        .report-header > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .report-title {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .report-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        .report-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .meta-item i {
+            font-size: 1rem;
+        }
+
+        /* Core Conclusion */
+        .core-conclusion {
+            background-color: var(--surface-color);
+            border-left: 5px solid var(--accent-color);
+            padding: 25px;
+            border-radius: var(--radius);
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .conclusion-label {
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .conclusion-text {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        /* Section */
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 1.6rem;
+            color: var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            color: var(--secondary-color);
+        }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border-top: 4px solid var(--primary-color);
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .kpi-label {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .kpi-note {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Content Card */
+        .content-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: var(--secondary-color);
+        }
+
+        /* List */
+        .styled-list {
+            list-style-type: none;
+        }
+
+        .styled-list li {
+            padding: 10px 0 10px 30px;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .styled-list li:last-child {
+            border-bottom: none;
+        }
+
+        .styled-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        /* Risk Matrix */
+        .risk-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .risk-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border-left: 5px solid;
+        }
+
+        .risk-card.medium {
+            border-left-color: var(--warning-color);
+        }
+
+        .risk-card.medium-high {
+            border-left-color: #f6ad55;
+        }
+
+        .risk-card.low {
+            border-left-color: var(--success-color);
+        }
+
+        .risk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .risk-type {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .risk-level {
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .risk-level.medium {
+            background-color: rgba(237, 137, 54, 0.1);
+            color: var(--warning-color);
+        }
+
+        .risk-level.medium-high {
+            background-color: rgba(246, 173, 85, 0.1);
+            color: #dd6b20;
+        }
+
+        .risk-level.low {
+            background-color: rgba(72, 187, 120, 0.1);
+            color: var(--success-color);
+        }
+
+        .risk-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            background: white;
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Summary */
+        .report-summary {
+            background: linear-gradient(135deg, var(--surface-color), #e6fffa);
+            border-radius: var(--radius);
+            padding: 30px;
+            margin-top: 40px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .summary-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .summary-content {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: var(--text-primary);
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Footer */
+        .report-footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .report-container {
+                padding: 15px;
+            }
+
+            .report-title {
+                font-size: 1.8rem;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .risk-matrix {
+                grid-template-columns: 1fr;
+            }
+
+            .report-meta {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        /* Animation */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        /* Print Styles */
+        @media print {
+            .report-header {
+                background: #2c5282 !important;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+            }
+
+            .kpi-card, .content-card, .chart-container, .risk-card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+
+            .report-summary {
+                background: #f7fafc !important;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <!-- Header -->
+        <header class="report-header fade-in">
+            <h1 class="report-title">上海松井机械有限公司</h1>
+            <p class="report-subtitle">协同办公SaaS客户研究报告</p>
+            <div class="report-meta">
+                <div class="meta-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>报告日期：2026年04月03日</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-user-tie"></i>
+                    <span>报告作者：协同办公SaaS厂商销售</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-building"></i>
+                    <span>客户类型：外资制造企业</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Core Conclusion -->
+        <section class="core-conclusion fade-in">
+            <div class="conclusion-label">核心结论</div>
+            <p class="conclusion-text">
+                上海松井机械有限公司作为日本松井制作所100%控股的外资制造企业，具备规范的管理体系、稳定的经营状况、明确的数字化升级需求，是协同办公SaaS产品的优质目标客户。
+            </p>
+        </section>
+
+        <!-- Company Overview -->
+        <section class="section fade-in">
+            <h2 class="section-title"><i class="fas fa-landmark"></i> 企业概览</h2>
+            
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label"><i class="fas fa-calendar-day"></i> 成立时间</div>
+                    <div class="kpi-value">1997-06-03</div>
+                    <div class="kpi-note">经营超28年</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label"><i class="fas fa-yen-sign"></i> 注册资本</div>
+                    <div class="kpi-value">1026万美元</div>
+                    <div class="kpi-note">外资法人独资</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label"><i class="fas fa-users"></i> 员工规模</div>
+                    <div class="kpi-value">121人</div>
+                    <div class="kpi-note">2024年数据</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label"><i class="fas fa-award"></i> 纳税信用</div>
+                    <div class="kpi-value">A级</div>
+                    <div class="kpi-note">连续2年（2023-2024）</div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h3 class="card-title"><i class="fas fa-industry"></i> 核心业务与行业地位</h3>
+                <p><strong>核心业务：</strong>塑料成型辅助机械专业制造商，核心业务覆盖注塑机周边设备研发、生产、销售与系统集成。</p>
+                <p><strong>行业地位：</strong>母公司松井制作所全球销售额排名第二、日本第一，在华布局超30年，拥有13个国内据点。</p>
+                <p><strong>组织架构：</strong>兼具生产制造、销售服务、技术研发职能，为松井全球重要生产基地与中国区运营总部。</p>
+            </div>
+
+            <div class="content-card">
+                <h3 class="card-title"><i class="fas fa-star"></i> 核心优势</h3>
+                <ul class="styled-list">
+                    <li><strong>技术积淀：</strong>百年行业经验，拥有28项专利</li>
+                    <li><strong>客户覆盖：</strong>服务汽车、电子电气、医疗等多领域头部客户</li>
+                    <li><strong>绿色理念：</strong>推行Factor4环保理念，注重可持续发展</li>
+                    <li><strong>管理规范：</strong>外资背景，管理流程规范，重视合规与权限管控</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Pain Points Analysis -->
+        <section class="section fade-in">
+            <h2 class="section-title"><i class="fas fa-search"></i> 协同办公痛点分析</h2>
+            
+            <div class="content-card">
+                <h3 class="card-title"><i class="fas fa-exclamation-triangle"></i> 关键发现</h3>
+                <ul class="styled-list">
+                    <li>跨部门协同效率低，定制化方案沟通周期长</li>
+                    <li>与日本总部跨时区协作低效，国内多据点业务联动不顺畅</li>
+                    <li>设备运行数据、生产进度、售后数据与管理系统独立</li>
+                    <li>外资企业需严格权限分级，专利、客户数据等敏感信息需隔离</li>
+                    <li>定制化系统工程项目进度、交付、成本管控不透明</li>
+                </ul>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">痛点分布与影响程度</h3>
+                <div class="chart-wrapper">
+                    <canvas id="painPointsChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Risk Assessment -->
+        <section class="section fade-in">
+            <h2 class="section-title"><i class="fas fa-shield-alt"></i> 合作风险评估</h2>
+            
+            <div class="risk-matrix">
+                <div class="risk-card medium">
+                    <div class="risk-header">
+                        <div class="risk-type">决策流程</div>
+                        <div class="risk-level medium">中风险</div>
+                    </div>
+                    <p class="risk-description">外资企业总部决策层级多，推进周期长</p>
+                </div>
+                
+                <div class="risk-card medium-high">
+                    <div class="risk-header">
+                        <div class="risk-type">系统集成</div>
+                        <div class="risk-level medium-high">中高风险</div>
+                    </div>
+                    <p class="risk-description">与现有生产设备系统、ERP系统对接存在技术壁垒</p>
+                </div>
+                
+                <div class="risk-card low">
+                    <div class="risk-header">
+                        <div class="risk-type">员工接受度</div>
+                        <div class="risk-level low">低风险</div>
+                    </div>
+                    <p class="risk-description">生产现场员工对新工具可能存在抵触</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cooperation Suggestions -->
+        <section class="section fade-in">
+            <h2 class="section-title"><i class="fas fa-handshake"></i> 合作建议与行动计划</h2>
+            
+            <div class="content-card">
+                <h3 class="card-title"><i class="fas fa-rocket"></i> 立即行动建议</h3>
+                <ul class="styled-list">
+                    <li><strong>本周内：</strong>联系公司IT部门与核心业务负责人，启动需求对接</li>
+                    <li><strong>1周内：</strong>基于调研结果，提交定制化试点方案</li>
+                    <li><strong>方案重点突出：</strong>跨区域协作、合规管控、数据集成三大核心能力</li>
+                    <li><strong>试点范围：</strong>建议从项目管理或跨部门协作模块开始</li>
+                </ul>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="chart-title">建议实施路线图</h3>
+                <div class="chart-wrapper">
+                    <canvas id="roadmapChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final Summary -->
+        <section class="report-summary fade-in">
+            <h2 class="summary-title">报告总结</h2>
+            <p class="summary-content">
+                松井机械作为规范运营、技术领先、付费能力强的外资制造企业，其协同办公核心痛点与SaaS产品能力高度匹配，具备快速落地、深度合作、长期增值的三重潜力。
+            </p>
+        </section>
+
+        <!-- Footer -->
+        <footer class="report-footer">
+            <p>© 2026 协同办公SaaS厂商销售团队 | 本报告仅供内部使用</p>
+            <p>生成时间：2026-04-03 15:30:00</p>
+        </footer>
+    </div>
+
+    <script>
+        // Pain Points Chart
+        const painPointsCtx = document.getElementById('painPointsChart').getContext('2d');
+        new Chart(painPointsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['跨部门协同', '跨时区协作', '数据孤岛', '权限管控', '项目透明'],
+                datasets: [{
+                    label: '影响程度',
+                    data: [85, 75, 80, 90, 70],
+                    backgroundColor: [
+                        'rgba(44, 82, 130, 0.7)',
+                        'rgba(56, 178, 172, 0.7)',
+                        'rgba(237, 137, 54, 0.7)',
+                        'rgba(245, 101, 101, 0.7)',
+                        'rgba(66, 153, 225, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgb(44, 82, 130)',
+                        'rgb(56, 178, 172)',
+                        'rgb(237, 137, 54)',
+                        'rgb(245, 101, 101)',
+                        'rgb(66, 153, 225)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: '影响程度 (%)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Roadmap Chart
+        const roadmapCtx = document.getElementById('roadmapChart').getContext('2d');
+        new Chart(roadmapCtx, {
+            type: 'line',
+            data: {
+                labels: ['第1周', '第2周', '第3周', '第4周', '第5周', '第6周'],
+                datasets: [{
+                    label: '实施进度',
+                    data: [10, 25, 45, 70, 85, 100],
+                    borderColor: 'rgb(56, 178, 172)',
+                    backgroundColor: 'rgba(56, 178, 172, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: '完成度 (%)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Animation on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in');
+                }
+            });
+        }, observerOptions);
+
+        // Observe all sections
+        document.querySelectorAll('.section').forEach(section => {
+            observer.observe(section);
+        });
+
+        // KPI counter animation
+        document.querySelectorAll('.kpi-value').forEach(kpi => {
+            const originalText = kpi.textContent;
+            if (originalText.match(/^\d+$/)) {
+                const target = parseInt(originalText);
+                let current = 0;
+                const increment = target / 50;
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= target) {
+                        current = target;
+                        clearInterval(timer);
+                    }
+                    kpi.textContent = Math.round(current).toLocaleString();
+                }, 30);
+            }
+        });
+    </script>
+</body>
+</html>

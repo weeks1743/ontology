@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIFlux 协同办公平台 - 产品发布会</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* === AURORA MESH BASE === */
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #06b6d4;
+            --accent: #8b5cf6;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            --mesh-gradient: radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                             radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
+                             radial-gradient(circle at 40% 40%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--mesh-gradient);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* === SLIDE CONTAINER === */
+        .slide-container {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            height: 100vh;
+            scroll-behavior: smooth;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .slide-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .slide {
+            flex: 0 0 100vw;
+            height: 100vh;
+            scroll-snap-align: start;
+            padding: 4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.03) 0%, transparent 70%);
+            z-index: -1;
+            animation: pulse 20s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(0, 0) scale(1); opacity: 0.5; }
+            100% { transform: translate(5%, 5%) scale(1.1); opacity: 0.8; }
+        }
+
+        /* === TYPOGRAPHY === */
+        h1 {
+            font-size: 4.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 5px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        h2 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--light);
+            position: relative;
+            display: inline-block;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--secondary);
+        }
+
+        p {
+            font-size: 1.4rem;
+            line-height: 1.7;
+            color: #cbd5e1;
+            max-width: 800px;
+        }
+
+        .subtitle {
+            font-size: 2rem;
+            color: #94a3b8;
+            margin-bottom: 3rem;
+            font-weight: 300;
+        }
+
+        .date {
+            font-size: 1.2rem;
+            color: var(--gray);
+            position: absolute;
+            bottom: 4rem;
+            left: 4rem;
+        }
+
+        /* === COMPONENTS === */
+        .point-list {
+            list-style: none;
+            margin-top: 2rem;
+        }
+
+        .point-list li {
+            font-size: 1.6rem;
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 1rem;
+            background: rgba(30, 41, 59, 0.6);
+            border-left: 5px solid var(--primary);
+            border-radius: 0 12px 12px 0;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            transition: transform 0.3s, background 0.3s;
+            max-width: 700px;
+        }
+
+        .point-list li:hover {
+            transform: translateX(10px);
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .point-list li i {
+            color: var(--secondary);
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-card h4 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--light);
+        }
+
+        .feature-card p {
+            font-size: 1.1rem;
+            color: #94a3b8;
+        }
+
+        .metric-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 3rem;
+            margin-top: 4rem;
+        }
+
+        .metric {
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .metric-value {
+            font-size: 5rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 5px 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .metric-label {
+            font-size: 1.3rem;
+            color: #cbd5e1;
+            font-weight: 500;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            padding: 1.2rem 3rem;
+            border-radius: 50px;
+            text-decoration: none;
+            margin-top: 3rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.4);
+            background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+        }
+
+        /* === NAVIGATION === */
+        .nav-dots {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 100;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .dot.active {
+            background: var(--secondary);
+            transform: scale(1.3);
+            box-shadow: 0 0 10px var(--secondary);
+        }
+
+        /* === PRESENTATION MODE === */
+        body.presenting {
+            overflow: hidden;
+        }
+
+        body.presenting .slide-container {
+            scroll-snap-type: none;
+        }
+
+        body.presenting .slide {
+            display: none;
+        }
+
+        body.presenting .slide.active {
+            display: flex;
+        }
+
+        body.presenting .nav-dots,
+        body.presenting #present-btn {
+            display: none;
+        }
+
+        #present-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(15, 23, 42, 0.8);
+            color: var(--secondary);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 50px;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        #present-btn:hover {
+            background: rgba(6, 182, 212, 0.1);
+            border-color: var(--secondary);
+        }
+
+        #present-counter {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            font-size: 1.2rem;
+            color: var(--gray);
+            z-index: 100;
+            display: none;
+        }
+
+        body.presenting #present-counter {
+            display: block;
+        }
+
+        /* === EDIT MODE === */
+        #edit-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            font-family: monospace;
+        }
+
+        #notes-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background: rgba(15, 23, 42, 0.95);
+            border-top: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 1rem;
+            z-index: 1000;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+
+        #notes-panel textarea {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            border: none;
+            color: #cbd5e1;
+            font-size: 1rem;
+            font-family: monospace;
+            resize: none;
+            outline: none;
+        }
+
+        .editable {
+            outline: 1px dashed rgba(245, 158, 11, 0.5) !important;
+            min-height: 1.5em;
+        }
+
+        .editable:focus {
+            outline: 2px solid var(--warning) !important;
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 1024px) {
+            h1 { font-size: 3.5rem; }
+            h2 { font-size: 2.5rem; }
+            .slide { padding: 3rem; }
+            .metric-value { font-size: 4rem; }
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.8rem; }
+            h2 { font-size: 2rem; }
+            .subtitle { font-size: 1.5rem; }
+            .slide { padding: 2rem; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .metric-container { flex-direction: column; align-items: center; gap: 2rem; }
+            .nav-dots { right: 1rem; }
+            .date { position: relative; bottom: auto; left: auto; margin-top: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Edit Mode Toggle -->
+    <button id="edit-toggle">✏ 编辑模式</button>
+
+    <!-- Presentation Counter -->
+    <div id="present-counter">1 / 5</div>
+
+    <!-- Slides -->
+    <div class="slide-container">
+        <!-- Slide 1: Cover -->
+        <div class="slide" id="slide-1">
+            <h1 class="editable" data-id="title-1">AIFlux 协同办公平台</h1>
+            <p class="subtitle editable" data-id="subtitle-1">让协作更智能，让工作更高效</p>
+            <div class="date editable" data-id="date-1">2026年4月</div>
+        </div>
+
+        <!-- Slide 2: Pain Points -->
+        <div class="slide" id="slide-2">
+            <h2 class="editable" data-id="title-2">企业协作痛点</h2>
+            <ul class="point-list">
+                <li class="editable" data-id="point-1"><i class="fas fa-comment-slash"></i> 跨部门沟通成本高</li>
+                <li class="editable" data-id="point-2"><i class="fas fa-database"></i> 数据孤岛严重</li>
+                <li class="editable" data-id="point-3"><i class="fas fa-house-signal"></i> 远程协作效率低</li>
+                <li class="editable" data-id="point-4"><i class="fas fa-shield-alt"></i> 信息安全难保障</li>
+            </ul>
+        </div>
+
+        <!-- Slide 3: Solution -->
+        <div class="slide" id="slide-3">
+            <h2 class="editable" data-id="title-3">AIFlux 解决方案</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4 class="editable" data-id="feature-1">智能工作流引擎</h4>
+                    <p class="editable" data-id="desc-1">AI驱动的自动化流程，减少手动操作，提升任务流转效率。</p>
+                </div>
+                <div class="feature-card">
+                    <h4 class="editable" data-id="feature-2">实时协同编辑</h4>
+                    <p class="editable" data-id="desc-2">多人同时编辑文档、表格，变更实时同步，告别版本混乱。</p>
+                </div>
+                <div class="feature-card">
+                    <h4 class="editable" data-id="feature-3">全链路数据打通</h4>
+                    <p class="editable" data-id="desc-3">连接CRM、ERP、OA系统，打破数据壁垒，实现全局视图。</p>
+                </div>
+                <div class="feature-card">
+                    <h4 class="editable" data-id="feature-4">企业级权限管控</h4>
+                    <p class="editable" data-id="desc-4">细粒度权限管理，审计日志完备，满足合规与安全要求。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Data -->
+        <div class="slide" id="slide-4">
+            <h2 class="editable" data-id="title-4">客户成效</h2>
+            <div class="metric-container">
+                <div class="metric">
+                    <div class="metric-value editable" data-id="metric-1">65%</div>
+                    <div class="metric-label editable" data-id="label-1">协作效率提升</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value editable" data-id="metric-2">40%</div>
+                    <div class="metric-label editable" data-id="label-2">沟通成本降低</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value editable" data-id="metric-3">2x</div>
+                    <div class="metric-label editable" data-id="label-3">项目交付加速</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Closing -->
+        <div class="slide" id="slide-5">
+            <h1 class="editable" data-id="title-5">开启智能协作新时代</h1>
+            <p class="subtitle editable" data-id="subtitle-5">联系我们：contact@aiflux.com</p>
+            <button class="cta-button editable" data-id="cta-1">立即预约演示</button>
+        </div>
+    </div>
+
+    <!-- Navigation Dots -->
+    <div class="nav-dots">
+        <div class="dot active" data-slide="1"></div>
+        <div class="dot" data-slide="2"></div>
+        <div class="dot" data-slide="3"></div>
+        <div class="dot" data-slide="4"></div>
+        <div class="dot" data-slide="5"></div>
+    </div>
+
+    <!-- Presentation Button -->
+    <button id="present-btn"><i class="fas fa-play"></i> 演示模式 (F5)</button>
+
+    <!-- Notes Panel -->
+    <div id="notes-panel">
+        <textarea placeholder="演讲者备注..."></textarea>
+    </div>
+
+    <script>
+        // === SLIDE NAVIGATION ===
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.dot');
+        const container = document.querySelector('.slide-container');
+        let currentSlide = 0;
+
+        function updateNavigation() {
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                dots[index].classList.remove('active');
+            });
+            slides[currentSlide].classList.add('active');
+            dots[currentSlide].classList.add('active');
+            document.getElementById('present-counter').textContent = `${currentSlide + 1} / ${slides.length}`;
+        }
+
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                const slideIndex = parseInt(dot.getAttribute('data-slide')) - 1;
+                currentSlide = slideIndex;
+                container.scrollTo({ left: currentSlide * window.innerWidth, behavior: 'smooth' });
+                updateNavigation();
+            });
+        });
+
+        container.addEventListener('scroll', () => {
+            currentSlide = Math.round(container.scrollLeft / window.innerWidth);
+            updateNavigation();
+        });
+
+        // === PRESENTATION MODE ===
+        const presentBtn = document.getElementById('present-btn');
+        const presentCounter = document.getElementById('present-counter');
+        let isPresenting = false;
+
+        function enterPresentationMode() {
+            isPresenting = true;
+            document.body.classList.add('presenting');
+            presentCounter.style.display = 'block';
+            currentSlide = 0;
+            updateNavigation();
+            document.documentElement.requestFullscreen().catch(console.log);
+        }
+
+        function exitPresentationMode() {
+            isPresenting = false;
+            document.body.classList.remove('presenting');
+            presentCounter.style.display = 'none';
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+        }
+
+        presentBtn.addEventListener('click', enterPresentationMode);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F5') {
+                e.preventDefault();
+                if (!isPresenting) enterPresentationMode();
+            }
+            if (e.key === 'Escape' && isPresenting) {
+                exitPresentationMode();
+            }
+            if (isPresenting) {
+                if (e.key === 'ArrowRight' || e.key === ' ') {
+                    e.preventDefault();
+                    currentSlide = Math.min(currentSlide + 1, slides.length - 1);
+                    updateNavigation();
+                }
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    currentSlide = Math.max(currentSlide - 1, 0);
+                    updateNavigation();
+                }
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isPresenting) {
+                exitPresentationMode();
+            }
+        });
+
+        // === EDIT MODE ===
+        const editToggle = document.getElementById('edit-toggle');
+        const notesPanel = document.getElementById('notes-panel');
+        let editMode = false;
+
+        function setupEditor() {
+            const editables = document.querySelectorAll('.editable');
+            editables.forEach(el => {
+                el.setAttribute('contenteditable', editMode);
+                if (editMode) {
+                    el.classList.add('editable-active');
+                } else {
+                    el.classList.remove('editable-active');
+                }
+            });
+            notesPanel.style.display = editMode ? 'block' : 'none';
+        }
+
+        editToggle.addEventListener('click', () => {
+            editMode = !editMode;
+            editToggle.textContent = editMode ? '✏ 退出编辑' : '✏ 编辑模式';
+            editToggle.style.color = editMode ? '#10b981' : '#f59e0b';
+            setupEditor();
+        });
+
+        // Initialize
+        updateNavigation();
+        setupEditor();
+    </script>
+</body>
+</html>

@@ -105,6 +105,34 @@ export class TestCaseGenerator {
     manifest: ScenarioManifest,
     behaviorManifests: BehaviorManifest[]
   ): Promise<Record<string, any>> {
+    if (manifest.scenario_code === 'customer_visit_to_advice') {
+      return {
+        customer_id: 'cust_mock_001',
+        customer_name: '华东智造集团',
+        title: '第一次拜访纪要',
+        sequence_no: 1,
+        visit_type: 'uploaded_markdown',
+        content_markdown: [
+          '# 第一次拜访纪要',
+          '',
+          '## 客户关注点',
+          '- 关注跨工厂协同效率',
+          '- 希望统一销售与交付数据',
+          '',
+          '## 主要异议',
+          '- 目前需求还比较泛，需要进一步澄清',
+          '',
+          '## 下一步承诺',
+          '- 下周安排业务和 IT 一起开需求梳理会',
+        ].join('\n'),
+        visit_at: '2026-04-09',
+        source_channel: 'uploaded_markdown',
+        visit_record_id: 'visit_mock_001',
+        visit_record_ids: ['visit_mock_001'],
+        advice_round: 1,
+      };
+    }
+
     // 收集场景涉及的所有行为输入字段
     const allFields: InputField[] = [];
     for (const step of manifest.steps) {
@@ -245,6 +273,74 @@ ${fieldsDesc}
     positive: Record<string, any>;
     rule_blocks: Array<{ rule_code: string; params: Record<string, any> }>;
   } {
+    if (manifest.behavior_code === 'VisitRecord.CreateFromMarkdown') {
+      return {
+        positive: {
+          customer_id: 'cust_mock_001',
+          customer_name: '华东智造集团',
+          title: '第一次拜访纪要',
+          sequence_no: 1,
+          visit_type: 'uploaded_markdown',
+          content_markdown: [
+            '# 第一次拜访纪要',
+            '',
+            '## 客户关注点',
+            '- 关注跨工厂协同效率',
+            '- 希望统一销售与交付数据',
+            '',
+            '## 主要异议',
+            '- 目前需求还比较泛，需要进一步澄清',
+            '',
+            '## 下一步承诺',
+            '- 下周安排业务和 IT 一起开需求梳理会',
+          ].join('\n'),
+          visit_at: '2026-04-09',
+          source_channel: 'uploaded_markdown',
+          industry: '制造业',
+          region: '华东',
+        },
+        rule_blocks: [{
+          rule_code: 'VisitRecord.ContentRequired',
+          params: {
+            customer_id: 'cust_mock_001',
+            customer_name: '华东智造集团',
+            title: '空记录',
+            sequence_no: 1,
+            visit_type: 'uploaded_markdown',
+            content_markdown: '',
+            visit_at: '2026-04-09',
+          },
+        }],
+      };
+    }
+
+    if (manifest.behavior_code === 'VisitRecord.Analyze') {
+      return {
+        positive: {
+          visit_record_id: 'visit_mock_001',
+        },
+        rule_blocks: [],
+      };
+    }
+
+    if (manifest.behavior_code === 'Customer.GenerateOperatingAdvice') {
+      return {
+        positive: {
+          customer_id: 'cust_mock_001',
+          visit_record_ids: ['visit_mock_001'],
+          advice_round: 1,
+        },
+        rule_blocks: [{
+          rule_code: 'Customer.AdviceNeedsVisitRecord',
+          params: {
+            customer_id: 'cust_mock_001',
+            visit_record_ids: [],
+            advice_round: 1,
+          },
+        }],
+      };
+    }
+
     const positive = fallbackGenerateParams(manifest.input_schema);
 
     const rule_blocks = manifest.rule_bindings.map(rule => {

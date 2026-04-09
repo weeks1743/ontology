@@ -10,6 +10,7 @@ import { executeExternalSkill } from './external-skills.js';
 import { writePlanExecutor } from './write-plan-executor.js';
 import { ExecutionResult } from '../types.js';
 import { BehaviorManifest, ScenarioManifest } from '../types/manifest.js';
+import { analyzeVisitRecord, createVisitRecord, generateOperatingAdvice } from './operating-advice.js';
 
 export class RuleViolationError extends Error {
   constructor(message: string) {
@@ -106,6 +107,18 @@ export class SkillExecutor {
     params: any,
     startTime: number
   ): Promise<ExecutionResult> {
+    if (manifest.behavior_code === 'VisitRecord.CreateFromMarkdown') {
+      return this.executeCustomBehavior(manifest, params, startTime, () => createVisitRecord(params, manifest.ontology_id));
+    }
+
+    if (manifest.behavior_code === 'VisitRecord.Analyze') {
+      return this.executeCustomBehavior(manifest, params, startTime, () => analyzeVisitRecord(params, manifest.ontology_id));
+    }
+
+    if (manifest.behavior_code === 'Customer.GenerateOperatingAdvice') {
+      return this.executeCustomBehavior(manifest, params, startTime, () => generateOperatingAdvice(params, manifest.ontology_id));
+    }
+
     const context: Record<string, any> = { input: params, reads: {}, result: {} };
 
     // Step 1: normalize_input — check required fields
@@ -210,6 +223,90 @@ export class SkillExecutor {
       chroma_status: writeResult.chroma_status,
       duration_ms: Date.now() - startTime,
     };
+  }
+
+  private async executeCustomBehavior(
+    manifest: BehaviorManifest,
+    params: any,
+    startTime: number,
+    handler: () => Promise<any>
+  ): Promise<ExecutionResult> {
+    try {
+      const data = await handler();
+      await this.writeExecutionLog(
+        manifest.full_id,
+        manifest.behavior_name_zh,
+        params,
+        data,
+        'success',
+        null,
+        Date.now() - startTime
+      );
+
+      return {
+        success: true,
+        data,
+        mongodb_status: 'ok',
+        neo4j_status: 'skipped',
+        chroma_status: 'skipped',
+        duration_ms: Date.now() - startTime,
+      };
+    } catch (error) {
+      await this.writeExecutionLog(
+        manifest.full_id,
+        manifest.behavior_name_zh,
+        params,
+        null,
+        'error',
+        (error as Error).message,
+        Date.now() - startTime
+      );
+
+      return {
+        success: false,
+        error: (error as Error).message,
+        mongodb_status: 'skipped',
+        neo4j_status: 'skipped',
+        chroma_status: 'skipped',
+        duration_ms: Date.now() - startTime,
+      };
+    }
+  }
+
+  private async writeExecutionLog(
+    skillId: string,
+    skillName: string,
+    inputParams: any,
+    outputResult: any,
+    status: 'success' | 'error' | 'partial',
+    errorMessage: string | null,
+    durationMs: number
+  ) {
+    const logId = nanoid();
+    const now = new Date().toISOString();
+    try {
+      db.prepare(`
+        INSERT INTO execution_logs
+          (id, skill_id, skill_name, input_params, output_result,
+           status, error_message, mongodb_status, neo4j_status, chroma_status, duration_ms, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+      `).run(
+        logId,
+        skillId,
+        skillName,
+        JSON.stringify(inputParams),
+        JSON.stringify(outputResult || {}),
+        status,
+        errorMessage,
+        status === 'success' ? 'ok' : 'skipped',
+        'skipped',
+        'skipped',
+        durationMs,
+        now
+      );
+    } catch (logErr) {
+      console.error('Failed to write execution log:', logErr);
+    }
   }
 
   // 8-step scenario skill execution

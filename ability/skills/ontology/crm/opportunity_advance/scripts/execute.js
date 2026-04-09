@@ -1,6 +1,6 @@
 // 技能执行入口: ont.crm.opportunity_advance
 // 此脚本由能力层编译平台自动生成
-// 版本: v20260405033335
+// 版本: v20260409053319
 
 const params = JSON.parse(process.argv[2] || '{}');
 

@@ -18,8 +18,8 @@ export async function buildTestPlan(
   let sequence = 0;
 
   // 从磁盘加载已生成的 manifest 文件
-  const { behaviors, scenarios } = loadManifestsFromDisk(skillsDir);
-  console.log(`[test-plan] Loaded ${behaviors.length} behavior manifests, ${scenarios.length} scenario manifests`);
+  const { behaviors } = loadManifestsFromDisk(skillsDir);
+  console.log(`[test-plan] Loaded ${behaviors.length} behavior manifests`);
 
   // 为每个行为技能生成测试用例
   for (const manifest of behaviors) {
@@ -64,26 +64,6 @@ export async function buildTestPlan(
     }
   }
 
-  // 为每个场景技能生成测试用例
-  for (const manifest of scenarios) {
-    const testData = await testCaseGenerator.generateScenarioTestData(manifest, behaviors);
-
-    cases.push({
-      id: nanoid(),
-      plan_id: planId,
-      skill_id: manifest.full_id,
-      skill_slug: manifest.skill_slug,
-      case_code: `${manifest.skill_slug}_flow`,
-      case_name_zh: `${manifest.scenario_name_zh}（场景链路用例）`,
-      case_type: 'scenario',
-      description_zh: `验证场景 ${manifest.scenario_name_zh} 的完整业务流程，含 ${manifest.steps.length} 步骤`,
-      params: testData,
-      expected_result: { success: true, all_steps_completed: true },
-      sequence: sequence++,
-      created_at: now,
-    });
-  }
-
   const plan: TestPlan = {
     id: planId,
     build_version: buildVersion,
@@ -93,7 +73,7 @@ export async function buildTestPlan(
     created_at: now,
   };
 
-  console.log(`[test-plan] Generated ${cases.length} test cases (${behaviors.length} behaviors, ${scenarios.length} scenarios)`);
+  console.log(`[test-plan] Generated ${cases.length} test cases (${behaviors.length} behaviors)`);
 
   return { plan, cases };
 }

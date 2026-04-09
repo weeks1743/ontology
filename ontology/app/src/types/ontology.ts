@@ -40,7 +40,7 @@ export interface ObjectDraft {
   updated_at: string;
 }
 
-export type TriggerType = 'USER_ACTION' | 'AI_OR_USER_ACTION' | 'SYSTEM_ACTION' | 'SYSTEM_OR_MANAGER_ACTION';
+export type TriggerType = 'TRANSACTIONAL' | 'PERCEPTIVE';
 
 export interface BehaviorDraft {
   id: number;

@@ -15,6 +15,18 @@ const __dirname = dirname(__filename);
 const skillNamesPath = join(__dirname, '../../config/skill-names.json');
 let skillNamesMap: Record<string, { display_name: string; emoji?: string; github_path?: string }> = {};
 
+function loadOntologySkillManifestField(skill: any, field: string): any {
+  try {
+    if (!skill.path) return undefined;
+    const manifestPath = join(skill.path, 'manifest.json');
+    if (!existsSync(manifestPath)) return undefined;
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+    return manifest[field];
+  } catch {
+    return undefined;
+  }
+}
+
 try {
   if (existsSync(skillNamesPath)) {
     const content = readFileSync(skillNamesPath, 'utf-8');
@@ -53,7 +65,18 @@ router.get('/', (req, res) => {
       metadata: JSON.parse(skill.metadata as string),
       input_schema: skill.input_schema ? JSON.parse(skill.input_schema as string) : undefined,
       output_schema: skill.output_schema ? JSON.parse(skill.output_schema as string) : undefined,
-    }));
+    })).map(skill => {
+      const triggerType = skill.category === 'ontology' ? loadOntologySkillManifestField(skill, 'trigger_type') : undefined;
+      const ownerObject = skill.category === 'ontology' ? loadOntologySkillManifestField(skill, 'owner_object') : undefined;
+      return {
+        ...skill,
+        trigger_type: triggerType || skill.trigger_type,
+        owner_object: ownerObject || skill.owner_object,
+        metadata: triggerType
+          ? { ...(skill.metadata || {}), trigger_type: triggerType }
+          : skill.metadata,
+      };
+    });
 
     // 2. 从 skill-core registry 获取新系统技能（仅 external）
     const skillCoreSkills = getAllSkills()
@@ -114,6 +137,8 @@ router.get('/:id', (req, res) => {
       metadata: JSON.parse((skill as any).metadata),
       input_schema: (skill as any).input_schema ? JSON.parse((skill as any).input_schema) : undefined,
       output_schema: (skill as any).output_schema ? JSON.parse((skill as any).output_schema) : undefined,
+      trigger_type: loadOntologySkillManifestField(skill as any, 'trigger_type'),
+      owner_object: loadOntologySkillManifestField(skill as any, 'owner_object'),
     };
     res.json(parsed);
   } catch (error) {

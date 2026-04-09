@@ -18,7 +18,10 @@ export function behaviorToSlug(behaviorCode: string): string {
   const [obj, action] = behaviorCode.split('.');
   if (!action) return behaviorCode.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
-  const objPart = obj.toLowerCase();
+  const objPart = obj
+    .replace(/([A-Z])/g, '_$1')
+    .toLowerCase()
+    .replace(/^_/, '');
   const actionPart = action.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
   return `${objPart}_${actionPart}`;
 }

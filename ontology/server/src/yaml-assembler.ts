@@ -118,10 +118,8 @@ export function assembleYaml(ontologyId: number): YamlBundle {
   const behaviorsDoc = rawBehaviors.map((b) => {
     const ownerObj = rawObjects.find((o) => o['code'] === b['owner_object']);
     const triggerTypeLabels: Record<string, string> = {
-      USER_ACTION: '用户操作',
-      AI_OR_USER_ACTION: 'AI或用户操作',
-      SYSTEM_ACTION: '系统操作',
-      SYSTEM_OR_MANAGER_ACTION: '系统或管理员操作',
+      TRANSACTIONAL: '事务型',
+      PERCEPTIVE: '感知型',
     };
 
     const aliases = parseJson<string[]>(b['aliases'], []);

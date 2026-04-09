@@ -214,6 +214,24 @@ class MongoDBClient {
     }
   }
 
+  async updateByFilter(collection: string, filter: Record<string, any>, data: any): Promise<boolean> {
+    if (!this.isOnline() || !this.db) {
+      return false;
+    }
+
+    try {
+      const coll = this.db.collection(collection);
+      const result = await coll.updateOne(
+        filter,
+        { $set: { ...data, updated_at: new Date().toISOString() } },
+      );
+      return result.modifiedCount > 0 || result.matchedCount > 0;
+    } catch (error) {
+      console.error('MongoDB updateByFilter error:', error);
+      return false;
+    }
+  }
+
   // Generic insert for write-plan-executor
   async insertDocument(collection: string, data: any): Promise<string | null> {
     if (!this.isOnline() || !this.db) {
@@ -232,6 +250,41 @@ class MongoDBClient {
     } catch (error) {
       console.error('MongoDB insertDocument error:', error);
       return null;
+    }
+  }
+
+  async findOne(collection: string, filter: Record<string, any>): Promise<any | null> {
+    if (!this.isOnline() || !this.db) {
+      return null;
+    }
+
+    try {
+      const coll = this.db.collection(collection);
+      return await coll.findOne(filter);
+    } catch (error) {
+      console.error('MongoDB findOne error:', error);
+      return null;
+    }
+  }
+
+  async findMany(
+    collection: string,
+    filter: Record<string, any>,
+    options?: { sort?: Record<string, 1 | -1>; limit?: number }
+  ): Promise<any[]> {
+    if (!this.isOnline() || !this.db) {
+      return [];
+    }
+
+    try {
+      const coll = this.db.collection(collection);
+      let cursor = coll.find(filter);
+      if (options?.sort) cursor = cursor.sort(options.sort);
+      if (options?.limit) cursor = cursor.limit(options.limit);
+      return await cursor.toArray();
+    } catch (error) {
+      console.error('MongoDB findMany error:', error);
+      return [];
     }
   }
 

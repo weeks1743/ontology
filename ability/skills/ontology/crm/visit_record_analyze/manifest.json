@@ -1,0 +1,79 @@
+{
+  "skill_id": "ont.crm.visit_record_analyze",
+  "skill_slug": "visit_record_analyze",
+  "full_id": "ont.crm.visit_record_analyze",
+  "skill_type": "behavior",
+  "build_version": "v20260409053319",
+  "snapshot_hash": "680b74bfc4b6782b6f6ea6499159666bdbf9065389cc68e5df3dc5fac9286517",
+  "ontology_id": "crm",
+  "behavior_code": "VisitRecord.Analyze",
+  "behavior_name_zh": "分析拜访记录",
+  "owner_object": "VisitRecord",
+  "trigger_type": "PERCEPTIVE",
+  "input_schema": [
+    {
+      "name": "visit_record_id",
+      "display_name_zh": "待分析的拜访记录ID",
+      "type": "string",
+      "required": true,
+      "description": "待分析的拜访记录ID"
+    }
+  ],
+  "result_schema": [
+    {
+      "name": "summary",
+      "type": "string",
+      "description": "拜访摘要"
+    },
+    {
+      "name": "key_signals",
+      "type": "array",
+      "description": "经营信号列表"
+    },
+    {
+      "name": "sentiment",
+      "type": "string",
+      "description": "客户态度判断"
+    }
+  ],
+  "reads": [],
+  "object_preconditions": [],
+  "rule_bindings": [
+    {
+      "rule_code": "VisitRecord.ContentRequired",
+      "rule_name_zh": "拜访记录内容必填",
+      "expression": "visitRecord.content_markdown != null && visitRecord.content_markdown != \"\"",
+      "failure_message_zh": "拜访记录内容不能为空",
+      "severity": "high"
+    }
+  ],
+  "write_plan": {
+    "mongodb": {
+      "required": true,
+      "ops": [
+        {
+          "op": "update",
+          "collection": "crm_visitrecords",
+          "filter": {
+            "id": "$input.visitrecord_id"
+          },
+          "update": {
+            "visit_record_id": "$input.visit_record_id"
+          }
+        }
+      ]
+    },
+    "neo4j": {
+      "required": true,
+      "ops": []
+    },
+    "chroma": {
+      "required": false,
+      "ops": []
+    }
+  },
+  "event_bindings": [],
+  "success_template_zh": "分析拜访记录成功：操作已完成",
+  "failure_template_zh": "分析拜访记录失败：{{error_message}}",
+  "generated_at": "2026-04-09T05:33:19.550Z"
+}

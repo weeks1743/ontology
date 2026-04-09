@@ -176,5 +176,26 @@ export function initDatabase() {
     )
   `);
 
+  // 客户经营建议产物表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS operating_advice_artifacts (
+      id TEXT PRIMARY KEY,
+      ontology_id TEXT NOT NULL,
+      customer_id TEXT NOT NULL,
+      customer_name TEXT,
+      round_no INTEGER NOT NULL,
+      based_on_visit_record_ids TEXT NOT NULL,
+      current_assessment TEXT NOT NULL,
+      recommended_actions TEXT NOT NULL,
+      evidence_summary TEXT NOT NULL,
+      change_since_last_round TEXT,
+      advice_markdown_path TEXT NOT NULL,
+      advice_html_path TEXT,
+      selected_external_skill_id TEXT,
+      render_status TEXT NOT NULL CHECK(render_status IN ('success','partial','failed')),
+      created_at TEXT NOT NULL
+    )
+  `);
+
   console.log('✅ Database initialized at:', dbPath);
 }

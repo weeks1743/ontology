@@ -328,7 +328,7 @@ function FormModal({ editing, ontologyId, objects, behaviors, onClose, onSaved }
             label="适用行为"
             items={
               form.applicable_objects.length > 0
-                ? behaviors.filter((b) => form.applicable_objects.includes(b.owner_object))
+                ? behaviors.filter((b: any) => form.applicable_objects.includes(b.owner_object))
                 : behaviors
             }
             selected={form.applicable_behaviors}

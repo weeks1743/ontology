@@ -483,8 +483,6 @@ export default function TopologyWorkspace({ ontologyId: _ontologyId }: Props) {
     );
   }
 
-  const totalSteps = activeScenario ? activeScenario.steps.length : 0;
-
   return (
     <div className="relative w-full h-full bg-[#0A0A0B]">
       <ReactECharts

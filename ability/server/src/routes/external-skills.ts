@@ -5,6 +5,7 @@ import {
   getSkillConfig,
   loadExternalSkills
 } from '../engine/external-skills.js';
+import { selectExternalSkill } from '../engine/external-skill-selector.js';
 
 const router = Router();
 
@@ -54,6 +55,16 @@ router.post('/reload', async (req, res) => {
       message: `Reloaded ${count} external skills`,
       count
     });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// 选择外部技能
+router.post('/select', (req, res) => {
+  try {
+    const { artifact_type } = req.body as { artifact_type?: string };
+    res.json(selectExternalSkill({ artifact_type: artifact_type || 'operating_advice' }));
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

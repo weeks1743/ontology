@@ -10,17 +10,13 @@ interface Props {
 }
 
 const TRIGGER_LABELS: Record<TriggerType, string> = {
-  USER_ACTION: '用户操作',
-  AI_OR_USER_ACTION: 'AI/用户',
-  SYSTEM_ACTION: '系统操作',
-  SYSTEM_OR_MANAGER_ACTION: '系统/管理员',
+  TRANSACTIONAL: '事务型',
+  PERCEPTIVE: '感知型',
 };
 
 const TRIGGER_OPTIONS: TriggerType[] = [
-  'USER_ACTION',
-  'AI_OR_USER_ACTION',
-  'SYSTEM_ACTION',
-  'SYSTEM_OR_MANAGER_ACTION',
+  'TRANSACTIONAL',
+  'PERCEPTIVE',
 ];
 
 const EMPTY_FORM: Omit<BehaviorDraft, 'id' | 'ontology_id' | 'created_at' | 'updated_at'> = {
@@ -28,7 +24,7 @@ const EMPTY_FORM: Omit<BehaviorDraft, 'id' | 'ontology_id' | 'created_at' | 'upd
   name: '',
   description: '',
   owner_object: '',
-  trigger_type: 'USER_ACTION',
+  trigger_type: 'TRANSACTIONAL',
   required_inputs: [],
   referenced_rules: [],
   emits_events: [],

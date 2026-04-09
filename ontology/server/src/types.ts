@@ -126,7 +126,7 @@ export interface BehaviorDraft {
   name: string;
   description: string;
   owner_object: string;
-  trigger_type: 'USER_ACTION' | 'AI_OR_USER_ACTION' | 'SYSTEM_ACTION' | 'SYSTEM_OR_MANAGER_ACTION';
+  trigger_type: 'TRANSACTIONAL' | 'PERCEPTIVE';
   required_inputs: string[];
   referenced_rules: string[];
   emits_events: string[];

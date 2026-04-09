@@ -8,10 +8,13 @@ export interface Skill {
   source: string;
   ontology_id?: string; // 关联的本体 ID
   skill_type?: 'behavior' | 'scenario' | 'query'; // 技能类型
+  trigger_type?: string;
+  owner_object?: string;
   skill_slug?: string;
   build_version?: string;
   metadata: {
     emoji?: string;
+    trigger_type?: string;
     requires?: {
       bins?: string[];
       env?: string[];

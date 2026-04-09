@@ -102,6 +102,17 @@ export function initDb() {
       UNIQUE(ontology_id, code)
     );
   `);
+
+  // 兼容迁移：旧触发类型统一映射到新枚举
+  db.exec(`
+    UPDATE ontology_behaviors
+    SET trigger_type = CASE
+      WHEN trigger_type = 'AI_OR_USER_ACTION' THEN 'PERCEPTIVE'
+      WHEN trigger_type IN ('USER_ACTION', 'SYSTEM_ACTION', 'SYSTEM_OR_MANAGER_ACTION') THEN 'TRANSACTIONAL'
+      ELSE trigger_type
+    END
+    WHERE trigger_type IN ('USER_ACTION', 'AI_OR_USER_ACTION', 'SYSTEM_ACTION', 'SYSTEM_OR_MANAGER_ACTION')
+  `);
 }
 
 // Helper to parse JSON columns

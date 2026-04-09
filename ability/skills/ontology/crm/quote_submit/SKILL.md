@@ -10,8 +10,8 @@ metadata: { "openclaw": { "emoji": "⚙️", "requires": { "bins": ["node"], "en
 
 **技能类型**: 行为技能 (behavior)
 **归属对象**: Quote
-**触发方式**: USER_ACTION
-**版本**: v20260405033335
+**触发方式**: TRANSACTIONAL
+**版本**: v20260409053319
 
 ## 描述
 

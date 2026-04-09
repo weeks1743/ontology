@@ -1,0 +1,173 @@
+{
+  "skill_id": "ont.crm.visit_record_create_from_markdown",
+  "skill_slug": "visit_record_create_from_markdown",
+  "full_id": "ont.crm.visit_record_create_from_markdown",
+  "skill_type": "behavior",
+  "build_version": "v20260409053319",
+  "snapshot_hash": "680b74bfc4b6782b6f6ea6499159666bdbf9065389cc68e5df3dc5fac9286517",
+  "ontology_id": "crm",
+  "behavior_code": "VisitRecord.CreateFromMarkdown",
+  "behavior_name_zh": "上传拜访记录",
+  "owner_object": "VisitRecord",
+  "trigger_type": "TRANSACTIONAL",
+  "input_schema": [
+    {
+      "name": "customer_id",
+      "display_name_zh": "客户ID",
+      "type": "string",
+      "required": true,
+      "description": "客户ID"
+    },
+    {
+      "name": "customer_name",
+      "display_name_zh": "客户名称",
+      "type": "string",
+      "required": true,
+      "description": "客户名称"
+    },
+    {
+      "name": "title",
+      "display_name_zh": "拜访记录标题",
+      "type": "string",
+      "required": true,
+      "description": "拜访记录标题"
+    },
+    {
+      "name": "sequence_no",
+      "display_name_zh": "拜访轮次",
+      "type": "number",
+      "required": true,
+      "description": "拜访轮次"
+    },
+    {
+      "name": "visit_type",
+      "display_name_zh": "拜访类型",
+      "type": "string",
+      "required": true,
+      "description": "拜访类型"
+    },
+    {
+      "name": "content_markdown",
+      "display_name_zh": "Markdown 记录内容",
+      "type": "string",
+      "required": true,
+      "description": "Markdown 记录内容"
+    },
+    {
+      "name": "visit_at",
+      "display_name_zh": "拜访时间",
+      "type": "date",
+      "required": true,
+      "description": "拜访时间"
+    },
+    {
+      "name": "source_channel",
+      "display_name_zh": "来源渠道",
+      "type": "string",
+      "required": false,
+      "description": "来源渠道"
+    },
+    {
+      "name": "industry",
+      "display_name_zh": "客户行业",
+      "type": "string",
+      "required": false,
+      "description": "客户行业"
+    },
+    {
+      "name": "region",
+      "display_name_zh": "客户区域",
+      "type": "string",
+      "required": false,
+      "description": "客户区域"
+    }
+  ],
+  "result_schema": [
+    {
+      "name": "visit_record_id",
+      "type": "string",
+      "description": "创建的拜访记录ID"
+    },
+    {
+      "name": "customer_id",
+      "type": "string",
+      "description": "客户ID"
+    },
+    {
+      "name": "success",
+      "type": "boolean",
+      "description": "是否创建成功"
+    }
+  ],
+  "reads": [],
+  "object_preconditions": [],
+  "rule_bindings": [
+    {
+      "rule_code": "VisitRecord.ContentRequired",
+      "rule_name_zh": "拜访记录内容必填",
+      "expression": "visitRecord.content_markdown != null && visitRecord.content_markdown != \"\"",
+      "failure_message_zh": "拜访记录内容不能为空",
+      "severity": "high"
+    },
+    {
+      "rule_code": "VisitRecord.SequenceConsistent",
+      "rule_name_zh": "拜访记录顺序可排序",
+      "expression": "visitRecord.sequence_no >= 1",
+      "failure_message_zh": "拜访记录轮次必须从 1 开始且可排序",
+      "severity": "medium"
+    }
+  ],
+  "write_plan": {
+    "mongodb": {
+      "required": true,
+      "ops": [
+        {
+          "op": "insert",
+          "collection": "crm_visitrecords",
+          "alias": "visitrecord_id",
+          "document": {
+            "id": "$result.generated_id",
+            "customer_id": "$input.customer_id",
+            "customer_name": "$input.customer_name",
+            "title": "$input.title",
+            "sequence_no": "$input.sequence_no",
+            "visit_type": "$input.visit_type",
+            "content_markdown": "$input.content_markdown",
+            "visit_at": "$input.visit_at",
+            "source_channel": "$input.source_channel",
+            "industry": "$input.industry",
+            "region": "$input.region"
+          }
+        }
+      ]
+    },
+    "neo4j": {
+      "required": true,
+      "ops": [
+        {
+          "op": "upsert_node",
+          "label": "VisitRecord",
+          "id_field": "visitrecord_id",
+          "alias": "visitrecord_node",
+          "properties": {
+            "id": "$result.visitrecord_id",
+            "ontology_id": "crm",
+            "title": "$input.title",
+            "customer_id": "$input.customer_id",
+            "sequence_no": "$input.sequence_no",
+            "visit_type": "$input.visit_type",
+            "content_markdown": "$input.content_markdown"
+          }
+        }
+      ]
+    },
+    "chroma": {
+      "required": false,
+      "ops": []
+    }
+  },
+  "event_bindings": [],
+  "success_template_zh": "上传拜访记录成功：操作已完成",
+  "failure_template_zh": "上传拜访记录失败：{{error_message}}",
+  "generated_at": "2026-04-09T05:33:19.553Z"
+}

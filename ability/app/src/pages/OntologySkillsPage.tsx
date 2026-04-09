@@ -4,6 +4,30 @@ import { Skill, SkillBuild, BuildReport } from '../types';
 import { Trash2, RefreshCw, Hammer, FileText, ChevronDown, ChevronUp, Clock, CheckCircle, XCircle } from 'lucide-react';
 import OntologySkillDetailDialog from '../components/OntologySkillDetailDialog';
 
+function normalizeTriggerType(skill: Skill): 'TRANSACTIONAL' | 'PERCEPTIVE' | undefined {
+  const raw = skill.trigger_type || skill.metadata?.trigger_type;
+  if (raw === 'TRANSACTIONAL' || raw === 'USER_ACTION' || raw === 'SYSTEM_ACTION' || raw === 'SYSTEM_OR_MANAGER_ACTION') {
+    return 'TRANSACTIONAL';
+  }
+  if (raw === 'PERCEPTIVE' || raw === 'AI_OR_USER_ACTION') {
+    return 'PERCEPTIVE';
+  }
+  return undefined;
+}
+
+const OBJECT_LABELS: Record<string, string> = {
+  Customer: '客户',
+  VisitRecord: '拜访记录',
+  Lead: '线索',
+  Opportunity: '商机',
+  Quote: '报价',
+  Contact: '联系人',
+};
+
+function objectLabel(code: string): string {
+  return OBJECT_LABELS[code] || code;
+}
+
 export default function OntologySkillsPage() {
   const {
     skills, currentOntologyId, currentOntology, fetchSkills,
@@ -15,6 +39,8 @@ export default function OntologySkillsPage() {
   const [expandedBuild, setExpandedBuild] = useState<string | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+  const [selectedPerceptiveObject, setSelectedPerceptiveObject] = useState<string>('');
+  const [selectedTransactionalObject, setSelectedTransactionalObject] = useState<string>('');
 
   useEffect(() => {
     fetchSkills();
@@ -26,9 +52,30 @@ export default function OntologySkillsPage() {
   }, [fetchSkills, fetchBuilds, currentOntologyId, currentOntology]);
 
   const ontologySkills = skills.filter(s => s.category === 'ontology');
-  const behaviorSkills = ontologySkills.filter(s => s.skill_type === 'behavior');
-  const scenarioSkills = ontologySkills.filter(s => s.skill_type === 'scenario');
-  const otherSkills = ontologySkills.filter(s => !s.skill_type || s.skill_type === 'query');
+  const transactionalSkills = ontologySkills.filter(
+    s => s.skill_type === 'behavior' && normalizeTriggerType(s) === 'TRANSACTIONAL'
+  );
+  const perceptiveSkills = ontologySkills.filter(
+    s => s.skill_type === 'behavior' && normalizeTriggerType(s) === 'PERCEPTIVE'
+  );
+  const otherSkills = ontologySkills.filter(
+    s => s.skill_type === 'behavior' && !normalizeTriggerType(s)
+  );
+
+  const perceptiveObjects = Array.from(new Set(perceptiveSkills.map(s => s.owner_object).filter(Boolean))) as string[];
+  const transactionalObjects = Array.from(new Set(transactionalSkills.map(s => s.owner_object).filter(Boolean))) as string[];
+
+  useEffect(() => {
+    if (!selectedPerceptiveObject) {
+      setSelectedPerceptiveObject('ALL');
+    }
+  }, [perceptiveObjects, selectedPerceptiveObject]);
+
+  useEffect(() => {
+    if (!selectedTransactionalObject) {
+      setSelectedTransactionalObject('ALL');
+    }
+  }, [transactionalObjects, selectedTransactionalObject]);
 
   const handleBuild = async (forceFull?: boolean) => {
     const ontologyCode = currentOntology?.ontology_code || currentOntologyId;
@@ -54,9 +101,13 @@ export default function OntologySkillsPage() {
   };
 
   const skillTypeBadge = (skill: Skill) => {
-    if (skill.skill_type === 'behavior') return { label: '行为技能', color: 'bg-indigo-600/20 text-indigo-300' };
-    if (skill.skill_type === 'scenario') return { label: '场景技能', color: 'bg-purple-600/20 text-purple-300' };
-    if (skill.skill_type === 'query') return { label: '查询技能', color: 'bg-blue-600/20 text-blue-300' };
+    if (skill.skill_type === 'behavior' && normalizeTriggerType(skill) === 'TRANSACTIONAL') {
+      return { label: '本体技能 · 事务型', color: 'bg-indigo-600/20 text-indigo-300' };
+    }
+    if (skill.skill_type === 'behavior' && normalizeTriggerType(skill) === 'PERCEPTIVE') {
+      return { label: '本体技能 · 感知型', color: 'bg-emerald-600/20 text-emerald-300' };
+    }
+    if (skill.skill_type === 'behavior') return { label: '本体技能', color: 'bg-sky-600/20 text-sky-300' };
     return { label: '本体', color: 'bg-white/10 text-white' };
   };
 
@@ -114,17 +165,6 @@ export default function OntologySkillsPage() {
           </div>
         )}
 
-        {/* 技能统计 */}
-        {ontologySkills.length > 0 && (
-          <div className="flex gap-4 text-sm">
-            <span className="text-white/40">行为技能 <span className="text-white">{behaviorSkills.length}</span></span>
-            <span className="text-white/40">场景技能 <span className="text-white">{scenarioSkills.length}</span></span>
-            {otherSkills.length > 0 && (
-              <span className="text-white/40">其他 <span className="text-white">{otherSkills.length}</span></span>
-            )}
-          </div>
-        )}
-
         {/* 技能卡片网格 */}
         {ontologySkills.length === 0 ? (
           <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
@@ -133,21 +173,42 @@ export default function OntologySkillsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            {ontologySkills.map(skill => {
-              const badge = skillTypeBadge(skill);
-              return (
-                <SkillCard
-                  key={skill.id}
-                  skill={skill}
-                  badge={badge}
-                  onClick={() => {
-                    setSelectedSkill(skill);
-                    setDetailDialogOpen(true);
-                  }}
-                />
-              );
-            })}
+          <div className="space-y-8">
+            <SkillSection
+              title="感知型技能"
+              skills={perceptiveSkills}
+              selectedObject={selectedPerceptiveObject}
+              onSelectObject={setSelectedPerceptiveObject}
+              getBadge={skillTypeBadge}
+              onClickSkill={(skill) => {
+                setSelectedSkill(skill);
+                setDetailDialogOpen(true);
+              }}
+            />
+            <SkillSection
+              title="事务型技能"
+              skills={transactionalSkills}
+              selectedObject={selectedTransactionalObject}
+              onSelectObject={setSelectedTransactionalObject}
+              getBadge={skillTypeBadge}
+              onClickSkill={(skill) => {
+                setSelectedSkill(skill);
+                setDetailDialogOpen(true);
+              }}
+            />
+            {otherSkills.length > 0 && (
+              <SkillSection
+                title="其他"
+                skills={otherSkills}
+                selectedObject=""
+                onSelectObject={() => {}}
+                getBadge={skillTypeBadge}
+                onClickSkill={(skill) => {
+                  setSelectedSkill(skill);
+                  setDetailDialogOpen(true);
+                }}
+              />
+            )}
           </div>
         )}
       </div>
@@ -169,6 +230,74 @@ export default function OntologySkillsPage() {
         />
       )}
     </div>
+  );
+}
+
+function SkillSection({
+  title,
+  skills,
+  selectedObject,
+  onSelectObject,
+  getBadge,
+  onClickSkill,
+}: {
+  title: string;
+  skills: Skill[];
+  selectedObject: string;
+  onSelectObject: (value: string) => void;
+  getBadge: (skill: Skill) => { label: string; color: string };
+  onClickSkill: (skill: Skill) => void;
+}) {
+  if (skills.length === 0) return null;
+
+  const objectTabs = ['ALL', ...(Array.from(new Set(skills.map(skill => skill.owner_object).filter(Boolean))) as string[])];
+  const effectiveObject = selectedObject && objectTabs.includes(selectedObject) ? selectedObject : 'ALL';
+  const visibleSkills = effectiveObject !== 'ALL'
+    ? skills.filter(skill => skill.owner_object === effectiveObject)
+    : skills;
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-medium text-white/60 uppercase tracking-wide">{title}</h2>
+        <span className="text-xs text-white/35">{skills.length} 个</span>
+      </div>
+
+      {objectTabs.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {objectTabs.map(objectCode => {
+            const count = objectCode === 'ALL'
+              ? skills.length
+              : skills.filter(skill => skill.owner_object === objectCode).length;
+            const active = objectCode === effectiveObject;
+            return (
+              <button
+                key={objectCode}
+                onClick={() => onSelectObject(objectCode)}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  active
+                    ? 'bg-white text-black'
+                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {objectCode === 'ALL' ? '全部' : objectLabel(objectCode)} <span className={active ? 'text-black/60' : 'text-white/35'}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        {visibleSkills.map(skill => (
+          <SkillCard
+            key={skill.id}
+            skill={skill}
+            badge={getBadge(skill)}
+            onClick={() => onClickSkill(skill)}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 

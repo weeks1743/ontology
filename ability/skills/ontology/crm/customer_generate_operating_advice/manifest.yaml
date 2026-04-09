@@ -1,0 +1,89 @@
+skill_id: ont.crm.customer_generate_operating_advice
+skill_slug: customer_generate_operating_advice
+full_id: ont.crm.customer_generate_operating_advice
+skill_type: behavior
+build_version: v20260409053319
+snapshot_hash: 680b74bfc4b6782b6f6ea6499159666bdbf9065389cc68e5df3dc5fac9286517
+ontology_id: crm
+behavior_code: Customer.GenerateOperatingAdvice
+behavior_name_zh: 生成客户经营建议
+owner_object: Customer
+trigger_type: PERCEPTIVE
+input_schema:
+  - name: customer_id
+    display_name_zh: 客户ID
+    type: string
+    required: true
+    description: 客户ID
+  - name: visit_record_ids
+    display_name_zh: 参与本轮建议生成的拜访记录ID列表
+    type: array
+    required: true
+    description: 参与本轮建议生成的拜访记录ID列表
+  - name: advice_round
+    display_name_zh: 当前建议轮次
+    type: number
+    required: true
+    description: 当前建议轮次
+result_schema:
+  - name: round_no
+    type: number
+    description: 建议轮次
+  - name: current_assessment
+    type: string
+    description: 当前判断
+  - name: recommended_actions
+    type: array
+    description: 建议动作列表
+  - name: evidence_summary
+    type: string
+    description: 证据摘要
+  - name: change_since_last_round
+    type: string
+    description: 相较上一轮变化
+  - name: advice_markdown_path
+    type: string
+    description: Markdown 路径
+  - name: advice_html_path
+    type: string
+    description: HTML 路径
+reads:
+  - alias: existing_customer
+    collection: crm_customers
+    filter:
+      id: $input.customer_id
+    required: true
+    description_zh: 读取现有 Customer 数据
+object_preconditions: []
+rule_bindings:
+  - rule_code: Customer.AdviceNeedsVisitRecord
+    rule_name_zh: 客户经营建议需要拜访记录
+    expression: customer.visit_record_ids != null && customer.visit_record_ids.length > 0
+    failure_message_zh: 生成客户经营建议前，至少需要一份拜访记录
+    severity: high
+  - rule_code: Customer.AdviceMaxWindow
+    rule_name_zh: 客户经营建议最多取最近三条
+    expression: customer.visit_record_ids == null || customer.visit_record_ids.length <= 3
+    failure_message_zh: MVP 阶段客户经营建议最多使用最近 3 条拜访记录
+    severity: low
+write_plan:
+  mongodb:
+    required: true
+    ops:
+      - op: update
+        collection: crm_customers
+        filter:
+          id: $input.customer_id
+        update:
+          visit_record_ids: $input.visit_record_ids
+          advice_round: $input.advice_round
+  neo4j:
+    required: true
+    ops: []
+  chroma:
+    required: false
+    ops: []
+event_bindings: []
+success_template_zh: 生成客户经营建议成功：操作已完成
+failure_template_zh: 生成客户经营建议失败：{{error_message}}
+generated_at: '2026-04-09T05:33:19.534Z'

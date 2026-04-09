@@ -6,6 +6,13 @@ import { checkBehaviorReferences, validateBehaviorRefs } from '../validators';
 const router = Router({ mergeParams: true });
 const JSON_FIELDS = ['required_inputs', 'referenced_rules', 'emits_events', 'writeback_targets'];
 
+function normalizeTriggerType(value?: string): 'TRANSACTIONAL' | 'PERCEPTIVE' {
+  if (!value) return 'TRANSACTIONAL';
+  if (value === 'TRANSACTIONAL' || value === 'PERCEPTIVE') return value;
+  if (value === 'AI_OR_USER_ACTION') return 'PERCEPTIVE';
+  return 'TRANSACTIONAL';
+}
+
 function parseBehavior(row: Record<string, unknown>): BehaviorDraft {
   return parseRow<BehaviorDraft>(row, JSON_FIELDS);
 }
@@ -31,7 +38,7 @@ router.get('/:code', (req: any, res) => {
 router.post('/', (req: any, res) => {
   const ontologyId = Number(req.params.id);
   const {
-    code, name, description = '', owner_object, trigger_type = 'USER_ACTION',
+    code, name, description = '', owner_object, trigger_type = 'TRANSACTIONAL',
     required_inputs = [], referenced_rules = [], emits_events = [], writeback_targets = []
   } = req.body as {
     code?: string; name?: string; description?: string; owner_object?: string;
@@ -53,7 +60,7 @@ router.post('/', (req: any, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       ontologyId, code.trim(), name.trim(), description.trim(), owner_object,
-      trigger_type, JSON.stringify(required_inputs), JSON.stringify(referenced_rules),
+      normalizeTriggerType(trigger_type), JSON.stringify(required_inputs), JSON.stringify(referenced_rules),
       JSON.stringify(emits_events), JSON.stringify(writeback_targets)
     );
     const created = db.prepare(`SELECT * FROM ontology_behaviors WHERE id=?`).get(result.lastInsertRowid) as Record<string, unknown>;
@@ -93,7 +100,7 @@ router.put('/:code', (req: any, res) => {
      WHERE ontology_id=? AND code=?`
   ).run(
     name?.trim() ?? existing['name'], description?.trim() ?? existing['description'],
-    updOwner, trigger_type ?? existing['trigger_type'],
+    updOwner, normalizeTriggerType(trigger_type ?? existing['trigger_type'] as string),
     JSON.stringify(required_inputs ?? JSON.parse(existing['required_inputs'] as string || '[]')),
     JSON.stringify(updRules), JSON.stringify(updEmits),
     JSON.stringify(writeback_targets ?? JSON.parse(existing['writeback_targets'] as string || '[]')),

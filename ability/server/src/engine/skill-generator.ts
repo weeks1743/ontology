@@ -2,18 +2,16 @@
 // 从快照动态生成技能包，删除硬编码 SKILL_MAPPINGS
 
 import { nanoid } from 'nanoid';
-import { writeFileSync, mkdirSync, existsSync, rmSync } from 'fs';
+import { writeFileSync, mkdirSync, existsSync, rmSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { db } from '../db.js';
 import { DefinitionSnapshot } from '../types/snapshot.js';
-import { BehaviorManifest, ScenarioManifest } from '../types/manifest.js';
+import { BehaviorManifest } from '../types/manifest.js';
 import {
   buildBehaviorManifest,
-  buildScenarioManifest,
   behaviorToSlug,
-  scenarioToSlug,
 } from './manifest-builder.js';
 import { BuildResult } from './build-report-builder.js';
 
@@ -41,6 +39,18 @@ export class SkillGenerator {
     const SKILLS_DIR = getSkillsDir(ontologyId);
 
     console.log(`🔧 [generator] Building ${buildMode} for ontology: ${ontologyId}, version: ${buildVersion}`);
+
+    // 场景层不生成 SKILL：每次构建前都清理历史场景技能记录和目录
+    db.prepare(
+      `DELETE FROM skills WHERE ontology_id=? AND category='ontology' AND skill_type='scenario'`
+    ).run(ontologyId);
+    if (existsSync(SKILLS_DIR)) {
+      for (const entry of readdirSync(SKILLS_DIR, { withFileTypes: true })) {
+        if (entry.isDirectory() && entry.name.startsWith('scenario_')) {
+          rmSync(join(SKILLS_DIR, entry.name), { recursive: true, force: true });
+        }
+      }
+    }
 
     // Incremental check: compare snapshot_hash
     if (buildMode === 'incremental') {
@@ -117,33 +127,20 @@ export class SkillGenerator {
       }
     }
 
-    // Generate scenario skills
-    for (const scenario of snapshot.scenarios) {
-      try {
-        const manifest = buildScenarioManifest(scenario, snapshot, buildVersion, ontologyId);
-        await this.writeScenarioSkillFiles(manifest, scenario, SKILLS_DIR);
-        this.registerScenarioSkill(manifest, ontologyId);
-
-        const isNew = !existingIds.has(manifest.full_id);
-        if (isNew) newSkills.push(manifest.skill_slug);
-        else updatedSkills.push(manifest.skill_slug);
-
-        skillDetails.push({
-          skill_id: manifest.full_id,
-          skill_slug: manifest.skill_slug,
-          skill_type: 'scenario',
-          action: isNew ? 'generated' : 'updated',
-          scenario_code: scenario.code,
-        });
-
-        generatedCount++;
-        console.log(`  ✓ scenario: ${manifest.full_id}`);
-      } catch (err) {
-        console.error(`  ✗ scenario ${scenario.code}:`, (err as Error).message);
-      }
-    }
-
     console.log(`✅ [generator] Generated ${generatedCount} skills in ${Date.now() - startTime}ms`);
+
+    const generatedIds = skillDetails.map(detail => detail.skill_id);
+    if (generatedIds.length > 0) {
+      const placeholders = generatedIds.map(() => '?').join(',');
+      db.prepare(
+        `DELETE FROM skills
+         WHERE ontology_id=? AND category='ontology' AND id NOT IN (${placeholders})`
+      ).run(ontologyId, ...generatedIds);
+    } else {
+      db.prepare(
+        `DELETE FROM skills WHERE ontology_id=? AND category='ontology'`
+      ).run(ontologyId);
+    }
 
     return {
       build_id: buildId,
@@ -195,30 +192,6 @@ export class SkillGenerator {
         this.generateObjectReferenceMd(ownerObject, snapshot)
       );
     }
-  }
-
-  private async writeScenarioSkillFiles(
-    manifest: ScenarioManifest,
-    scenario: any,
-    skillsDir: string
-  ): Promise<void> {
-    const skillDir = join(skillsDir, manifest.skill_slug);
-    mkdirSync(skillDir, { recursive: true });
-    mkdirSync(join(skillDir, 'scripts'), { recursive: true });
-    mkdirSync(join(skillDir, 'references'), { recursive: true });
-    mkdirSync(join(skillDir, 'evals'), { recursive: true });
-
-    // manifest.yaml
-    writeFileSync(join(skillDir, 'manifest.yaml'), yaml.dump(manifest, { lineWidth: 120 }));
-
-    // manifest.json
-    writeFileSync(join(skillDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-
-    // SKILL.md
-    writeFileSync(join(skillDir, 'SKILL.md'), this.generateScenarioSkillMd(manifest, scenario));
-
-    // scripts/execute.js
-    writeFileSync(join(skillDir, 'scripts', 'execute.js'), this.generateScenarioExecuteScript(manifest));
   }
 
   private generateBehaviorSkillMd(manifest: BehaviorManifest, behavior: any): string {
@@ -279,44 +252,6 @@ ${manifest.success_template_zh}
 `;
   }
 
-  private generateScenarioSkillMd(manifest: ScenarioManifest, scenario: any): string {
-    const stepsList = manifest.steps
-      .map(s => `${s.step}. **${s.behavior_name_zh}** (\`${s.behavior_code}\`)`)
-      .join('\n');
-
-    return `---
-name: ${manifest.full_id}
-description: ${scenario.description || manifest.scenario_name_zh}
-metadata: { "openclaw": { "emoji": "🔄", "requires": { "bins": ["node"], "env": [] } } }
----
-
-# ${manifest.scenario_name_zh}
-
-基于本体场景 \`${manifest.scenario_code}\` 自动生成的技能。
-
-**技能类型**: 场景技能 (scenario)
-**业务目标**: ${manifest.business_goal}
-**涉及对象**: ${manifest.involved_objects.join(', ')}
-**版本**: ${manifest.build_version}
-
-## 描述
-
-${scenario.description || manifest.scenario_name_zh}
-
-## 步骤编排
-
-${stepsList || '无步骤'}
-
-## 入口条件
-
-${manifest.entry_conditions.join('\n') || '无'}
-
-## 成功标准
-
-${manifest.completion_criteria.join('\n') || '无'}
-`;
-  }
-
   private generateExecuteScript(manifest: BehaviorManifest): string {
     return `// 技能执行入口: ${manifest.full_id}
 // 此脚本由能力层编译平台自动生成
@@ -329,24 +264,6 @@ console.log(JSON.stringify({
   skill_slug: '${manifest.skill_slug}',
   skill_type: '${manifest.skill_type}',
   behavior_code: '${manifest.behavior_code}',
-  params: params,
-  timestamp: new Date().toISOString(),
-}));
-`;
-  }
-
-  private generateScenarioExecuteScript(manifest: ScenarioManifest): string {
-    return `// 场景技能执行入口: ${manifest.full_id}
-// 此脚本由能力层编译平台自动生成
-// 版本: ${manifest.build_version}
-
-const params = JSON.parse(process.argv[2] || '{}');
-
-console.log(JSON.stringify({
-  skill_id: '${manifest.full_id}',
-  skill_slug: '${manifest.skill_slug}',
-  skill_type: '${manifest.skill_type}',
-  scenario_code: '${manifest.scenario_code}',
   params: params,
   timestamp: new Date().toISOString(),
 }));
@@ -397,7 +314,7 @@ ${JSON.stringify(ownerObject.lifecycle || [], null, 2)}
         UPDATE skills SET
           name=?, description=?, skill_slug=?, display_name_zh=?,
           skill_type=?, path=?, snapshot_hash=?, build_version=?,
-          is_active=1, updated_at=?
+          is_active=1, metadata=?, updated_at=?
         WHERE id=?
       `).run(
         manifest.behavior_name_zh,
@@ -408,6 +325,11 @@ ${JSON.stringify(ownerObject.lifecycle || [], null, 2)}
         skillDir,
         manifest.snapshot_hash,
         manifest.build_version,
+        JSON.stringify({
+          emoji: '⚙️',
+          requires: { bins: ['node'], env: [] },
+          trigger_type: manifest.trigger_type,
+        }),
         now,
         manifest.full_id
       );
@@ -433,66 +355,17 @@ ${JSON.stringify(ownerObject.lifecycle || [], null, 2)}
         manifest.snapshot_hash,
         manifest.build_version,
         1,
-        JSON.stringify({ emoji: '⚙️', requires: { bins: ['node'], env: [] } }),
+        JSON.stringify({
+          emoji: '⚙️',
+          requires: { bins: ['node'], env: [] },
+          trigger_type: manifest.trigger_type,
+        }),
         now,
         now
       );
     }
   }
 
-  private registerScenarioSkill(manifest: ScenarioManifest, ontologyId: string): void {
-    const now = new Date().toISOString();
-    const skillDir = join(getSkillsDir(ontologyId), manifest.skill_slug);
-
-    const existing = db.prepare('SELECT id FROM skills WHERE id=?').get(manifest.full_id);
-
-    if (existing) {
-      db.prepare(`
-        UPDATE skills SET
-          name=?, description=?, skill_slug=?, display_name_zh=?,
-          skill_type=?, path=?, snapshot_hash=?, build_version=?,
-          is_active=1, updated_at=?
-        WHERE id=?
-      `).run(
-        manifest.scenario_name_zh,
-        `${manifest.scenario_code} 场景技能`,
-        manifest.skill_slug,
-        manifest.scenario_name_zh,
-        'scenario',
-        skillDir,
-        manifest.snapshot_hash,
-        manifest.build_version,
-        now,
-        manifest.full_id
-      );
-    } else {
-      db.prepare(`
-        INSERT INTO skills
-          (id, name, description, category, source, ontology_id,
-           skill_slug, display_name_zh, skill_type, path,
-           snapshot_hash, build_version, is_active,
-           metadata, created_at, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `).run(
-        manifest.full_id,
-        manifest.scenario_name_zh,
-        `${manifest.scenario_code} 场景技能`,
-        'ontology',
-        'generated',
-        ontologyId,
-        manifest.skill_slug,
-        manifest.scenario_name_zh,
-        'scenario',
-        skillDir,
-        manifest.snapshot_hash,
-        manifest.build_version,
-        1,
-        JSON.stringify({ emoji: '🔄', requires: { bins: ['node'], env: [] } }),
-        now,
-        now
-      );
-    }
-  }
 }
 
 export const skillGenerator = new SkillGenerator();

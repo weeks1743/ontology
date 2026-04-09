@@ -56,10 +56,8 @@ function Divider() {
 // ── Trigger type display labels ──────────────────────────────────────────────
 
 const TRIGGER_TYPE_LABELS: Record<string, string> = {
-  USER_ACTION: '用户操作',
-  AI_OR_USER_ACTION: 'AI / 用户操作',
-  SYSTEM_ACTION: '系统操作',
-  SYSTEM_OR_MANAGER_ACTION: '系统 / 管理员操作',
+  TRANSACTIONAL: '事务型',
+  PERCEPTIVE: '感知型',
 };
 
 // ── Severity badge ───────────────────────────────────────────────────────────

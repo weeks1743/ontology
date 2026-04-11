@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+outputs/
+*.pyc
+.env
+runtime/chat.db
+runtime/jobs.json
+runtime/uploads/
+*.m4a
+*.mp3
+.DS_Store

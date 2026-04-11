@@ -308,11 +308,22 @@ router.post('/clear-data', async (req, res) => {
     // Clear MongoDB collections
     const mongoResult = await mongoClient.clearOntologyCollections(ontology_id);
 
-    // Clear Neo4j nodes
+    // Clear Neo4j nodes (includes both ontology_id-tagged and legacy CRM nodes)
     const neo4jResult = await neo4jClient.clearOntologyNodes(ontology_id);
 
     // Clear ChromaDB collections
     const chromaResult = await chromaClient.clearOntologyCollections(ontology_id);
+
+    // Clear SQLite tables related to this ontology's runtime data
+    let sqliteCleared = { advice_artifacts: 0, event_bus_logs: 0 };
+    try {
+      const adviceResult = db.prepare(`DELETE FROM operating_advice_artifacts WHERE ontology_id = ?`).run(ontology_id);
+      sqliteCleared.advice_artifacts = adviceResult.changes;
+    } catch {}
+    try {
+      const logResult = db.prepare(`DELETE FROM event_bus_logs`).run();
+      sqliteCleared.event_bus_logs = logResult.changes;
+    } catch {}
 
     res.json({
       success: true,
@@ -330,10 +341,62 @@ router.post('/clear-data', async (req, res) => {
           collections: chromaResult.collections,
           documents_deleted: chromaResult.deletedCount,
         },
+        sqlite: sqliteCleared,
       },
     });
   } catch (error) {
     console.error('Error clearing ontology data:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// POST /api/ontology-skills/clear-runtime-data
+router.post('/clear-runtime-data', async (req, res) => {
+  try {
+    const { ontology_id } = req.body;
+    if (!ontology_id) {
+      return res.status(400).json({ error: 'ontology_id is required' });
+    }
+
+    const { mongoClient } = await import('../database/index.js');
+
+    // Clear only visit_records and related runtime data
+    let visitRecordsDeleted = 0;
+    try {
+      const collection = mongoClient.getClient()?.db('crm_capability').collection(`${ontology_id}_visit_records`);
+      if (collection) {
+        const result = await collection.deleteMany({});
+        visitRecordsDeleted = result.deletedCount;
+      }
+    } catch (e) {
+      console.warn('[clear-runtime-data] Failed to clear visit_records:', (e as Error).message);
+    }
+
+    // Clear operating advice artifacts
+    let adviceDeleted = 0;
+    try {
+      const adviceResult = db.prepare(`DELETE FROM operating_advice_artifacts WHERE ontology_id = ?`).run(ontology_id);
+      adviceDeleted = adviceResult.changes;
+    } catch {}
+
+    // Clear event bus logs
+    let logsDeleted = 0;
+    try {
+      const logResult = db.prepare(`DELETE FROM event_bus_logs`).run();
+      logsDeleted = logResult.changes;
+    } catch {}
+
+    res.json({
+      success: true,
+      ontology_id,
+      cleared: {
+        visit_records: visitRecordsDeleted,
+        advice_artifacts: adviceDeleted,
+        event_bus_logs: logsDeleted,
+      },
+    });
+  } catch (error) {
+    console.error('Error clearing runtime data:', error);
     res.status(500).json({ error: (error as Error).message });
   }
 });

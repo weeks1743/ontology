@@ -11,6 +11,7 @@ import { writePlanExecutor } from './write-plan-executor.js';
 import { ExecutionResult } from '../types.js';
 import { BehaviorManifest, ScenarioManifest } from '../types/manifest.js';
 import { analyzeVisitRecord, createVisitRecord, generateOperatingAdvice } from './operating-advice.js';
+import { eventBus } from './event-bus.js';
 
 export class RuleViolationError extends Error {
   constructor(message: string) {
@@ -24,6 +25,11 @@ export class SkillExecutor {
     const startTime = Date.now();
 
     try {
+      // Hardcoded behaviors (not in DB skills table)
+      if (skillId.startsWith('hardcoded.')) {
+        return await this.executeHardcoded(skillId, params, startTime);
+      }
+
       // External skills route
       if (skillId.startsWith('ext.')) {
         return await this.executeExternal(skillId, params, startTime);
@@ -51,6 +57,58 @@ export class SkillExecutor {
         duration_ms: Date.now() - startTime,
       };
     }
+  }
+
+  private async executeHardcoded(skillId: string, params: any, startTime: number): Promise<ExecutionResult> {
+    const chainId = params?.chain_id || nanoid(10);
+    const ontologyId = params?.ontology_id || 'crm';
+    const handlers: Record<string, (p: any) => Promise<any>> = {
+      'hardcoded.visit_record.create_from_markdown': (p) => createVisitRecord(p, ontologyId),
+      'hardcoded.visit_record.analyze': (p) => analyzeVisitRecord(p, ontologyId),
+      'hardcoded.customer.generate_operating_advice': (p) => generateOperatingAdvice(p, ontologyId),
+    };
+
+    const handler = handlers[skillId];
+    if (!handler) {
+      throw new Error(`Unknown hardcoded skill: ${skillId}`);
+    }
+
+    const data = await handler(params);
+
+    // Emit events to continue the chain (same as executeCustomBehavior)
+    if (skillId === 'hardcoded.visit_record.create_from_markdown' && data?.visit_record_id) {
+      eventBus.emitEvent('visit_record.created', {
+        visit_record_id: data.visit_record_id,
+        customer_id: data.customer_id,
+        customer_name: data.customer_name,
+      }, skillId, { chainId, depth: 0, ontologyId }).catch(e => console.error('[skill-executor] event emit error:', e));
+    }
+
+    if (skillId === 'hardcoded.visit_record.analyze' && data?.visit_record_id) {
+      try {
+        const { mongoClient } = await import('../database/index.js');
+        const visitCollection = `${ontologyId}_visit_records`;
+        const visitRecord = await mongoClient.findOne(visitCollection, { id: data.visit_record_id });
+        if (visitRecord) {
+          eventBus.emitEvent('visit_record.analyzed', {
+            visit_record_id: data.visit_record_id,
+            customer_id: visitRecord.customer_id,
+            visit_record_ids: [data.visit_record_id],
+          }, skillId, { chainId, depth: 0, ontologyId }).catch(e => console.error('[skill-executor] event emit error:', e));
+        }
+      } catch (e) {
+        console.warn('[skill-executor] Failed to emit visit_record.analyzed:', (e as Error).message);
+      }
+    }
+
+    return {
+      success: true,
+      data: { ...data, chain_id: chainId },
+      mongodb_status: 'ok',
+      neo4j_status: 'skipped',
+      chroma_status: 'skipped',
+      duration_ms: Date.now() - startTime,
+    };
   }
 
   private async executeExternal(skillId: string, params: any, startTime: number): Promise<ExecutionResult> {
@@ -177,8 +235,13 @@ export class SkillExecutor {
     // Steps 6-8: write_plan_executor.executeWritePlan()
     const writeResult = await writePlanExecutor.executeWritePlan(manifest.write_plan, context);
 
-    // Step 9: emit_events (record to execution_logs; no real event bus)
-    const emittedEvents = manifest.event_bindings.map(eb => eb.event_code);
+    // Step 9: emit_events (real event bus dispatch)
+    const chainId = nanoid(10);
+    const emittedEvents: string[] = [];
+    for (const eb of manifest.event_bindings) {
+      emittedEvents.push(eb.event_code);
+      eventBus.emitEvent(eb.event_code, context.input || params, manifest.full_id, { chainId, depth: 0, ontologyId: manifest.ontology_id }).catch(e => console.error('[skill-executor] event emit error:', e));
+    }
 
     // Step 10: render_output
     const outputMessage = manifest.success_template_zh
@@ -217,6 +280,7 @@ export class SkillExecutor {
         message: outputMessage,
         result: writeResult.result_context,
         emitted_events: emittedEvents,
+        chain_id: chainId,
       },
       mongodb_status: writeResult.mongodb_status,
       neo4j_status: writeResult.neo4j_status,
@@ -231,6 +295,8 @@ export class SkillExecutor {
     startTime: number,
     handler: () => Promise<any>
   ): Promise<ExecutionResult> {
+    // Reuse chain_id from event bus payload, or generate new one for direct invocations
+    const chainId = params?.chain_id || nanoid(10);
     try {
       const data = await handler();
       await this.writeExecutionLog(
@@ -243,9 +309,34 @@ export class SkillExecutor {
         Date.now() - startTime
       );
 
+      // Emit events for CRM custom behaviors
+      if (manifest.behavior_code === 'VisitRecord.CreateFromMarkdown' && data?.visit_record_id) {
+        eventBus.emitEvent('visit_record.created', {
+          visit_record_id: data.visit_record_id,
+          customer_id: data.customer_id,
+          customer_name: data.customer_name,
+        }, manifest.full_id, { chainId, depth: 0, ontologyId: manifest.ontology_id }).catch(e => console.error('[skill-executor] event emit error:', e));
+      }
+
+      if (manifest.behavior_code === 'VisitRecord.Analyze' && data?.visit_record_id) {
+        // Load customer_id from the visit record
+        try {
+          const { mongoClient } = await import('../database/index.js');
+          const visitCollection = `${manifest.ontology_id}_visit_records`;
+          const visitRecord = await mongoClient.findOne(visitCollection, { id: data.visit_record_id });
+          if (visitRecord) {
+            eventBus.emitEvent('visit_record.analyzed', {
+              visit_record_id: data.visit_record_id,
+              customer_id: visitRecord.customer_id,
+              visit_record_ids: [data.visit_record_id],
+            }, manifest.full_id, { chainId, depth: 0, ontologyId: manifest.ontology_id }).catch(e => console.error('[skill-executor] event emit error:', e));
+          }
+        } catch {}
+      }
+
       return {
         success: true,
-        data,
+        data: { ...data, chain_id: chainId },
         mongodb_status: 'ok',
         neo4j_status: 'skipped',
         chroma_status: 'skipped',

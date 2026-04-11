@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { db, initDatabase } from './db.js';
 import { initializeDatabases, disconnectAll } from './database/index.js';
 import { loadExternalSkills } from './engine/external-skills.js';
+import { eventBus } from './engine/event-bus.js';
 import skillsRouter from './routes/skills.js';
 import executeRouter from './routes/execute.js';
 import logsRouter from './routes/logs.js';
@@ -14,6 +15,8 @@ import databaseRouter from './routes/database.js';
 import ontologySkillsRouter from './routes/ontology-skills.js';
 import externalSkillsRouter from './routes/external-skills.js';
 import ontologiesRouter from './routes/ontologies.js';
+import eventBusRouter from './routes/event-bus.js';
+import mockDataRouter from './routes/mock-data.js';
 // skill-core: 新增 SKILL 核心模块（独立路由）
 import { skillCoreRouter, initSkillCore } from './skill-core/index.js';
 
@@ -24,7 +27,7 @@ const app = express();
 const PORT = 3002;
 
 // 确保 tmp 目录存在
-const TMP_DIR = join(__dirname, '../../tmp');
+const TMP_DIR = join(__dirname, '../tmp');
 if (!existsSync(TMP_DIR)) mkdirSync(TMP_DIR, { recursive: true });
 
 // 中间件
@@ -50,6 +53,17 @@ const skillCoreCount = initSkillCore();
 console.log(`✅ [skill-core] Loaded ${skillCoreCount} skills (Claude Code compatible)`);
 
 // 路由
+// Register CRM event subscriptions (hardcoded for CRM ontology)
+eventBus.registerSubscription('visit_record.created', {
+  skillId: '',  // Resolved at runtime via slug lookup
+  behaviorCode: 'VisitRecord.Analyze',
+});
+eventBus.registerSubscription('visit_record.analyzed', {
+  skillId: '',
+  behaviorCode: 'Customer.GenerateOperatingAdvice',
+});
+console.log('✅ Event bus: CRM event subscriptions registered');
+
 app.use('/api/ontologies', ontologiesRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/skills', executeRouter);
@@ -57,6 +71,8 @@ app.use('/api/logs', logsRouter);
 app.use('/api/database', databaseRouter);
 app.use('/api/ontology-skills', ontologySkillsRouter);
 app.use('/api/external-skills', externalSkillsRouter);
+app.use('/api/event-bus', eventBusRouter);
+app.use('/api/mock-data', mockDataRouter);
 // skill-core: Claude Code 兼容的 SKILL API（独立前缀）
 app.use('/api/v2/skills', skillCoreRouter);
 

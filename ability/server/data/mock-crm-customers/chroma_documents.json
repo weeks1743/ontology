@@ -1,0 +1,593 @@
+[
+  {
+    "id": "chroma_customer_matsui_profile",
+    "collection": "crm_customer_profiles",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "customer_profile",
+    "title": "上海松井机械有限公司客户画像",
+    "document": "上海松井机械有限公司是一家位于华东地区的外资制造企业，客户级别为 A，当前由周宇负责跟进。企业管理风格偏审计与合规导向，重视权限分级、审批留痕和总部对各工厂的管理可视化。客户当前最关心的是跨工厂流程协同、销售与交付数据打通、ERP 与设备系统集成边界，以及从小范围试点切入的可行性。",
+    "metadata": {
+      "entity_type": "Customer",
+      "industry": "制造业",
+      "segment": "外资制造企业",
+      "region": "华东",
+      "owner_sales": "周宇",
+      "customer_level": "A"
+    }
+  },
+  {
+    "id": "chroma_customer_matsui_context",
+    "collection": "crm_customer_profiles",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "customer_context",
+    "title": "上海松井机械有限公司经营上下文",
+    "document": "该客户已有两个相关商机，其中集团协同办公与流程一体化项目处于需求分析阶段，金额 68 万；售后工单与设备服务协同试点处于初步接触阶段，金额 18 万。最近三次拜访显示客户从早期探索进入真实评估，再到试点范围讨论阶段。客户态度谨慎但逐步升温，当前最大的推进抓手是试点范围、权限设计、审计方案和 ROI 测算，最大的风险是外资审批链长、集成成本不确定、预算窗口可能后移。",
+    "metadata": {
+      "entity_type": "CustomerContext",
+      "industry": "制造业",
+      "opportunity_count": 2,
+      "visit_record_count": 3
+    }
+  },
+  {
+    "id": "chroma_customer_jindeli_profile",
+    "collection": "crm_customer_profiles",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "customer_profile",
+    "title": "山东金德利餐饮集团有限公司客户画像",
+    "document": "山东金德利餐饮集团有限公司是一家集团型连锁餐饮与团餐服务企业，位于华北地区，客户级别为 A，由汤庆负责跟进。客户当前的核心问题在于门店巡检、总部到门店任务下达、整改闭环和区域督导反馈机制。客户更看重移动端轻量体验、门店执行效率和总部汇总看板，而不是一次性做重系统改造。",
+    "metadata": {
+      "entity_type": "Customer",
+      "industry": "餐饮连锁/团餐",
+      "segment": "集团型连锁服务企业",
+      "region": "华北",
+      "owner_sales": "汤庆",
+      "customer_level": "A"
+    }
+  },
+  {
+    "id": "chroma_customer_jindeli_context",
+    "collection": "crm_customer_profiles",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "customer_context",
+    "title": "山东金德利餐饮集团有限公司经营上下文",
+    "document": "该客户有两个主要商机，其中门店协同与督导巡检平台项目处于方案提案阶段，金额 42 万；团餐订单与供应链协同试点处于需求分析阶段，金额 27 万。最近三次拜访显示客户已经从总部调研进入方案评审阶段，倾向先从 20 家门店试点。主要机会在于门店巡检数字化、总部到门店闭环和移动端简洁体验，主要风险在于培训成本、一线接受度和试点评估指标是否足够清晰。",
+    "metadata": {
+      "entity_type": "CustomerContext",
+      "industry": "餐饮连锁/团餐",
+      "opportunity_count": 2,
+      "visit_record_count": 3
+    }
+  },
+  {
+    "id": "chroma_customer_jiuzhou_profile",
+    "collection": "crm_customer_profiles",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "customer_profile",
+    "title": "江苏九州电器有限公司客户画像",
+    "document": "江苏九州电器有限公司是一家华东地区的电器制造企业，客户级别为 B，由钟卫亲负责跟进。客户目前希望优先改善售后工单统一管理、客诉闭环追踪和生产与售后协同问题。客户对投入产出比、上线节奏和一线执行负担高度敏感，因此更适合从轻量试点、量化 ROI 和跨部门责任追踪切入。",
+    "metadata": {
+      "entity_type": "Customer",
+      "industry": "电器制造",
+      "segment": "民营制造企业",
+      "region": "华东",
+      "owner_sales": "钟卫亲",
+      "customer_level": "B"
+    }
+  },
+  {
+    "id": "chroma_customer_jiuzhou_context",
+    "collection": "crm_customer_profiles",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "customer_context",
+    "title": "江苏九州电器有限公司经营上下文",
+    "document": "该客户有两个主要商机，其中售后派工与客户反馈闭环项目处于需求分析阶段，金额 16 万；生产与售后协同平台处于初步接触阶段，金额 33 万。最近三次拜访显示客户从售后问题收集，逐步暴露到跨部门协同问题，再进入管理层 ROI 评审阶段。机会在于问题真实、管理层认可方向；风险在于价格敏感、ROI 要求高、项目范围一旦过宽就容易转入观望。",
+    "metadata": {
+      "entity_type": "CustomerContext",
+      "industry": "电器制造",
+      "opportunity_count": 2,
+      "visit_record_count": 3
+    }
+  },
+  {
+    "id": "chroma_contact_matsui_it",
+    "collection": "crm_contacts",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "contact_profile",
+    "title": "王振宇 联系人画像",
+    "document": "王振宇是上海松井机械有限公司的信息化经理，是当前项目的核心需求组织者。其关注点集中在跨工厂流程透明度、权限分级、与现有系统集成的可控性，以及试点阶段能否以低改造成本快速落地。整体态度偏积极，是推动项目向管理层汇报的关键联系人。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_matsui_it",
+      "role": "信息化经理",
+      "influence_level": "high",
+      "attitude": "positive"
+    }
+  },
+  {
+    "id": "chroma_contact_matsui_fin",
+    "collection": "crm_contacts",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "contact_profile",
+    "title": "赵丽 联系人画像",
+    "document": "赵丽是上海松井机械有限公司的财务负责人，对预算和回报率较敏感。她不否认项目价值，但持续关注前期投入、接口改造成本和后续推广阶段的预算边界。她的态度偏谨慎，适合作为 ROI 说明和阶段性价值量化的重点说服对象。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_matsui_fin",
+      "role": "财务负责人",
+      "influence_level": "medium",
+      "attitude": "cautious"
+    }
+  },
+  {
+    "id": "chroma_contact_matsui_gm",
+    "collection": "crm_contacts",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "contact_profile",
+    "title": "森田健 联系人画像",
+    "document": "森田健是上海松井机械有限公司总经理，对项目不是日常执行 owner，但对是否进入正式立项具有关键影响。他更关注试点能否不打扰现有业务节奏、是否能控制风险以及是否能形成管理层可理解的收益证明，整体态度中性偏审慎。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_matsui_gm",
+      "role": "总经理",
+      "influence_level": "high",
+      "attitude": "neutral"
+    }
+  },
+  {
+    "id": "chroma_contact_jindeli_it",
+    "collection": "crm_contacts",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "contact_profile",
+    "title": "孙涛 联系人画像",
+    "document": "孙涛是山东金德利餐饮集团有限公司的信息部负责人，关注实施成本、系统运维复杂度和试点范围可控性。其态度积极，愿意支持试点，但不希望项目给信息部带来过重改造负担。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_jindeli_it",
+      "role": "信息部负责人",
+      "influence_level": "high",
+      "attitude": "positive"
+    }
+  },
+  {
+    "id": "chroma_contact_jindeli_ops",
+    "collection": "crm_contacts",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "contact_profile",
+    "title": "马会 联系人画像",
+    "document": "马会是山东金德利餐饮集团有限公司运营总监，最关注门店执行效率、整改闭环和督导管理效果。她是当前项目的主要业务推动者，倾向先从 20 家门店试点，并希望通过轻量移动端体验和看板汇总快速形成成效。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_jindeli_ops",
+      "role": "运营总监",
+      "influence_level": "high",
+      "attitude": "positive"
+    }
+  },
+  {
+    "id": "chroma_contact_jindeli_fin",
+    "collection": "crm_contacts",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "contact_profile",
+    "title": "刘敏 联系人画像",
+    "document": "刘敏是山东金德利餐饮集团有限公司财务经理，核心关注点是试点阶段预算、扩容时的投入边界和能否形成可量化的 KPI 提升。她的态度谨慎，但如果试点评估指标清晰，存在转为支持者的可能。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_jindeli_fin",
+      "role": "财务经理",
+      "influence_level": "medium",
+      "attitude": "cautious"
+    }
+  },
+  {
+    "id": "chroma_contact_jiuzhou_factory",
+    "collection": "crm_contacts",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "contact_profile",
+    "title": "李强 联系人画像",
+    "document": "李强是江苏九州电器有限公司工厂厂长，主要关注生产节奏是否会因项目落地而被打扰，以及跨部门问题能否真正形成责任闭环。他对项目持中性态度，更倾向观察试点是否足够轻量。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_jiuzhou_factory",
+      "role": "工厂厂长",
+      "influence_level": "high",
+      "attitude": "neutral"
+    }
+  },
+  {
+    "id": "chroma_contact_jiuzhou_service",
+    "collection": "crm_contacts",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "contact_profile",
+    "title": "陈雪 联系人画像",
+    "document": "陈雪是江苏九州电器有限公司售后负责人，对售后工单分散、投诉闭环慢和跨部门沟通低效的问题感受最强。她对项目方向认可度较高，是推动试点的主要业务支持者之一。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_jiuzhou_service",
+      "role": "售后负责人",
+      "influence_level": "high",
+      "attitude": "positive"
+    }
+  },
+  {
+    "id": "chroma_contact_jiuzhou_gm",
+    "collection": "crm_contacts",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "contact_profile",
+    "title": "周建国 联系人画像",
+    "document": "周建国是江苏九州电器有限公司总经理，认可售后协同和问题闭环的方向，但非常关注 ROI、上线节奏和一线执行负担。其态度谨慎，是决定项目是否立项的关键角色。",
+    "metadata": {
+      "entity_type": "Contact",
+      "contact_id": "contact_jiuzhou_gm",
+      "role": "总经理",
+      "influence_level": "high",
+      "attitude": "cautious"
+    }
+  },
+  {
+    "id": "chroma_opportunity_matsui_01",
+    "collection": "crm_opportunity_contexts",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "opportunity_context",
+    "title": "集团协同办公与流程一体化项目",
+    "document": "该商机属于上海松井机械有限公司，当前阶段为需求分析，金额 68 万。项目核心价值在于提升跨工厂协同透明度、实现权限分级与审计可追踪，并逐步打通销售、交付和售后数据。当前最大阻塞项是预算审批、接口边界不清和试点范围尚需收敛。",
+    "metadata": {
+      "entity_type": "Opportunity",
+      "opportunity_id": "opp_matsui_01",
+      "stage": "需求分析",
+      "amount": 680000,
+      "owner_sales": "周宇"
+    }
+  },
+  {
+    "id": "chroma_opportunity_matsui_02",
+    "collection": "crm_opportunity_contexts",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "opportunity_context",
+    "title": "售后工单与设备服务协同试点",
+    "document": "该商机处于初步接触阶段，金额 18 万，目标是围绕售后工单、设备服务和跨部门协同做轻量试点。相比主商机，这个机会规模更小，但切入更轻，适合作为客户进一步建立信任的辅助项目。",
+    "metadata": {
+      "entity_type": "Opportunity",
+      "opportunity_id": "opp_matsui_02",
+      "stage": "初步接触",
+      "amount": 180000,
+      "owner_sales": "周宇"
+    }
+  },
+  {
+    "id": "chroma_opportunity_jindeli_01",
+    "collection": "crm_opportunity_contexts",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "opportunity_context",
+    "title": "门店协同与督导巡检平台",
+    "document": "该商机属于山东金德利餐饮集团有限公司，当前阶段为方案提案，金额 42 万。项目聚焦门店巡检、总部任务下达、整改闭环和督导追踪。客户已经进入方案评审阶段，当前的关键在于门店试点体验、培训成本控制和 KPI 设计。",
+    "metadata": {
+      "entity_type": "Opportunity",
+      "opportunity_id": "opp_jindeli_01",
+      "stage": "方案提案",
+      "amount": 420000,
+      "owner_sales": "汤庆"
+    }
+  },
+  {
+    "id": "chroma_opportunity_jindeli_02",
+    "collection": "crm_opportunity_contexts",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "opportunity_context",
+    "title": "团餐订单与供应链协同试点",
+    "document": "该商机处于需求分析阶段，金额 27 万，目标是补足团餐业务中订单协同与供应链联动的信息断点。目前优先级低于门店协同与督导巡检平台，但可作为二期延展方向。",
+    "metadata": {
+      "entity_type": "Opportunity",
+      "opportunity_id": "opp_jindeli_02",
+      "stage": "需求分析",
+      "amount": 270000,
+      "owner_sales": "汤庆"
+    }
+  },
+  {
+    "id": "chroma_opportunity_jiuzhou_01",
+    "collection": "crm_opportunity_contexts",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "opportunity_context",
+    "title": "生产与售后协同平台",
+    "document": "该商机处于初步接触阶段，金额 33 万，目标是打通生产与售后的跨部门问题协同。由于客户对投入和改造复杂度敏感，这个机会更适合作为长期方向，而不是第一阶段主推项目。",
+    "metadata": {
+      "entity_type": "Opportunity",
+      "opportunity_id": "opp_jiuzhou_01",
+      "stage": "初步接触",
+      "amount": 330000,
+      "owner_sales": "钟卫亲"
+    }
+  },
+  {
+    "id": "chroma_opportunity_jiuzhou_02",
+    "collection": "crm_opportunity_contexts",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "opportunity_context",
+    "title": "售后派工与客户反馈闭环项目",
+    "document": "该商机处于需求分析阶段，金额 16 万，是江苏九州电器有限公司当前最有可能推进的项目。项目重点在于统一工单入口、追踪责任人与时效、形成客户投诉闭环，并以 6 周轻量试点验证 ROI。",
+    "metadata": {
+      "entity_type": "Opportunity",
+      "opportunity_id": "opp_jiuzhou_02",
+      "stage": "需求分析",
+      "amount": 160000,
+      "owner_sales": "钟卫亲"
+    }
+  },
+  {
+    "id": "chroma_visit_matsui_01",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "visit_record",
+    "title": "上海松井机械有限公司 第一次拜访",
+    "document": "首次需求摸底阶段，客户重点提到跨工厂协同、审批留痕和总部审计要求，希望先从低改造成本的试点切入。客户当前需求尚不够收敛，预算和工厂使用差异是早期风险。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_matsui_01",
+      "sequence_no": 1,
+      "related_opportunity_id": "opp_matsui_01"
+    }
+  },
+  {
+    "id": "chroma_visit_matsui_02",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "visit_record",
+    "title": "上海松井机械有限公司 第二次拜访",
+    "document": "IT 与业务联合访谈阶段，客户将关注点收敛为实施周期、集成成本、权限模型和试点边界。预算需要总部批准，竞品已介入，权限与审计设计成为推进关键。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_matsui_02",
+      "sequence_no": 2,
+      "related_opportunity_id": "opp_matsui_01"
+    }
+  },
+  {
+    "id": "chroma_visit_matsui_03",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "visit_record",
+    "title": "上海松井机械有限公司 第三次拜访",
+    "document": "试点范围讨论阶段，客户愿意推进试点，但要求先提交 ROI 说明、实施排期和阶段验收标准。当前建议应聚焦管理层汇报材料、试点目标与权限审计方案。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_matsui_03",
+      "sequence_no": 3,
+      "related_opportunity_id": "opp_matsui_01"
+    }
+  },
+  {
+    "id": "chroma_visit_jindeli_01",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "visit_record",
+    "title": "山东金德利餐饮集团有限公司 第一次拜访",
+    "document": "总部调研阶段，客户最关注门店巡检数字化、总部到门店任务闭环和区域督导管理效率。项目价值清晰，但一线培训成本和移动端复杂度是主要顾虑。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_jindeli_01",
+      "sequence_no": 1,
+      "related_opportunity_id": "opp_jindeli_01"
+    }
+  },
+  {
+    "id": "chroma_visit_jindeli_02",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "visit_record",
+    "title": "山东金德利餐饮集团有限公司 第二次拜访",
+    "document": "运营场景细化阶段，客户明确要求移动端足够简单，并希望总部可按区域和问题类型看整改闭环效果。门店接受度和总部可视化将共同决定试点成败。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_jindeli_02",
+      "sequence_no": 2,
+      "related_opportunity_id": "opp_jindeli_01"
+    }
+  },
+  {
+    "id": "chroma_visit_jindeli_03",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "visit_record",
+    "title": "山东金德利餐饮集团有限公司 第三次拜访",
+    "document": "方案评审阶段，客户倾向从 20 家门店试点，已开始关注 KPI、培训方案和试点数据代表性。建议优先帮助客户建立试点指标体系和内部说服材料。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_jindeli_03",
+      "sequence_no": 3,
+      "related_opportunity_id": "opp_jindeli_01"
+    }
+  },
+  {
+    "id": "chroma_visit_jiuzhou_01",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "visit_record",
+    "title": "江苏九州电器有限公司 第一次拜访",
+    "document": "售后问题收集阶段，客户最痛的问题在于工单入口分散、投诉闭环慢和责任追踪不清。客户价格敏感，后续推进必须先量化问题严重性和试点价值。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_jiuzhou_01",
+      "sequence_no": 1,
+      "related_opportunity_id": "opp_jiuzhou_02"
+    }
+  },
+  {
+    "id": "chroma_visit_jiuzhou_02",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "visit_record",
+    "title": "江苏九州电器有限公司 第二次拜访",
+    "document": "生产与售后联动访谈阶段，客户发现问题已经从售后记录分散扩展到跨部门责任追踪不清。若想推进项目，需要突出轻量协同、时效提升和跨部门闭环，而不是复杂流程再造。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_jiuzhou_02",
+      "sequence_no": 2,
+      "related_opportunity_id": "opp_jiuzhou_02"
+    }
+  },
+  {
+    "id": "chroma_visit_jiuzhou_03",
+    "collection": "crm_visit_records",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "visit_record",
+    "title": "江苏九州电器有限公司 第三次拜访",
+    "document": "管理层评审阶段，老板认可方向，但持续强调 ROI、上线节奏和一线负担。建议优先用工单样本和客诉案例证明价值，再提交 6 周轻量试点方案。",
+    "metadata": {
+      "entity_type": "VisitRecord",
+      "visit_record_id": "visit_jiuzhou_03",
+      "sequence_no": 3,
+      "related_opportunity_id": "opp_jiuzhou_02"
+    }
+  },
+  {
+    "id": "chroma_signal_need_matsui",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "need",
+    "title": "上海松井机械有限公司 核心需求",
+    "document": "客户当前最核心的业务需求包括跨工厂流程协同、权限分级与审计、ERP 和设备系统集成，以及售后工单闭环。",
+    "metadata": {
+      "entity_type": "Need",
+      "signal_owner": "Customer",
+      "priority": "high"
+    }
+  },
+  {
+    "id": "chroma_signal_risk_matsui",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "risk",
+    "title": "上海松井机械有限公司 核心风险",
+    "document": "当前主要风险包括外资审批链较长、集成成本不确定、总部对权限与审计的要求高，以及预算窗口存在后移风险。",
+    "metadata": {
+      "entity_type": "Risk",
+      "level": "high"
+    }
+  },
+  {
+    "id": "chroma_signal_commitment_matsui",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "commitment",
+    "title": "上海松井机械有限公司 当前承诺事项",
+    "document": "客户承诺提供关键接口清单并安排一次管理层评审会；销售侧需要提交试点目标、阶段验收标准、权限方案和 ROI 初步测算。",
+    "metadata": {
+      "entity_type": "Commitment",
+      "status": "open"
+    }
+  },
+  {
+    "id": "chroma_signal_need_jindeli",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "need",
+    "title": "山东金德利餐饮集团有限公司 核心需求",
+    "document": "客户当前最核心的需求是门店巡检数字化、总部到门店任务闭环、团餐订单协同和移动端轻量执行体验。",
+    "metadata": {
+      "entity_type": "Need",
+      "signal_owner": "Customer",
+      "priority": "high"
+    }
+  },
+  {
+    "id": "chroma_signal_risk_jindeli",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "risk",
+    "title": "山东金德利餐饮集团有限公司 核心风险",
+    "document": "当前风险包括一线门店培训成本高、移动端复杂会降低使用率、试点门店选择不当会导致样本失真，以及财务对扩容预算较谨慎。",
+    "metadata": {
+      "entity_type": "Risk",
+      "level": "high"
+    }
+  },
+  {
+    "id": "chroma_signal_commitment_jindeli",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "commitment",
+    "title": "山东金德利餐饮集团有限公司 当前承诺事项",
+    "document": "客户承诺提供 20 家试点门店清单，安排运营总监参与试点流程共创，并在方案评审后确认试点 KPI 口径与培训计划。",
+    "metadata": {
+      "entity_type": "Commitment",
+      "status": "open"
+    }
+  },
+  {
+    "id": "chroma_signal_need_jiuzhou",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "need",
+    "title": "江苏九州电器有限公司 核心需求",
+    "document": "客户当前最核心的需求是售后工单统一管理、客诉闭环追踪、生产与售后协同，以及责任人与时效的可视化追踪。",
+    "metadata": {
+      "entity_type": "Need",
+      "signal_owner": "Customer",
+      "priority": "high"
+    }
+  },
+  {
+    "id": "chroma_signal_risk_jiuzhou",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "risk",
+    "title": "江苏九州电器有限公司 核心风险",
+    "document": "当前主要风险包括客户价格敏感、管理层高度关注 ROI、项目范围容易被认为过大，以及一线对新系统可能存在使用阻力。",
+    "metadata": {
+      "entity_type": "Risk",
+      "level": "high"
+    }
+  },
+  {
+    "id": "chroma_signal_commitment_jiuzhou",
+    "collection": "crm_business_signals",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "commitment",
+    "title": "江苏九州电器有限公司 当前承诺事项",
+    "document": "客户承诺提供近三个月工单样本并安排售后流程演示；销售侧需要提交 ROI 简版测算和 6 周轻量试点方案。",
+    "metadata": {
+      "entity_type": "Commitment",
+      "status": "open"
+    }
+  },
+  {
+    "id": "chroma_advice_matsui_seed",
+    "collection": "crm_advice_drafts",
+    "customer_id": "cust_matsui_sh",
+    "document_type": "advice_draft",
+    "title": "上海松井机械有限公司 经营建议草稿",
+    "document": "建议目标：推动客户进入试点立项评审。建议动作：由周宇在 3 个工作日内提交试点目标、阶段验收标准、权限审计方案和 ROI 初步测算，并协调信息化经理完成管理层评审会排期。建议依据：客户已从需求探索进入试点范围讨论，存在明确推进意愿，但预算审批、接口边界和管理层收益证明仍是关键阻塞项。预期结果：提升管理层对试点可行性的认可度，推动商机从需求分析进入试点评审。优先级：高，应立即执行。",
+    "metadata": {
+      "entity_type": "AdviceDraft",
+      "priority": "high",
+      "goal": "推进试点立项"
+    }
+  },
+  {
+    "id": "chroma_advice_jindeli_seed",
+    "collection": "crm_advice_drafts",
+    "customer_id": "cust_jindeli_sd",
+    "document_type": "advice_draft",
+    "title": "山东金德利餐饮集团有限公司 经营建议草稿",
+    "document": "建议目标：推动 20 家门店试点正式落地。建议动作：由汤庆在一周内提交试点门店实施计划、培训方案和 KPI 评估框架，并联合运营总监锁定首批试点门店负责人。建议依据：客户已完成方案评审，对试点方向认可度高，但仍需要财务与管理层看到培训成本、移动端轻量体验和阶段性收益。预期结果：让商机从方案提案进入试点实施准备阶段。优先级：高，应尽快执行。",
+    "metadata": {
+      "entity_type": "AdviceDraft",
+      "priority": "high",
+      "goal": "推动试点落地"
+    }
+  },
+  {
+    "id": "chroma_advice_jiuzhou_seed",
+    "collection": "crm_advice_drafts",
+    "customer_id": "cust_jiuzhou_js",
+    "document_type": "advice_draft",
+    "title": "江苏九州电器有限公司 经营建议草稿",
+    "document": "建议目标：降低管理层对 ROI 的顾虑，推动轻量试点立项。建议动作：由钟卫亲在 5 个工作日内基于近三个月工单样本完成问题量化和 ROI 简版测算，并设计 6 周试点方案，明确最小投入、最小流程改造和阶段验收标准。建议依据：客户方向认可但价格敏感，若不能先量化价值并控制试点范围，项目容易转入观望。预期结果：提升管理层对试点投入产出比的信心。优先级：高，应立即执行。",
+    "metadata": {
+      "entity_type": "AdviceDraft",
+      "priority": "high",
+      "goal": "降低 ROI 顾虑"
+    }
+  }
+]

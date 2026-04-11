@@ -2,6 +2,7 @@ import { ChromaClient, Collection } from 'chromadb';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createHash } from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -10,6 +11,20 @@ interface ChromaConfig {
   connection_url: string;
   collection_name: string;
 }
+
+// Simple local embedding function — deterministic hash-based vectors, no network needed
+const LocalEmbeddingFunction = {
+  generate: async (texts: string[]): Promise<number[][]> => {
+    return texts.map(text => {
+      const hash = createHash('sha256').update(text).digest();
+      const vector: number[] = [];
+      for (let i = 0; i < 384; i++) {
+        vector.push((hash[i % hash.length] / 128) - 1);
+      }
+      return vector;
+    });
+  },
+};
 
 class ChromaDBClient {
   private client: ChromaClient | null = null;
@@ -40,12 +55,14 @@ class ChromaDBClient {
       try {
         this.collection = await this.client.getCollection({
           name: this.config.collection_name,
+          embeddingFunction: LocalEmbeddingFunction,
         });
       } catch {
         // 集合不存在，创建新集合
         this.collection = await this.client.createCollection({
           name: this.config.collection_name,
           metadata: { description: 'CRM opportunities for semantic search' },
+          embeddingFunction: LocalEmbeddingFunction,
         });
       }
 
@@ -167,9 +184,9 @@ class ChromaDBClient {
     try {
       let coll: Collection;
       try {
-        coll = await this.client.getCollection({ name: collectionName });
+        coll = await this.client.getCollection({ name: collectionName, embeddingFunction: LocalEmbeddingFunction });
       } catch {
-        coll = await this.client.createCollection({ name: collectionName });
+        coll = await this.client.createCollection({ name: collectionName, embeddingFunction: LocalEmbeddingFunction });
       }
 
       await coll.upsert({

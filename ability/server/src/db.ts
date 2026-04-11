@@ -176,6 +176,23 @@ export function initDatabase() {
     )
   `);
 
+  // 事件总线日志表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS event_bus_logs (
+      id TEXT PRIMARY KEY,
+      event_code TEXT NOT NULL,
+      source_skill_id TEXT NOT NULL,
+      subscriber_skill_id TEXT,
+      subscriber_behavior_code TEXT,
+      status TEXT NOT NULL,
+      input_params TEXT,
+      output_result TEXT,
+      error_message TEXT,
+      chain_id TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `);
+
   // 客户经营建议产物表
   db.exec(`
     CREATE TABLE IF NOT EXISTS operating_advice_artifacts (
@@ -192,10 +209,50 @@ export function initDatabase() {
       advice_markdown_path TEXT NOT NULL,
       advice_html_path TEXT,
       selected_external_skill_id TEXT,
-      render_status TEXT NOT NULL CHECK(render_status IN ('success','partial','failed')),
+      llm_advice TEXT,
+      render_status TEXT NOT NULL CHECK(render_status IN ('success','partial','failed','generating','fallback')),
       created_at TEXT NOT NULL
     )
   `);
+
+  // 迁移：扩展 render_status CHECK 约束并添加 llm_advice 列
+  try {
+    const currentCheck = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='operating_advice_artifacts'").get() as any;
+    const needsMigration = currentCheck && (!currentCheck.sql.includes("'generating'") || !currentCheck.sql.includes('llm_advice'));
+    if (needsMigration) {
+      console.log('🔄 Migrating operating_advice_artifacts table...');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS operating_advice_artifacts_new (
+          id TEXT PRIMARY KEY,
+          ontology_id TEXT NOT NULL,
+          customer_id TEXT NOT NULL,
+          customer_name TEXT,
+          round_no INTEGER NOT NULL,
+          based_on_visit_record_ids TEXT NOT NULL,
+          current_assessment TEXT NOT NULL,
+          recommended_actions TEXT NOT NULL,
+          evidence_summary TEXT NOT NULL,
+          change_since_last_round TEXT,
+          advice_markdown_path TEXT NOT NULL,
+          advice_html_path TEXT,
+          selected_external_skill_id TEXT,
+          llm_advice TEXT,
+          render_status TEXT NOT NULL CHECK(render_status IN ('success','partial','failed','generating','fallback')),
+          created_at TEXT NOT NULL
+        )
+      `);
+      // 复制数据（旧表无 llm_advice 列，填充 NULL）
+      db.exec(`
+        INSERT INTO operating_advice_artifacts_new (id, ontology_id, customer_id, customer_name, round_no, based_on_visit_record_ids, current_assessment, recommended_actions, evidence_summary, change_since_last_round, advice_markdown_path, advice_html_path, selected_external_skill_id, render_status, created_at)
+        SELECT id, ontology_id, customer_id, customer_name, round_no, based_on_visit_record_ids, current_assessment, recommended_actions, evidence_summary, change_since_last_round, advice_markdown_path, advice_html_path, selected_external_skill_id, render_status, created_at FROM operating_advice_artifacts
+      `);
+      db.exec(`DROP TABLE operating_advice_artifacts`);
+      db.exec(`ALTER TABLE operating_advice_artifacts_new RENAME TO operating_advice_artifacts`);
+      console.log('✅ Migration complete: render_status + llm_advice column added');
+    }
+  } catch (error) {
+    console.error('Error migrating operating_advice_artifacts table:', error);
+  }
 
   console.log('✅ Database initialized at:', dbPath);
 }

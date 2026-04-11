@@ -125,6 +125,17 @@ router.get('/', (req, res) => {
   }
 });
 
+// 获取硬编码技能 ID 映射（不在 DB 中的特殊行为技能）
+router.get('/hardcoded', (req, res) => {
+  res.json({
+    skills: {
+      'visit_record.create_from_markdown': 'hardcoded.visit_record.create_from_markdown',
+      'visit_record.analyze': 'hardcoded.visit_record.analyze',
+      'customer.generate_operating_advice': 'hardcoded.customer.generate_operating_advice',
+    },
+  });
+});
+
 // 获取单个技能
 router.get('/:id', (req, res) => {
   try {

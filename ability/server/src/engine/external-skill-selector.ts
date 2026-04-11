@@ -12,13 +12,13 @@ export function selectExternalSkill(
 ): ExternalSkillSelectionResult {
   if (request.artifact_type === 'operating_advice') {
     return {
-      selected_skill_id: 'kai-slide-creator',
+      selected_skill_id: 'kai-report-creator',
       strategy: 'fixed',
     };
   }
 
   return {
-    selected_skill_id: 'kai-slide-creator',
+    selected_skill_id: 'kai-report-creator',
     strategy: 'fixed',
   };
 }

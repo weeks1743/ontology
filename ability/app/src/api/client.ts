@@ -138,6 +138,24 @@ export const ontologySkillsApi = {
     if (!res.ok) throw new Error('Failed to clear data');
     return res.json();
   },
+
+  clearRuntimeData: async (ontologyId: string): Promise<{
+    success: boolean;
+    ontology_id: string;
+    cleared: {
+      visit_records: number;
+      advice_artifacts: number;
+      event_bus_logs: number;
+    };
+  }> => {
+    const res = await fetch(`${API_BASE}/ontology-skills/clear-runtime-data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ontology_id: ontologyId }),
+    });
+    if (!res.ok) throw new Error('Failed to clear runtime data');
+    return res.json();
+  },
 };
 
 // 执行日志相关
@@ -177,5 +195,68 @@ export const databaseApi = {
       body: JSON.stringify(config),
     });
     if (!res.ok) throw new Error('Failed to update database config');
+  },
+};
+
+// Mock Data API
+export const mockDataApi = {
+  init: async (): Promise<{ success: boolean; counts: any }> => {
+    const res = await fetch(`${API_BASE}/mock-data/init`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) throw new Error('Failed to initialize mock data');
+    return res.json();
+  },
+
+  getCustomers: async (): Promise<{ customers: any[] }> => {
+    const res = await fetch(`${API_BASE}/mock-data/customers`);
+    if (!res.ok) throw new Error('Failed to fetch mock customers');
+    return res.json();
+  },
+
+  getCustomerContext: async (id: string): Promise<any> => {
+    const res = await fetch(`${API_BASE}/mock-data/customers/${id}/context`);
+    if (!res.ok) throw new Error('Failed to fetch customer context');
+    return res.json();
+  },
+
+  getCustomerAdvice: async (id: string): Promise<{ artifacts: any[] }> => {
+    const res = await fetch(`${API_BASE}/mock-data/customers/${id}/advice`);
+    if (!res.ok) throw new Error('Failed to fetch customer advice');
+    return res.json();
+  },
+
+  getVisitRecord: async (id: string): Promise<any> => {
+    const res = await fetch(`${API_BASE}/mock-data/visit-records/${id}`);
+    if (!res.ok) throw new Error('Failed to fetch visit record');
+    return res.json();
+  },
+
+  analyzeProfile: async (payload: {
+    scenario: 'interview' | 'crm_visit';
+    transcript: string;
+    speaker_aliases?: Record<string, string>;
+    customer_id?: string;
+    customer_name?: string;
+    visit_record_id?: string;
+    visit_title?: string;
+  }): Promise<any> => {
+    const res = await fetch(`${API_BASE}/mock-data/profile-analysis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to analyze profile');
+    return res.json();
+  },
+};
+
+// Event Bus API
+export const eventBusApi = {
+  getChainLogs: async (chainId: string): Promise<{ chain_id: string; logs: any[] }> => {
+    const res = await fetch(`${API_BASE}/event-bus/chain/${chainId}`);
+    if (!res.ok) throw new Error('Failed to fetch chain logs');
+    return res.json();
   },
 };

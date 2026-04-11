@@ -1,0 +1,289 @@
+{
+  "leads": [
+    { "id": "lead_matsui", "customer_id": "cust_matsui_sh", "title": "上海松井机械 - 协同办公需求", "source": "行业展会", "status": "converted", "created_at": "2026-01-15" },
+    { "id": "lead_matsui_after_sales", "customer_id": "cust_matsui_sh", "title": "上海松井机械 - 售后工单系统", "source": "客户转介绍", "status": "converted", "created_at": "2026-02-10" },
+    { "id": "lead_jindeli", "customer_id": "cust_jindeli_sd", "title": "山东金德利 - 门店管理需求", "source": "老客户拓展", "status": "converted", "created_at": "2026-01-20" },
+    { "id": "lead_jindeli_catering", "customer_id": "cust_jindeli_sd", "title": "山东金德利 - 团餐订单系统", "source": "运营部门引荐", "status": "qualified", "created_at": "2026-02-28" },
+    { "id": "lead_jiuzhou", "customer_id": "cust_jiuzhou_js", "title": "江苏九州电器 - 售后协同需求", "source": "客户主动咨询", "status": "converted", "created_at": "2026-02-05" },
+    { "id": "lead_jiuzhou_prod", "customer_id": "cust_jiuzhou_js", "title": "江苏九州电器 - 生产协同平台", "source": "售后试点延展", "status": "nurturing", "created_at": "2026-03-15" }
+  ],
+  "quotes": [
+    { "id": "quote_jindeli_01", "opportunity_id": "opp_jindeli_01", "customer_id": "cust_jindeli_sd", "amount": 420000, "status": "submitted", "submitted_at": "2026-04-01" },
+    { "id": "quote_jiuzhou_02", "opportunity_id": "opp_jiuzhou_02", "customer_id": "cust_jiuzhou_js", "amount": 160000, "status": "draft" },
+    { "id": "quote_matsui_01", "opportunity_id": "opp_matsui_01", "customer_id": "cust_matsui_sh", "amount": 680000, "status": "preparing" }
+  ],
+  "sales_reps": [
+    {
+      "id": "sales_zhou_yu",
+      "name": "周宇",
+      "team": "华东大客户组",
+      "region": "华东",
+      "focus_industries": ["制造业", "外资企业"],
+      "seniority": "senior",
+      "status": "active"
+    },
+    {
+      "id": "sales_tang_qing",
+      "name": "汤庆",
+      "team": "华北连锁餐饮组",
+      "region": "华北",
+      "focus_industries": ["餐饮连锁", "团餐"],
+      "seniority": "senior",
+      "status": "active"
+    },
+    {
+      "id": "sales_zhong_weiqin",
+      "name": "钟卫亲",
+      "team": "华东制造业组",
+      "region": "华东",
+      "focus_industries": ["电器制造", "工业服务"],
+      "seniority": "mid",
+      "status": "active"
+    }
+  ],
+  "customers": [
+    {
+      "id": "cust_matsui_sh",
+      "customer_name": "上海松井机械有限公司",
+      "industry": "制造业",
+      "segment": "外资制造企业",
+      "region": "华东",
+      "customer_level": "A",
+      "status": "active",
+      "owner_sales": "周宇",
+      "owner_sales_id": "sales_zhou_yu",
+      "digital_maturity": "medium_high",
+      "company_profile": "多工厂运营的制造企业，重视总部审计、权限分级和跨区域业务协同。",
+      "core_tags": ["外资", "制造", "跨工厂协同", "审计合规"],
+      "visit_record_ids": ["visit_matsui_01", "visit_matsui_02", "visit_matsui_03"],
+      "opportunity_ids": ["opp_matsui_01", "opp_matsui_02"],
+      "contact_ids": ["contact_matsui_it", "contact_matsui_fin", "contact_matsui_gm"]
+    },
+    {
+      "id": "cust_jindeli_sd",
+      "customer_name": "山东金德利餐饮集团有限公司",
+      "industry": "餐饮连锁/团餐",
+      "segment": "集团型连锁服务企业",
+      "region": "华北",
+      "customer_level": "A",
+      "status": "active",
+      "owner_sales": "汤庆",
+      "owner_sales_id": "sales_tang_qing",
+      "digital_maturity": "medium",
+      "company_profile": "拥有大量直营网点与团餐业务场景，管理半径大，强调门店执行和供应链协同。",
+      "core_tags": ["连锁餐饮", "团餐", "门店管理", "供应链协同"],
+      "visit_record_ids": ["visit_jindeli_01", "visit_jindeli_02", "visit_jindeli_03"],
+      "opportunity_ids": ["opp_jindeli_01", "opp_jindeli_02"],
+      "contact_ids": ["contact_jindeli_it", "contact_jindeli_ops", "contact_jindeli_fin"]
+    },
+    {
+      "id": "cust_jiuzhou_js",
+      "customer_name": "江苏九州电器有限公司",
+      "industry": "电器制造",
+      "segment": "民营制造企业",
+      "region": "华东",
+      "customer_level": "B",
+      "status": "observing",
+      "owner_sales": "钟卫亲",
+      "owner_sales_id": "sales_zhong_weiqin",
+      "digital_maturity": "medium",
+      "company_profile": "以生产和售后服务协同为主要改善方向，对 ROI 和项目投入较敏感。",
+      "core_tags": ["电器制造", "售后工单", "跨部门协同", "成本敏感"],
+      "visit_record_ids": ["visit_jiuzhou_01", "visit_jiuzhou_02", "visit_jiuzhou_03"],
+      "opportunity_ids": ["opp_jiuzhou_01", "opp_jiuzhou_02"],
+      "contact_ids": ["contact_jiuzhou_factory", "contact_jiuzhou_service", "contact_jiuzhou_gm"]
+    }
+  ],
+  "contacts": [
+    {
+      "id": "contact_matsui_it",
+      "customer_id": "cust_matsui_sh",
+      "name": "王振宇",
+      "role": "信息化经理",
+      "phone": "13821001001",
+      "email": "wangzy@matsui-mock.com",
+      "influence_level": "high",
+      "attitude": "positive"
+    },
+    {
+      "id": "contact_matsui_fin",
+      "customer_id": "cust_matsui_sh",
+      "name": "赵丽",
+      "role": "财务负责人",
+      "phone": "13821001002",
+      "email": "zhaoli@matsui-mock.com",
+      "influence_level": "medium",
+      "attitude": "cautious"
+    },
+    {
+      "id": "contact_matsui_gm",
+      "customer_id": "cust_matsui_sh",
+      "name": "森田健",
+      "role": "总经理",
+      "phone": "13821001003",
+      "email": "morita@matsui-mock.com",
+      "influence_level": "high",
+      "attitude": "neutral"
+    },
+    {
+      "id": "contact_jindeli_it",
+      "customer_id": "cust_jindeli_sd",
+      "name": "孙涛",
+      "role": "信息部负责人",
+      "phone": "13853102001",
+      "email": "suntao@jindeli-mock.com",
+      "influence_level": "high",
+      "attitude": "positive"
+    },
+    {
+      "id": "contact_jindeli_ops",
+      "customer_id": "cust_jindeli_sd",
+      "name": "马会",
+      "role": "运营总监",
+      "phone": "13853102002",
+      "email": "mahui@jindeli-mock.com",
+      "influence_level": "high",
+      "attitude": "positive"
+    },
+    {
+      "id": "contact_jindeli_fin",
+      "customer_id": "cust_jindeli_sd",
+      "name": "刘敏",
+      "role": "财务经理",
+      "phone": "13853102003",
+      "email": "liumin@jindeli-mock.com",
+      "influence_level": "medium",
+      "attitude": "cautious"
+    },
+    {
+      "id": "contact_jiuzhou_factory",
+      "customer_id": "cust_jiuzhou_js",
+      "name": "李强",
+      "role": "工厂厂长",
+      "phone": "13851503001",
+      "email": "liqiang@jiuzhou-mock.com",
+      "influence_level": "high",
+      "attitude": "neutral"
+    },
+    {
+      "id": "contact_jiuzhou_service",
+      "customer_id": "cust_jiuzhou_js",
+      "name": "陈雪",
+      "role": "售后负责人",
+      "phone": "13851503002",
+      "email": "chenxue@jiuzhou-mock.com",
+      "influence_level": "high",
+      "attitude": "positive"
+    },
+    {
+      "id": "contact_jiuzhou_gm",
+      "customer_id": "cust_jiuzhou_js",
+      "name": "周建国",
+      "role": "总经理",
+      "phone": "13851503003",
+      "email": "zhoujg@jiuzhou-mock.com",
+      "influence_level": "high",
+      "attitude": "cautious"
+    }
+  ],
+  "opportunities": [
+    {
+      "id": "opp_matsui_01",
+      "customer_id": "cust_matsui_sh",
+      "name": "集团协同办公与流程一体化项目",
+      "amount": 680000,
+      "stage": "需求分析",
+      "probability": 55,
+      "close_date": "2026-06-30",
+      "owner_sales_id": "sales_zhou_yu"
+    },
+    {
+      "id": "opp_matsui_02",
+      "customer_id": "cust_matsui_sh",
+      "name": "售后工单与设备服务协同试点",
+      "amount": 180000,
+      "stage": "初步接触",
+      "probability": 35,
+      "close_date": "2026-07-15",
+      "owner_sales_id": "sales_zhou_yu"
+    },
+    {
+      "id": "opp_jindeli_01",
+      "customer_id": "cust_jindeli_sd",
+      "name": "门店协同与督导巡检平台",
+      "amount": 420000,
+      "stage": "方案提案",
+      "probability": 65,
+      "close_date": "2026-05-28",
+      "owner_sales_id": "sales_tang_qing"
+    },
+    {
+      "id": "opp_jindeli_02",
+      "customer_id": "cust_jindeli_sd",
+      "name": "团餐订单与供应链协同试点",
+      "amount": 270000,
+      "stage": "需求分析",
+      "probability": 50,
+      "close_date": "2026-06-20",
+      "owner_sales_id": "sales_tang_qing"
+    },
+    {
+      "id": "opp_jiuzhou_01",
+      "customer_id": "cust_jiuzhou_js",
+      "name": "生产与售后协同平台",
+      "amount": 330000,
+      "stage": "初步接触",
+      "probability": 40,
+      "close_date": "2026-07-08",
+      "owner_sales_id": "sales_zhong_weiqin"
+    },
+    {
+      "id": "opp_jiuzhou_02",
+      "customer_id": "cust_jiuzhou_js",
+      "name": "售后派工与客户反馈闭环项目",
+      "amount": 160000,
+      "stage": "需求分析",
+      "probability": 55,
+      "close_date": "2026-06-25",
+      "owner_sales_id": "sales_zhong_weiqin"
+    }
+  ],
+  "visit_records": [
+    { "id": "visit_matsui_01", "customer_id": "cust_matsui_sh", "opportunity_id": "opp_matsui_01", "sequence_no": 1, "title": "首次需求摸底", "file": "visit-records/matsui/01_initial_contact.md" },
+    { "id": "visit_matsui_02", "customer_id": "cust_matsui_sh", "opportunity_id": "opp_matsui_01", "sequence_no": 2, "title": "IT 与业务联合访谈", "file": "visit-records/matsui/02_requirements_and_risks.md" },
+    { "id": "visit_matsui_03", "customer_id": "cust_matsui_sh", "opportunity_id": "opp_matsui_01", "sequence_no": 3, "title": "试点范围讨论", "file": "visit-records/matsui/03_pilot_scope_and_commitment.md" },
+    { "id": "visit_jindeli_01", "customer_id": "cust_jindeli_sd", "opportunity_id": "opp_jindeli_01", "sequence_no": 1, "title": "总部调研", "file": "visit-records/jindeli/01_headquarter_research.md" },
+    { "id": "visit_jindeli_02", "customer_id": "cust_jindeli_sd", "opportunity_id": "opp_jindeli_01", "sequence_no": 2, "title": "运营场景细化", "file": "visit-records/jindeli/02_operations_detailing.md" },
+    { "id": "visit_jindeli_03", "customer_id": "cust_jindeli_sd", "opportunity_id": "opp_jindeli_01", "sequence_no": 3, "title": "方案评审会", "file": "visit-records/jindeli/03_solution_review.md" },
+    { "id": "visit_jiuzhou_01", "customer_id": "cust_jiuzhou_js", "opportunity_id": "opp_jiuzhou_02", "sequence_no": 1, "title": "售后问题收集", "file": "visit-records/jiuzhou/01_after_sales_discovery.md" },
+    { "id": "visit_jiuzhou_02", "customer_id": "cust_jiuzhou_js", "opportunity_id": "opp_jiuzhou_02", "sequence_no": 2, "title": "生产与售后联动访谈", "file": "visit-records/jiuzhou/02_cross_department_alignment.md" },
+    { "id": "visit_jiuzhou_03", "customer_id": "cust_jiuzhou_js", "opportunity_id": "opp_jiuzhou_02", "sequence_no": 3, "title": "老板层面沟通", "file": "visit-records/jiuzhou/03_management_review.md" }
+  ],
+  "needs": [
+    { "id": "need_matsui_01", "customer_id": "cust_matsui_sh", "name": "跨工厂流程协同", "priority": "high" },
+    { "id": "need_matsui_02", "customer_id": "cust_matsui_sh", "name": "权限分级与审计", "priority": "high" },
+    { "id": "need_matsui_03", "customer_id": "cust_matsui_sh", "name": "ERP/设备系统集成", "priority": "medium" },
+    { "id": "need_jindeli_01", "customer_id": "cust_jindeli_sd", "name": "门店巡检数字化", "priority": "high" },
+    { "id": "need_jindeli_02", "customer_id": "cust_jindeli_sd", "name": "总部到门店任务闭环", "priority": "high" },
+    { "id": "need_jindeli_03", "customer_id": "cust_jindeli_sd", "name": "团餐订单协同", "priority": "medium" },
+    { "id": "need_jiuzhou_01", "customer_id": "cust_jiuzhou_js", "name": "售后工单统一管理", "priority": "high" },
+    { "id": "need_jiuzhou_02", "customer_id": "cust_jiuzhou_js", "name": "客诉闭环追踪", "priority": "high" },
+    { "id": "need_jiuzhou_03", "customer_id": "cust_jiuzhou_js", "name": "生产与售后协同", "priority": "medium" }
+  ],
+  "risks": [
+    { "id": "risk_matsui_01", "customer_id": "cust_matsui_sh", "name": "外资审批链长", "level": "high" },
+    { "id": "risk_matsui_02", "customer_id": "cust_matsui_sh", "name": "集成成本不确定", "level": "medium" },
+    { "id": "risk_jindeli_01", "customer_id": "cust_jindeli_sd", "name": "一线门店培训成本高", "level": "medium" },
+    { "id": "risk_jindeli_02", "customer_id": "cust_jindeli_sd", "name": "移动端复杂导致落地受阻", "level": "high" },
+    { "id": "risk_jiuzhou_01", "customer_id": "cust_jiuzhou_js", "name": "客户价格敏感", "level": "high" },
+    { "id": "risk_jiuzhou_02", "customer_id": "cust_jiuzhou_js", "name": "管理层关注 ROI", "level": "high" }
+  ],
+  "commitments": [
+    { "id": "commit_matsui_01", "customer_id": "cust_matsui_sh", "name": "客户提供接口清单", "due_date": "2026-04-24" },
+    { "id": "commit_matsui_02", "customer_id": "cust_matsui_sh", "name": "安排管理层评审", "due_date": "2026-04-28" },
+    { "id": "commit_jindeli_01", "customer_id": "cust_jindeli_sd", "name": "提供 20 家门店清单", "due_date": "2026-04-18" },
+    { "id": "commit_jindeli_02", "customer_id": "cust_jindeli_sd", "name": "确定试点门店负责人", "due_date": "2026-04-22" },
+    { "id": "commit_jiuzhou_01", "customer_id": "cust_jiuzhou_js", "name": "提供近三个月工单样本", "due_date": "2026-04-19" },
+    { "id": "commit_jiuzhou_02", "customer_id": "cust_jiuzhou_js", "name": "安排售后流程演示", "due_date": "2026-04-23" }
+  ]
+}

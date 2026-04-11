@@ -291,6 +291,30 @@ class Neo4jClient {
     }
   }
 
+  // Generic Cypher query runner for context building
+  async runQuery(cypher: string, params?: Record<string, any>): Promise<any[]> {
+    if (!this.isOnline() || !this.driver) {
+      return [];
+    }
+
+    const session = this.driver.session();
+    try {
+      const result = await session.run(cypher, params);
+      return result.records.map(record => {
+        const obj: Record<string, any> = {};
+        for (const key of record.keys) {
+          obj[String(key)] = record.get(key);
+        }
+        return obj;
+      });
+    } catch (error) {
+      console.error('Neo4j runQuery error:', error);
+      return [];
+    } finally {
+      await session.close();
+    }
+  }
+
   // Clear all nodes and relationships for a specific ontology
   async clearOntologyNodes(ontologyId: string): Promise<{ nodesDeleted: number; relationshipsDeleted: number }> {
     if (!this.isOnline() || !this.driver) {
@@ -299,34 +323,51 @@ class Neo4jClient {
 
     const session = this.driver.session();
     try {
-      // First count nodes and relationships
-      const countResult = await session.run(
+      // Delete all relationships and nodes that have ontology_id matching
+      // Uses DETACH DELETE to remove relationships automatically
+      const deleteResult = await session.run(
         `MATCH (n {ontology_id: $ontologyId})
-         OPTIONAL MATCH (n)-[r]-()
-         RETURN count(DISTINCT n) AS nodes, count(r) AS rels`,
+         DETACH DELETE n
+         RETURN count(n) AS deleted`,
         { ontologyId }
       );
 
-      const record = countResult.records[0];
-      const nodesCount = record.get('nodes').toNumber();
-      const relsCount = record.get('rels').toNumber();
+      const nodesWithOntology = deleteResult.records[0]?.get('deleted')?.toNumber() || 0;
 
-      // Delete relationships first (to avoid constraint errors)
-      await session.run(
-        `MATCH (n {ontology_id: $ontologyId})-[r]-()
-         DELETE r`,
-        { ontologyId }
-      );
+      // Also clean up any nodes created by seed data that may not have ontology_id
+      // (legacy data or nodes created by skill executor without ontology_id)
+      // For CRM ontology, match known CRM labels
+      const crmLabels = ['Customer', 'Contact', 'Opportunity', 'VisitRecord', 'SalesRep', 'Lead', 'Quote', 'Need', 'Risk', 'Commitment'];
+      let legacyNodes = 0;
+      let legacyRels = 0;
 
-      // Then delete nodes
-      await session.run(
-        `MATCH (n {ontology_id: $ontologyId})
-         DELETE n`,
-        { ontologyId }
-      );
+      for (const label of crmLabels) {
+        try {
+          const countRes = await session.run(
+            `MATCH (n:${label}) WHERE n.ontology_id IS NULL OR n.ontology_id <> $ontologyId
+             OPTIONAL MATCH (n)-[r]-()
+             RETURN count(DISTINCT n) AS nodes, count(r) AS rels`,
+            { ontologyId }
+          );
+          const rec = countRes.records[0];
+          const n = rec?.get('nodes')?.toNumber() || 0;
+          if (n > 0) {
+            await session.run(
+              `MATCH (n:${label}) WHERE n.ontology_id IS NULL OR n.ontology_id <> $ontologyId
+               DETACH DELETE n`,
+              { ontologyId }
+            );
+            legacyNodes += n;
+            legacyRels += rec?.get('rels')?.toNumber() || 0;
+          }
+        } catch {
+          // Label may not exist, skip
+        }
+      }
 
-      console.log(`✅ Neo4j cleared ${nodesCount} nodes and ${relsCount} relationships for ontology: ${ontologyId}`);
-      return { nodesDeleted: nodesCount, relationshipsDeleted: relsCount };
+      const totalNodes = nodesWithOntology + legacyNodes;
+      console.log(`✅ Neo4j cleared ${totalNodes} nodes (${nodesWithOntology} by ontology_id, ${legacyNodes} legacy) for ontology: ${ontologyId}`);
+      return { nodesDeleted: totalNodes, relationshipsDeleted: legacyRels };
     } catch (error) {
       console.error('Neo4j clearOntologyNodes error:', error);
       return { nodesDeleted: 0, relationshipsDeleted: 0 };

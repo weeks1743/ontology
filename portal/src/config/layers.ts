@@ -13,7 +13,6 @@ export interface LayerConfig {
 export const LAYERS: LayerConfig[] = [
   { id: 'ontology', label: '本体层', type: 'iframe', url: 'http://localhost:5173', color: '#634BFF', icon: Share2 },
   { id: 'ability', label: '能力层', type: 'iframe', url: 'http://localhost:5174', color: '#3B82F6', icon: Zap },
-  { id: 'agent', label: 'Agent 层', type: 'placeholder', color: '#10B981', icon: Bot },
-  { id: 'orchestration', label: '编排层', type: 'placeholder', color: '#F59E0B', icon: Workflow },
+  { id: 'orchestration', label: '场景层', type: 'placeholder', color: '#F59E0B', icon: Workflow },
   { id: 'dialogue', label: '对话层', type: 'placeholder', color: '#EC4899', icon: MessageSquare },
 ];

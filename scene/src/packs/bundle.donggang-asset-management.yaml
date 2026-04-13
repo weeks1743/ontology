@@ -1,0 +1,12 @@
+kind: solution_bundle
+id: donggang_asset_management_bundle
+primary_pack_id: kingdee_fixed_assets_pack
+secondary_pack_ids:
+  - yunzhijia_asset_ops_pack
+assembly_rules:
+  - 先以金蝶作为财务固定资产主账与控制中枢。
+  - 再以云之家承接前端资产台账与轻应用动作。
+  - 通过接口打通卡片、台账、二维码与维保流程。
+narrative_bias:
+  - 强调前后端分层协同，而非单系统包打天下。
+  - 强调历史资产初始化与治理先行。

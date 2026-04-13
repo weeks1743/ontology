@@ -1,0 +1,62 @@
+kind: industry_template
+id: it_enterprise_software
+name: IT 企业软件
+terminology:
+  - 金蝶
+  - 云之家
+  - 固定资产
+  - 财务
+  - 台账
+  - 接口
+  - 轻应用
+  - OA
+  - 二维码
+analysis_dimensions:
+  - id: asset_governance
+    label: 资产治理成熟度
+    description: 关注账实一致性、历史资产处理和编码规范。
+  - id: finance_business_split
+    label: 财务与业务承接分层
+    description: 关注财务主账与业务动作是否职责清晰、接口通顺。
+  - id: operational_resilience
+    label: 运维与安全韧性
+    description: 关注补丁、漏洞、停服、审批中断和交接机制。
+current_state_patterns:
+  - id: mismatch
+    label: 账实不符与历史资产追溯弱
+    match_any:
+      - 账实不符
+      - 历史资产
+      - 盘点
+      - 初始化
+      - 编码规则
+  - id: split
+    label: 财务主账与业务前端存在割裂
+    match_any:
+      - ES系统
+      - 财务视角
+      - 云之家
+      - 轻应用
+      - 台账
+      - 接口打通
+  - id: operations
+    label: 运维与安全治理存在薄弱环节
+    match_any:
+      - 补丁
+      - 漏洞
+      - 停服
+      - 单点登录
+      - 公网
+recommendation_patterns:
+  - id: staged_rollout
+    label: 分阶段上线
+    description: 先基线、再主账、后轻应用承接，降低历史包袱与实施风险。
+  - id: governance
+    label: 治理先行
+    description: 把补丁、安全、交接、问题闭环纳入实施治理条款。
+evidence_rules:
+  min_refs_per_section: 1
+  allowed_ref_types:
+    - sentence
+    - chapter
+    - action

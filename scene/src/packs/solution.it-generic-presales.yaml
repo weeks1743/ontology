@@ -1,0 +1,22 @@
+kind: solution_pack
+id: it_generic_presales_pack
+vendor: 场景层
+role: fallback
+industry_id: it_enterprise_software
+topic_signals:
+  - 系统
+  - 信息化
+  - 管理
+current_state_patterns:
+  - 客户存在信息化分层不清、治理口径不一、运营承接不完整的问题。
+output_patterns:
+  - id: generic_architecture
+    title: 分层信息化架构
+    body: 采用主数据/主账与业务运营前端分层的方式，形成可治理、可追溯、可协同的信息化架构。
+recommendation_patterns:
+  - id: generic_rollout
+    body: 先梳理核心对象、流程和接口边界，再分阶段落地，降低跨系统改造风险。
+forbidden_claims:
+  - 不输出具体厂商承诺。
+source_refs:
+  - tongyi:summary

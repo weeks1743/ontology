@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+body {
+  font-family: "Inter", "PingFang SC", sans-serif;
+  background: #0A0A0B;
+  color: #f5f5f5;
+}
+a { color: inherit; }
+button, input, select, textarea { font: inherit; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

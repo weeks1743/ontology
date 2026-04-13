@@ -1,0 +1,29 @@
+kind: scenario_template
+id: presales_visit_ppt
+name: 售前拜访生成 PPT
+business_goal: 基于客户拜访录音与行业方案包，生成可供后续通用 PPT 能力消费的结构化售前章节合同。
+required_inputs:
+  - tongyi_output_fixture
+  - customer_name
+  - visit_theme
+section_contracts:
+  - id: customer_profile
+    title: 客户基本情况
+    objective: 交代客户背景、会议主题和当前关注议题。
+  - id: current_state
+    title: 信息化现状分析
+    objective: 从真实录音中提炼现状断点、系统问题和业务风险。
+  - id: target_output
+    title: 信息化输出
+    objective: 描述适合客户的方案组合、能力边界和目标蓝图。
+  - id: recommendations
+    title: 信息化建议
+    objective: 形成可落地的实施建议与推进动作。
+fallback_policy:
+  generic_pack_id: it_generic_presales_pack
+  min_pack_score: 0.32
+observability_metrics:
+  - resolution_confidence
+  - section_evidence_coverage
+  - selected_pack_count
+  - fallback_used

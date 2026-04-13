@@ -1,0 +1,36 @@
+kind: solution_pack
+id: kingdee_fixed_assets_pack
+vendor: 金蝶
+role: primary
+industry_id: it_enterprise_software
+topic_signals:
+  - 金蝶
+  - 固定资产
+  - 财务
+  - 卡片
+  - 折旧
+  - 摊销
+  - 合同
+  - 采购
+current_state_patterns:
+  - 财务资产主账已经具备基础，但历史资产追溯、账实一致性和卡片治理仍待加强。
+  - 固定资产采购、合同、卡片、折旧摊销链路需要作为主干系统统一治理。
+output_patterns:
+  - id: finance_main_ledger
+    title: 金蝶固定资产主账
+    body: 以金蝶固定资产模块承接采购、合同、卡片、折旧摊销和报废处置，统一财务主账口径。
+  - id: finance_controls
+    title: 财务控制与追溯
+    body: 通过标准卡片、编码规则和初始化基准点，建立固定资产全生命周期的财务可追溯链路。
+recommendation_patterns:
+  - id: baseline_cutover
+    body: 以 2026 年 6 月盘点结果作为初始化基准点，历史资产分类处理，避免全量追历史导致项目失控。
+  - id: control_first
+    body: 先把财务主账、卡片与编码体系做稳，再向前台运营动作延展，避免业务端先跑但主账口径失真。
+forbidden_claims:
+  - 不宣称单靠金蝶即可覆盖全部前端领用、调拨、二维码协同体验。
+  - 不承诺历史资产无需治理即可自动清洗完成。
+source_refs:
+  - tongyi:keywords
+  - tongyi:qa
+  - tongyi:chapters

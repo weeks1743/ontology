@@ -1,0 +1,37 @@
+kind: solution_pack
+id: yunzhijia_asset_ops_pack
+vendor: 云之家
+role: secondary
+industry_id: it_enterprise_software
+topic_signals:
+  - 云之家
+  - 轻应用
+  - OA
+  - 台账
+  - 领用
+  - 调拨
+  - 盘点
+  - 二维码
+  - 维保
+current_state_patterns:
+  - 业务端需要更轻的资产台账、领用归还、调拨盘点和二维码承接能力。
+  - 办公品和低值易耗品不适合强行落入固定资产主账，需要单独库存承接。
+output_patterns:
+  - id: asset_ops_frontend
+    title: 云之家资产运营前端
+    body: 以云之家轻应用承接资产台账、领用、归还、调拨、盘点、报修维保和二维码查询等业务动作。
+  - id: office_supply_extension
+    title: OA/办公品库存延展
+    body: 对低值易耗品与办公品建立独立库存与领用流程，避免与固定资产主账混用。
+recommendation_patterns:
+  - id: frontend_extension
+    body: 把资产使用、保管、盘点和二维码追踪放在云之家承接，让业务一线在轻应用侧完成日常动作。
+  - id: boundary_clarification
+    body: 固定资产与办公品分层建模，财务口径与业务口径通过接口同步，而不是在同一流程里硬拼。
+forbidden_claims:
+  - 不宣称云之家替代财务主账与折旧摊销能力。
+  - 不承诺不做接口就能天然实现前后台一致。
+source_refs:
+  - tongyi:keywords
+  - tongyi:qa
+  - tongyi:actions

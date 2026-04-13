@@ -43,6 +43,12 @@ JOBS_LOCK = threading.Lock()
 JOBS: dict[str, dict] = {}
 
 
+class ViewerHTTPServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+    block_on_close = False
+
+
 def now_iso() -> str:
     return datetime.now().isoformat()
 
@@ -1376,9 +1382,14 @@ def main():
     os.chdir(CHAT_ROOT_DIR)
     bootstrap_environment()
     bootstrap_runtime_state()
-    server = ThreadingHTTPServer((HOST, PORT), ViewerHandler)
-    print(f"Serving meeting viewer at http://{HOST}:{PORT}/meeting-viewer/")
-    server.serve_forever()
+    server = ViewerHTTPServer((HOST, PORT), ViewerHandler)
+    try:
+        print(f"Serving meeting viewer at http://{HOST}:{PORT}/meeting-viewer/")
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping meeting viewer server.")
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":

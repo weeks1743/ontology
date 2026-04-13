@@ -439,6 +439,14 @@ function Workspace({
   const isEmpty = useAuiState((state) => state.thread.isEmpty);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageStageRef = useRef<HTMLDivElement>(null);
+
+  // 滚动到底部
+  useEffect(() => {
+    if (messageStageRef.current && !isEmpty) {
+      messageStageRef.current.scrollTop = messageStageRef.current.scrollHeight;
+    }
+  }, [messages, isEmpty]);
 
   const onFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -603,7 +611,7 @@ function Workspace({
           </section>
         ) : (
           <section className="conversation">
-            <div className="message-stage">
+            <div className="message-stage" ref={messageStageRef}>
               <div className="message-list">
               {messages.map((message) => {
                 const meta = getMessageMeta(message);

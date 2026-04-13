@@ -35,3 +35,17 @@ Thumbs.db
 # Build artifacts
 build/
 .cache/
+
+# Temporary files
+tmp/
+server/tmp/
+tmp-exec-*
+**/tmp-exec-*
+*.bak
+
+# Agent local config
+.agents/
+
+# Docs (generated summaries)
+PPTX-FIX-SUMMARY.md
+docs/company-research-test-summary.md

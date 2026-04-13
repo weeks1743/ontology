@@ -6,7 +6,6 @@ import { usePortalStore } from './store/portal-store';
 
 export default function App() {
   const activeLayer = usePortalStore((s) => s.activeLayer);
-  const active = LAYERS.find((l) => l.id === activeLayer)!;
 
   return (
     <>

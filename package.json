@@ -2,10 +2,14 @@
   "name": "ontology-workspace",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:ontology\" \"npm run dev:ability\" \"npm run dev:portal\"",
+    "dev": "concurrently \"npm run dev:ontology\" \"npm run dev:ability\" \"npm run dev:scene\" \"npm run dev:portal\" \"npm run dev:chat\"",
     "dev:ontology": "cd ontology && npm run dev",
     "dev:ability": "cd ability && npm run dev",
-    "dev:portal": "cd portal && npm run dev"
+    "dev:scene": "cd scene && npm run dev",
+    "dev:portal": "cd portal && npm run dev",
+    "dev:chat": "concurrently \"npm run dev:chat-api\" \"npm run dev:chat-ui\"",
+    "dev:chat-api": "cd chat && python3 meeting-viewer/server.py",
+    "dev:chat-ui": "cd chat/chat-ui && npm run dev"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

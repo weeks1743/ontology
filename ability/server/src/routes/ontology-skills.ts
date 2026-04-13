@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { nanoid } from 'nanoid';
-import { rmSync, existsSync } from 'fs';
+import { rmSync, existsSync, readdirSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { db } from '../db.js';
@@ -241,6 +241,48 @@ router.get('/builds/:buildVersion/test-plan', (req, res) => {
     }));
 
     res.json({ ...plan, cases: parsedCases });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// GET /api/ontology-skills/:ontologyId/behaviors
+// Returns behaviors from manifest.json files, optionally filtered by trigger_type
+router.get('/:ontologyId/behaviors', (req, res) => {
+  try {
+    const { ontologyId } = req.params;
+    const { trigger_type } = req.query; // e.g. ?trigger_type=PERCEPTIVE
+
+    const skillsDir = getSkillsDir(ontologyId);
+    if (!existsSync(skillsDir)) {
+      return res.status(404).json({ error: `No skills directory for ontology '${ontologyId}'` });
+    }
+
+    const behaviorDirs = readdirSync(skillsDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map(d => d.name);
+
+    const behaviors = behaviorDirs
+      .map(dir => {
+        const manifestPath = join(skillsDir, dir, 'manifest.json');
+        if (!existsSync(manifestPath)) return null;
+        return JSON.parse(readFileSync(manifestPath, 'utf-8'));
+      })
+      .filter(Boolean)
+      .filter((m: any) => m.skill_type === 'behavior')
+      .filter((m: any) => !trigger_type || m.trigger_type === trigger_type)
+      .map((m: any) => ({
+        skill_id: m.skill_id,
+        behavior_code: m.behavior_code,
+        behavior_name_zh: m.behavior_name_zh,
+        owner_object: m.owner_object,
+        trigger_type: m.trigger_type,
+        description: m.input_schema?.[0]?.description ?? '',
+        input_fields: m.input_schema ?? [],
+        result_schema: m.result_schema ?? [],
+      }));
+
+    res.json(behaviors);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

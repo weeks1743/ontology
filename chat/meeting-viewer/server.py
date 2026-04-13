@@ -32,6 +32,17 @@ ALLOWED_UPLOAD_EXTENSIONS = {".m4a", ".mp3"}
 REQUIRED_CONFIG_KEYS = ("DASHSCOPE_API_KEY", "TINGWU_APP_ID")
 ENV_FILES = (SERVICE_ROOT_DIR / ".env", CHAT_ROOT_DIR / ".env")
 VENV_PYTHON = SERVICE_ROOT_DIR / ".venv" / "bin" / "python"
+# ─── Ontology definitions ──────────────────────────────────────────────
+
+ONTOLGIES = [
+    {
+        "id": "crm",
+        "ontology_code": "CRM",
+        "display_name": "CRM",
+        "description": "客户关系管理：线索、商机与客户跟进",
+    },
+]
+
 JOB_STATUS_QUEUED = "queued"
 JOB_STATUS_ANALYZING = "analyzing"
 JOB_STATUS_SUCCEEDED = "succeeded"
@@ -133,6 +144,7 @@ def init_chat_db():
                 assistant_id TEXT NOT NULL,
                 title TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'regular',
+                ontology_id TEXT NOT NULL DEFAULT 'crm',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -156,6 +168,14 @@ def init_chat_db():
             """
         )
 
+        # 兼容旧库：如果缺少 ontology_id 列则自动添加
+        try:
+            connection.execute(
+                "ALTER TABLE chat_threads ADD COLUMN ontology_id TEXT NOT NULL DEFAULT 'crm'"
+            )
+        except Exception:
+            pass  # 列已存在
+
 
 def thread_row_to_dict(row: sqlite3.Row) -> dict:
     return {
@@ -163,6 +183,7 @@ def thread_row_to_dict(row: sqlite3.Row) -> dict:
         "assistantId": row["assistant_id"],
         "title": row["title"],
         "status": row["status"],
+        "ontologyId": row["ontology_id"] if "ontology_id" in row.keys() else "crm",
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
@@ -180,17 +201,28 @@ def message_row_to_dict(row: sqlite3.Row) -> dict:
     }
 
 
-def list_threads_db() -> list[dict]:
+def list_threads_db(ontology_id: Optional[str] = None) -> list[dict]:
     with open_chat_db() as connection:
-        rows = connection.execute(
-            """
-            SELECT id, assistant_id, title, status, created_at, updated_at
-            FROM chat_threads
-            WHERE status = ?
-            ORDER BY updated_at DESC, created_at DESC
-            """,
-            (THREAD_STATUS_REGULAR,),
-        ).fetchall()
+        if ontology_id:
+            rows = connection.execute(
+                """
+                SELECT id, assistant_id, title, status, created_at, updated_at
+                FROM chat_threads
+                WHERE status = ? AND ontology_id = ?
+                ORDER BY updated_at DESC, created_at DESC
+                """,
+                (THREAD_STATUS_REGULAR, ontology_id),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                """
+                SELECT id, assistant_id, title, status, created_at, updated_at
+                FROM chat_threads
+                WHERE status = ?
+                ORDER BY updated_at DESC, created_at DESC
+                """,
+                (THREAD_STATUS_REGULAR,),
+            ).fetchall()
     return [thread_row_to_dict(row) for row in rows]
 
 
@@ -223,20 +255,21 @@ def get_thread_db(thread_id: str) -> Optional[dict]:
     }
 
 
-def create_thread_db(assistant_id: str, title: str = DEFAULT_THREAD_TITLE) -> dict:
+def create_thread_db(assistant_id: str, title: str = DEFAULT_THREAD_TITLE, ontology_id: str = "crm") -> dict:
     thread_id = uuid.uuid4().hex[:16]
     timestamp = now_iso()
     with open_chat_db() as connection:
         connection.execute(
             """
-            INSERT INTO chat_threads (id, assistant_id, title, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO chat_threads (id, assistant_id, title, status, ontology_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 thread_id,
                 assistant_id,
                 title,
                 THREAD_STATUS_REGULAR,
+                ontology_id,
                 timestamp,
                 timestamp,
             ),
@@ -937,8 +970,12 @@ class ViewerHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/chat/config":
             return json_response(self, chat_config_status())
 
+        if parsed.path == "/api/ontologies":
+            return json_response(self, ONTOLGIES)
+
         if parsed.path == "/api/chat/threads":
-            return json_response(self, {"threads": list_threads_db()})
+            ontology_id = parsed.query and dict(q.split("=") for q in parsed.query.split("&") if "=" in q).get("ontology_id")
+            return json_response(self, {"threads": list_threads_db(ontology_id)})
 
         if parsed.path.startswith("/api/chat/threads/"):
             thread_id = parsed.path.rsplit("/", 1)[-1]
@@ -994,8 +1031,9 @@ class ViewerHandler(SimpleHTTPRequestHandler):
                 return json_response(self, {"error": str(error)}, status=400)
 
             assistant_id = str(payload.get("assistantId") or "crm-copilot")
+            ontology_id = str(payload.get("ontologyId") or "crm")
             title = str(payload.get("title") or DEFAULT_THREAD_TITLE)
-            thread = create_thread_db(assistant_id=assistant_id, title=title)
+            thread = create_thread_db(assistant_id=assistant_id, title=title, ontology_id=ontology_id)
             return json_response(self, {"thread": thread}, status=201)
 
         if parsed.path.startswith("/api/chat/threads/") and parsed.path.endswith("/messages"):

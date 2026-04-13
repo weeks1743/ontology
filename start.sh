@@ -10,9 +10,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "🔍 Checking for existing processes..."
 
 # Backend ports
-BACKEND_PORTS=(3001 3002)
+BACKEND_PORTS=(3001 3002 3003 8123)
 # Frontend ports
-FRONTEND_PORTS=(5172 5173 5174)
+FRONTEND_PORTS=(5172 5173 5174 5175 5176)
 ALL_PORTS=("${BACKEND_PORTS[@]}" "${FRONTEND_PORTS[@]}")
 
 KILLED=false
@@ -46,9 +46,13 @@ echo ""
 echo "🚀 Starting dev servers..."
 echo "   Ontology server → :3001"
 echo "   Ability server  → :3002"
+echo "   Scene server    → :3003"
+echo "   Scene layer     → :5176"
 echo "   Portal          → :5172"
 echo "   Ontology app    → :5173"
 echo "   Ability app     → :5174"
+echo "   Chat API        → :8123"
+echo "   Chat UI         → :5175"
 echo ""
 
 cd "$SCRIPT_DIR"

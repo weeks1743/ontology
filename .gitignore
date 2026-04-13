@@ -45,6 +45,16 @@ ability/server/config/skills.json
 ontology/data/*.db
 ontology/data/*.db-shm
 ontology/data/*.db-wal
+scene/server/data/*.db
+scene/server/data/*.db-shm
+scene/server/data/*.db-wal
+scene/data/
+
+# Scene fixtures (large binary assets)
+scene/fixtures/
+
+# Backup files
+*.bak
 
 # Project specific
 材料/

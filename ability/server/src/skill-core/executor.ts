@@ -498,7 +498,8 @@ Output ONLY the slide blocks that will be inserted into the main code.
 
 ### Options objects:
 - NEVER reuse the same options object (shadow, fill, etc.) across multiple addShape/addText calls
-- Use a factory function: const mkShadow = () => ({ type: "outer", blur: 6, offset: 2, color: "000000", opacity: 0.15 })
+- A mkShadow(color, opacity) helper IS already defined in the wrapper code — you can call mkShadow() directly
+- For other reusable options, define your own factory function inline (e.g. const mkFill = (c) => ({ color: c }))
 
 ### Bullets:
 - Use bullet: true — NEVER use Unicode bullet characters like "•" (causes double bullets)
@@ -594,7 +595,10 @@ const COLORS = {
   accent: 'FFFFFF',
 };
 
-${cleanParts.join('\n\n')}
+// 工具函数：避免跨调用复用 options 对象（PptxGenJS 会就地修改）
+const mkShadow = (color = '000000', opacity = 0.15) => ({ type: 'outer', blur: 6, offset: 2, color, opacity });
+
+${cleanParts.map(p => `{\n${p}\n}`).join('\n\n')}
 
 // 保存文件
 const fileName = '${outputPath}';

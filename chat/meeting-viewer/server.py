@@ -160,6 +160,31 @@ def init_chat_db():
                 FOREIGN KEY(thread_id) REFERENCES chat_threads(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS meeting_speaker_aliases (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                raw_speaker TEXT NOT NULL,
+                alias TEXT NOT NULL,
+                is_internal INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_meeting_speaker_aliases_task
+            ON meeting_speaker_aliases(task_id);
+
+            CREATE TABLE IF NOT EXISTS meeting_profile_results (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL,
+                scenario TEXT NOT NULL,
+                markdown TEXT NOT NULL,
+                excluded_speakers TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_meeting_profile_results_task
+            ON meeting_profile_results(task_id);
+
             CREATE INDEX IF NOT EXISTS idx_chat_threads_updated_at
             ON chat_threads(updated_at DESC);
 
@@ -889,7 +914,8 @@ def build_profile_prompt(scenario: str, transcript: str, speaker_aliases: dict[s
 {transcript}"""
 
 
-def build_profile_markdown(task_id: str, scenario: str, bundle: dict, speaker_aliases: dict[str, str]) -> tuple[str, list[str]]:
+def build_profile_markdown(task_id: str, scenario: str, bundle: dict, speaker_aliases: dict[str, str], excluded_speakers: list[str] | None = None) -> tuple[str, list[str]]:
+    excluded = set(excluded_speakers or [])
     transcription = (bundle.get("assets") or {}).get("transcription") or {}
     paragraphs = transcription.get("paragraphs") or []
     by_speaker: dict[str, list[str]] = {}
@@ -902,9 +928,9 @@ def build_profile_markdown(task_id: str, scenario: str, bundle: dict, speaker_al
         paragraph_text = "".join(word.get("text", "") for word in paragraph.get("words") or [])
         by_speaker.setdefault(label, []).append(paragraph_text)
 
-    speaker_labels = list(by_speaker.keys())
+    speaker_labels = [s for s in by_speaker.keys() if s not in excluded]
     aliased_transcript = apply_speaker_aliases(
-        "\n".join(f"{label}: {' '.join(lines)}" for label, lines in by_speaker.items()),
+        "\n".join(f"{label}: {' '.join(lines)}" for label, lines in by_speaker.items() if label not in excluded),
         speaker_aliases,
     )
     prompt = build_profile_prompt(scenario, aliased_transcript, speaker_aliases)
@@ -958,6 +984,82 @@ def save_profile_markdown(task_id: str, scenario: str, content: str) -> str:
     return f"/tongyi-agent/outputs/{task_id}/{PROFILE_DIR_NAME}/{file_name}"
 
 
+def save_speaker_aliases_db(task_id: str, aliases: list[dict]):
+    """Save speaker aliases (alias + is_internal) to DB, upsert."""
+    now = datetime.utcnow().isoformat()
+    with open_chat_db() as conn:
+        for entry in aliases:
+            raw_speaker = entry.get("rawSpeaker", "")
+            alias = entry.get("alias", "")
+            is_internal = 1 if entry.get("isInternal") else 0
+            conn.execute(
+                """
+                INSERT INTO meeting_speaker_aliases (id, task_id, raw_speaker, alias, is_internal, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET alias=excluded.alias, is_internal=excluded.is_internal, updated_at=excluded.updated_at
+                """,
+                (
+                    f"{task_id}:{raw_speaker}",
+                    task_id,
+                    raw_speaker,
+                    alias,
+                    is_internal,
+                    now,
+                    now,
+                ),
+            )
+
+
+def get_speaker_aliases_from_db(task_id: str) -> list[dict]:
+    """Load speaker aliases for a task from DB."""
+    with open_chat_db() as conn:
+        rows = conn.execute(
+            "SELECT raw_speaker, alias, is_internal FROM meeting_speaker_aliases WHERE task_id = ?",
+            (task_id,),
+        ).fetchall()
+        return [
+            {"rawSpeaker": r["raw_speaker"], "alias": r["alias"], "isInternal": bool(r["is_internal"])}
+            for r in rows
+        ]
+
+
+def save_profile_result_db(task_id: str, scenario: str, markdown: str, excluded_speakers: list[str]):
+    """Save profile analysis result to DB, upsert."""
+    now = datetime.utcnow().isoformat()
+    with open_chat_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO meeting_profile_results (id, task_id, scenario, markdown, excluded_speakers, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET markdown=excluded.markdown, excluded_speakers=excluded.excluded_speakers, created_at=excluded.created_at
+            """,
+            (
+                f"{task_id}:{scenario}",
+                task_id,
+                scenario,
+                markdown,
+                json.dumps(excluded_speakers, ensure_ascii=False),
+                now,
+            ),
+        )
+
+
+def get_profile_result_from_db(task_id: str, scenario: str) -> Optional[dict]:
+    """Load profile analysis result from DB."""
+    with open_chat_db() as conn:
+        row = conn.execute(
+            "SELECT markdown, excluded_speakers, created_at FROM meeting_profile_results WHERE task_id = ? AND scenario = ?",
+            (task_id, scenario),
+        ).fetchone()
+        if row:
+            return {
+                "markdown": row["markdown"],
+                "excludedSpeakers": json.loads(row["excluded_speakers"]),
+                "createdAt": row["created_at"],
+            }
+        return None
+
+
 class ViewerHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(CHAT_ROOT_DIR), **kwargs)
@@ -997,6 +1099,18 @@ class ViewerHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/tasks":
             return json_response(self, {"tasks": list_tasks()})
 
+        if parsed.path.startswith("/api/task/") and parsed.path.endswith("/speaker-aliases"):
+            task_id = parsed.path.split("/")[3]
+            aliases = get_speaker_aliases_from_db(task_id)
+            return json_response(self, {"taskId": task_id, "aliases": aliases})
+
+        if parsed.path.startswith("/api/task/") and parsed.path.endswith("/profile-result"):
+            task_id = parsed.path.split("/")[3]
+            result = get_profile_result_from_db(task_id, "crm_visit")
+            if result:
+                return json_response(self, result)
+            return json_response(self, {"error": "No profile result found"}, status=404)
+
         if parsed.path.startswith("/api/task/"):
             task_id = parsed.path.rsplit("/", 1)[-1]
             bundle = load_task_bundle(task_id)
@@ -1035,6 +1149,17 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             title = str(payload.get("title") or DEFAULT_THREAD_TITLE)
             thread = create_thread_db(assistant_id=assistant_id, title=title, ontology_id=ontology_id)
             return json_response(self, {"thread": thread}, status=201)
+
+        if parsed.path.startswith("/api/task/") and parsed.path.endswith("/speaker-aliases"):
+            task_id = parsed.path.split("/")[3]
+            try:
+                payload = self._read_json_body()
+            except ValueError as error:
+                return json_response(self, {"error": str(error)}, status=400)
+
+            aliases = payload.get("aliases") or []
+            save_speaker_aliases_db(task_id, aliases)
+            return json_response(self, {"taskId": task_id, "aliases": aliases})
 
         if parsed.path.startswith("/api/chat/threads/") and parsed.path.endswith("/messages"):
             thread_id = parsed.path.split("/")[4]
@@ -1174,55 +1299,37 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             except ValueError as error:
                 return json_response(self, {"error": str(error)}, status=400)
 
-            scenario = payload.get("scenario") or "interview"
+            scenario = payload.get("scenario") or "crm_visit"
             speaker_aliases = payload.get("speaker_aliases") or {}
+            internal_speakers = payload.get("internal_speakers") or []
             if scenario not in {"interview", "crm_visit"}:
                 return json_response(self, {"error": "Invalid scenario"}, status=400)
 
+            # Build markdown excluding internal members
+            external_aliases = {k: v for k, v in speaker_aliases.items() if k not in internal_speakers}
             markdown, prompt_parts = build_profile_markdown(
                 task_id=task_id,
                 scenario=scenario,
                 bundle=bundle,
-                speaker_aliases=speaker_aliases,
+                speaker_aliases=external_aliases,
+                excluded_speakers=internal_speakers,
             )
-            markdown_url = save_profile_markdown(task_id, scenario, markdown)
-            prompt = prompt_parts[0]
-            speakers = prompt_parts[1:]
+            # Save result to DB
+            save_profile_result_db(task_id, scenario, markdown, internal_speakers)
 
             return json_response(
                 self,
                 {
                     "taskId": task_id,
                     "scenario": scenario,
-                    "prompt": prompt,
                     "markdown": markdown,
-                    "markdownUrl": markdown_url,
-                    "detectedSpeakers": speakers,
-                    "appliedAliases": speaker_aliases,
+                    "excludedSpeakers": internal_speakers,
                 },
             )
 
         return json_response(self, {"error": "Not found"}, status=404)
 
     def do_PATCH(self):
-        parsed = urlparse(self.path)
-        if parsed.path.startswith("/api/chat/threads/") and "/messages/" in parsed.path:
-            parts = parsed.path.strip("/").split("/")
-            if len(parts) == 6 and parts[:3] == ["api", "chat", "threads"] and parts[4] == "messages":
-                thread_id = parts[3]
-                message_id = parts[5]
-                try:
-                    payload = self._read_json_body()
-                except ValueError as error:
-                    return json_response(self, {"error": str(error)}, status=400)
-                updated = update_message_payload_db(thread_id, message_id, payload)
-                if updated is None:
-                    return json_response(self, {"error": "Message not found"}, status=404)
-                return json_response(self, {"message": updated})
-
-        return json_response(self, {"error": "Not found"}, status=404)
-
-    def do_HEAD(self):
         parsed = urlparse(self.path)
         if self._should_handle_with_range(parsed.path):
             return self._serve_file_with_range(send_body=False)

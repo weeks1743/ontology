@@ -10,8 +10,8 @@ const state = {
   mindmapPan: { x: 0, y: 0, startLeft: 0, startTop: 0, dragging: false, moved: false },
   globalSpeakerAliases: {},
   taskSpeakerAliases: {},
-  selectedSpeakerKey: "",
-  profileScenario: "interview",
+  internalSpeakers: {},  // { rawSpeaker: true/false }
+  profileScenario: "crm_visit",
   profileResult: null,
   profileBusy: false,
   layoutMode: "both",
@@ -59,15 +59,8 @@ function bindElements() {
   els.zoomInButton = document.getElementById("zoomInButton");
   els.zoomOutButton = document.getElementById("zoomOutButton");
   els.zoomResetButton = document.getElementById("zoomResetButton");
-  els.profileScenario = document.getElementById("profileScenario");
-  els.analyzeProfileButton = document.getElementById("analyzeProfileButton");
-  els.profileOpenLink = document.getElementById("profileOpenLink");
   els.profileSpeakerList = document.getElementById("profileSpeakerList");
-  els.speakerAliasInput = document.getElementById("speakerAliasInput");
-  els.applySpeakerSingle = document.getElementById("applySpeakerSingle");
-  els.applySpeakerGlobal = document.getElementById("applySpeakerGlobal");
-  els.globalAliasList = document.getElementById("globalAliasList");
-  els.profilePrompt = document.getElementById("profilePrompt");
+  els.saveSpeakerAliases = document.getElementById("saveSpeakerAliases");
   els.profileMarkdown = document.getElementById("profileMarkdown");
   els.workspace = document.querySelector(".workspace");
   els.splitter = document.getElementById("splitter");
@@ -145,14 +138,7 @@ function bindEvents() {
     applyMindmapZoom();
   });
 
-  els.profileScenario.addEventListener("change", () => {
-    state.profileScenario = els.profileScenario.value;
-    state.profileResult = null;
-    renderProfileView();
-  });
-  els.analyzeProfileButton.addEventListener("click", analyzeProfile);
-  els.applySpeakerSingle.addEventListener("click", applyTaskSpeakerAlias);
-  els.applySpeakerGlobal.addEventListener("click", applyGlobalSpeakerAlias);
+  els.saveSpeakerAliases.addEventListener("click", saveSpeakerAliases);
   els.showLeftOnly.addEventListener("click", () => setWorkspaceLayout("left-only"));
   els.showBothPanels.addEventListener("click", () => setWorkspaceLayout("both"));
   els.showRightOnly.addEventListener("click", () => setWorkspaceLayout("right-only"));
@@ -201,8 +187,37 @@ async function loadTask(taskId) {
   state.profileResult = null;
   state.globalSpeakerAliases = loadJsonStorage(GLOBAL_ALIAS_STORAGE_KEY);
   state.taskSpeakerAliases = loadJsonStorage(taskAliasStorageKey(taskId));
-  state.selectedSpeakerKey = state.bundle.speakerLabels[0] || "";
-  state.profileScenario = "interview";
+  state.internalSpeakers = {};
+  state.profileScenario = "crm_visit";
+
+  // Load saved internal speakers from DB
+  try {
+    const aliasResp = await fetch(`/api/task/${taskId}/speaker-aliases`);
+    if (aliasResp.ok) {
+      const aliasData = await aliasResp.json();
+      (aliasData.aliases || []).forEach((a) => {
+        if (a.isInternal) {
+          state.internalSpeakers[a.rawSpeaker] = true;
+        }
+      });
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // Load saved profile result from DB
+  try {
+    const profileResp = await fetch(`/api/task/${taskId}/profile-result`);
+    if (profileResp.ok) {
+      const profileData = await profileResp.json();
+      if (profileData.markdown) {
+        state.profileResult = profileData;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
   hideTimelineTooltip();
   render();
 }
@@ -872,8 +887,7 @@ function renderStructuredSummary(content) {
 }
 
 function renderProfileView() {
-  els.profileScenario.value = state.profileScenario;
-  renderSpeakerAliasPanel();
+  renderSpeakerEditList();
   renderProfileResult();
 }
 
@@ -926,66 +940,97 @@ function updateSplitterRatio(clientX) {
   els.workspace.style.setProperty("--left-panel-width", `${relative * 100}%`);
 }
 
-function renderSpeakerAliasPanel() {
+function renderSpeakerEditList() {
   const speakerLabels = state.bundle?.speakerLabels || [];
-  if (!state.selectedSpeakerKey && speakerLabels.length > 0) {
-    state.selectedSpeakerKey = speakerLabels[0];
+
+  if (!speakerLabels.length) {
+    els.profileSpeakerList.innerHTML = `<div class="helper-text">当前任务没有可编辑的发言人。</div>`;
+    return;
   }
 
-  els.profileSpeakerList.innerHTML = speakerLabels.length
-    ? speakerLabels
-        .map((speaker) => {
-          const alias = getSpeakerDisplayName(speaker);
-          const selected = state.selectedSpeakerKey === speaker ? "is-active" : "";
-          return `
-            <button class="speaker-chip ${selected}" data-speaker="${speaker}" type="button">
-              ${escapeHtml(speaker)}
-              ${alias !== speaker ? `<span class="speaker-chip__alias">→ ${escapeHtml(alias)}</span>` : ""}
-            </button>
-          `;
-        })
-        .join("")
-    : `<div class="helper-text">当前任务没有可编辑的发言人。</div>`;
-
-  els.profileSpeakerList.querySelectorAll("[data-speaker]").forEach((node) => {
-    node.addEventListener("click", () => {
-      state.selectedSpeakerKey = node.dataset.speaker;
-      els.speakerAliasInput.value = getStoredAlias(node.dataset.speaker) || "";
-      renderSpeakerAliasPanel();
-    });
-  });
-
-  els.speakerAliasInput.value = getStoredAlias(state.selectedSpeakerKey) || "";
-  renderGlobalAliasList();
+  els.profileSpeakerList.innerHTML = speakerLabels
+    .map((speaker) => {
+      const alias = getStoredAlias(speaker);
+      const isInternal = state.internalSpeakers[speaker] || false;
+      const checked = isInternal ? "checked" : "";
+      return `
+        <div class="speaker-edit-row" data-speaker="${speaker}">
+          <span class="speaker-edit-label">${escapeHtml(speaker)}</span>
+          <input class="speaker-edit-input" type="text" placeholder="输入真实姓名，如张三" value="${escapeHtml(alias)}" />
+          <span class="speaker-internal-check">
+            <input type="checkbox" class="speaker-internal-cb" ${checked} />
+          </span>
+        </div>
+      `;
+    })
+    .join("");
 }
 
-function renderGlobalAliasList() {
-  const entries = Object.entries(state.globalSpeakerAliases);
-  els.globalAliasList.innerHTML = entries.length
-    ? entries
-        .map(
-          ([raw, alias]) =>
-            `<span class="global-alias-pill">${escapeHtml(raw)} → ${escapeHtml(alias)}</span>`,
-        )
-        .join("")
-    : `<span class="helper-text">暂无全局发言人映射。</span>`;
+async function saveSpeakerAliases() {
+  const taskId = state.bundle.id;
+  const rows = els.profileSpeakerList.querySelectorAll(".speaker-edit-row");
+  const aliases = [];
+
+  rows.forEach((row) => {
+    const speaker = row.dataset.speaker;
+    const input = row.querySelector(".speaker-edit-input");
+    const cb = row.querySelector(".speaker-internal-cb");
+    const alias = input?.value.trim() || "";
+    const isInternal = cb?.checked || false;
+    aliases.push({ rawSpeaker: speaker, alias, isInternal });
+  });
+
+  // Save to localStorage for UI display
+  rows.forEach((row) => {
+    const speaker = row.dataset.speaker;
+    const input = row.querySelector(".speaker-edit-input");
+    const cb = row.querySelector(".speaker-internal-cb");
+    const alias = input?.value.trim() || "";
+    const isInternal = cb?.checked || false;
+    if (alias) {
+      state.globalSpeakerAliases[speaker] = alias;
+      state.taskSpeakerAliases[speaker] = alias;
+    } else {
+      delete state.globalSpeakerAliases[speaker];
+      delete state.taskSpeakerAliases[speaker];
+    }
+    state.internalSpeakers[speaker] = isInternal;
+  });
+
+  saveJsonStorage(taskAliasStorageKey(taskId), state.taskSpeakerAliases);
+  saveJsonStorage(GLOBAL_ALIAS_STORAGE_KEY, state.globalSpeakerAliases);
+
+  // Save to DB
+  try {
+    await fetch(`/api/task/${taskId}/speaker-aliases`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ aliases }),
+    });
+  } catch (e) {
+    console.error("Failed to save speaker aliases to DB:", e);
+  }
+
+  renderTranscript();
+  renderSpeakerSummaries();
+  renderSpeakerEditList();
+
+  // Trigger profile analysis after saving
+  await analyzeProfile();
 }
 
 function renderProfileResult() {
   if (!state.profileResult) {
-    els.profilePrompt.textContent = "选择场景后点击“生成画像 md”，这里会展示用于和大模型交互的提示词。";
-    els.profileMarkdown.innerHTML = "生成后的结构化画像会显示在这里，并同步写入 md 文件。";
-    els.profileOpenLink.classList.add("is-hidden");
-    els.profileOpenLink.removeAttribute("href");
-    els.analyzeProfileButton.textContent = state.profileBusy ? "生成中..." : "生成画像 md";
+    els.profileMarkdown.innerHTML = "点击&quot;保存并分析&quot;后，结构化画像会显示在这里，并保存到数据库。";
     return;
   }
 
-  els.profilePrompt.textContent = state.profileResult.prompt;
   els.profileMarkdown.innerHTML = renderProfileMarkdown(state.profileResult.markdown);
-  els.profileOpenLink.href = state.profileResult.markdownUrl;
-  els.profileOpenLink.classList.remove("is-hidden");
-  els.analyzeProfileButton.textContent = state.profileBusy ? "生成中..." : "生成画像 md";
+  const excluded = state.profileResult.excludedSpeakers || [];
+  if (excluded.length > 0) {
+    const excludedHtml = excluded.map((s) => `<span class="global-alias-pill">${escapeHtml(s)}</span>`).join("");
+    els.profileMarkdown.innerHTML = `<div style="margin-bottom:12px;font-size:13px;color:var(--muted)">已排除我司成员：${excludedHtml}</div>` + els.profileMarkdown.innerHTML;
+  }
 }
 
 async function analyzeProfile() {
@@ -994,17 +1039,30 @@ async function analyzeProfile() {
   }
 
   state.profileBusy = true;
+  els.saveSpeakerAliases.textContent = "分析中...";
+  els.saveSpeakerAliases.disabled = true;
   renderProfileResult();
 
   try {
+    const speakerAliases = {};
+    Object.entries(state.taskSpeakerAliases).forEach(([k, v]) => {
+      if (v) speakerAliases[k] = v;
+    });
+    Object.entries(state.globalSpeakerAliases).forEach(([k, v]) => {
+      if (v && !speakerAliases[k]) speakerAliases[k] = v;
+    });
+
+    const internalSpeakers = Object.entries(state.internalSpeakers)
+      .filter(([, v]) => v)
+      .map(([k]) => k);
+
     const response = await fetch(`/api/task/${state.bundle.id}/profile-analysis`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         scenario: state.profileScenario,
-        speaker_aliases: getMergedSpeakerAliases(),
+        speaker_aliases: speakerAliases,
+        internal_speakers: internalSpeakers,
       }),
     });
     const payload = await response.json();
@@ -1014,46 +1072,15 @@ async function analyzeProfile() {
     state.profileResult = payload;
   } catch (error) {
     state.profileResult = {
-      prompt: "生成失败",
-      markdown: `# 画像分析失败\n\n- 错误信息：${(error).message || "未知错误"}`,
-      markdownUrl: "#",
+      markdown: `# 画像分析失败\n\n- 错误信息：${error.message || "未知错误"}`,
+      excludedSpeakers: [],
     };
   } finally {
     state.profileBusy = false;
+    els.saveSpeakerAliases.textContent = "保存并分析";
+    els.saveSpeakerAliases.disabled = false;
     renderProfileResult();
   }
-}
-
-function applyTaskSpeakerAlias() {
-  const speaker = state.selectedSpeakerKey;
-  const alias = els.speakerAliasInput.value.trim();
-  if (!speaker || !alias) {
-    return;
-  }
-  state.taskSpeakerAliases[speaker] = alias;
-  saveJsonStorage(taskAliasStorageKey(state.bundle.id), state.taskSpeakerAliases);
-  state.profileResult = null;
-  renderTranscript();
-  renderSpeakerSummaries();
-  renderSpeakerAliasPanel();
-  renderProfileResult();
-}
-
-function applyGlobalSpeakerAlias() {
-  const speaker = state.selectedSpeakerKey;
-  const alias = els.speakerAliasInput.value.trim();
-  if (!speaker || !alias) {
-    return;
-  }
-  state.taskSpeakerAliases[speaker] = alias;
-  state.globalSpeakerAliases[speaker] = alias;
-  saveJsonStorage(taskAliasStorageKey(state.bundle.id), state.taskSpeakerAliases);
-  saveJsonStorage(GLOBAL_ALIAS_STORAGE_KEY, state.globalSpeakerAliases);
-  state.profileResult = null;
-  renderTranscript();
-  renderSpeakerSummaries();
-  renderSpeakerAliasPanel();
-  renderProfileResult();
 }
 
 function parseSummaryHeading(line) {
@@ -1189,10 +1216,6 @@ function saveJsonStorage(key, value) {
 
 function getStoredAlias(rawLabel) {
   return state.taskSpeakerAliases[rawLabel] || state.globalSpeakerAliases[rawLabel] || "";
-}
-
-function getMergedSpeakerAliases() {
-  return { ...state.globalSpeakerAliases, ...state.taskSpeakerAliases };
 }
 
 function getSpeakerDisplayName(rawLabel) {

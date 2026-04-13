@@ -14,5 +14,10 @@
     "display_name": "火山方舟联网搜索",
     "emoji": "🌐",
     "github_path": "volcengine-web-search"
+  },
+  "pptx": {
+    "display_name": "PowerPoint 演示文稿",
+    "emoji": "📑",
+    "github_path": "pptx"
   }
 }

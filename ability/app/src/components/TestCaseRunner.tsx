@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Play, CheckCircle, XCircle, AlertCircle, ExternalLink, Download, Loader2 } from 'lucide-react';
+import { Play, CheckCircle, XCircle, AlertCircle, ExternalLink, Download, Loader2, Terminal } from 'lucide-react';
 
 interface TestCase {
   id: string;
@@ -19,6 +19,18 @@ interface TestCase {
   htmlUrl?: string;
   htmlContent?: string;
   progress?: string;
+  /** agent 模式：实时流式输出 */
+  agentOutput?: string;
+  /** agent 模式标识 */
+  executionStyle?: 'api' | 'agent';
+  /** agent 模式：传给 claude CLI 的完整 instruction */
+  agentInstruction?: string;
+  /** 输出格式类型 */
+  outputFormat?: 'html' | 'markdown' | 'pptx';
+  /** 输出文件 URL */
+  outputFileUrl?: string;
+  /** 输出文件内容 */
+  outputFileContent?: string;
 }
 
 interface TestCaseRunnerProps {
@@ -49,30 +61,43 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
   };
 
   const handleDownload = (testCase: TestCase) => {
+    const format = testCase.outputFormat || 'html';
+    const fileExtension = format === 'markdown' ? 'md' : format === 'pptx' ? 'pptx' : 'html';
+
     // 优先使用服务器持久化 URL 下载
-    if (testCase.htmlUrl && testCase.htmlUrl.startsWith('/tmp/')) {
-      const link = document.createElement('a');
-      link.href = testCase.htmlUrl;
-      link.download = `${testCase.skillId || testCase.skill_id}-${testCase.id}.html`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => document.body.removeChild(link), 100);
+    if (testCase.outputFileUrl && testCase.outputFileUrl.startsWith('/tmp/')) {
+      // 直接通过服务器 URL 下载
+      window.location.href = testCase.outputFileUrl;
       return;
     }
 
-    // 降级：使用 htmlContent 创建 blob
-    if (!testCase.htmlContent) {
-      alert('HTML 内容为空，无法下载');
+    // 兼容旧的 htmlUrl
+    if (testCase.htmlUrl && testCase.htmlUrl.startsWith('/tmp/')) {
+      window.location.href = testCase.htmlUrl;
       return;
     }
+
+    // 降级：使用内容创建 blob（仅用于 HTML 和 Markdown）
+    const content = testCase.outputFileContent || testCase.htmlContent;
+    if (!content) {
+      alert('文件内容为空，无法下载');
+      return;
+    }
+
+    // PPTX 不支持 blob 下载
+    if (format === 'pptx') {
+      alert('PPTX 文件必须从服务器下载，请确保文件已生成');
+      return;
+    }
+
+    const mimeType = format === 'markdown' ? 'text/markdown' : 'text/html';
 
     try {
-      const blob = new Blob([testCase.htmlContent], { type: 'text/html;charset=utf-8' });
+      const blob = new Blob([content], { type: `${mimeType};charset=utf-8` });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${testCase.skillId || testCase.skill_id}-${testCase.id}.html`;
+      link.download = `${testCase.id}.${fileExtension}`;
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
@@ -159,6 +184,13 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold">{testCase.id}</span>
                     <span className="text-sm text-gray-400">{testCase.name || testCase.case_name_zh}</span>
+                    {/* Agent 模式标签已隐藏 */}
+                    {/* {testCase.executionStyle === 'agent' && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-500/20 text-violet-400 rounded text-xs">
+                        <Terminal size={10} />
+                        Agent
+                      </span>
+                    )} */}
                   </div>
                   <p className="text-sm text-gray-400 mb-2">{testCase.description || testCase.description_zh}</p>
 
@@ -170,13 +202,27 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                     </div>
                   )}
 
-                  {/* 输入参数 */}
+                  {/* Agent 流式输出（运行中实时显示，完成后保留） */}
+                  {testCase.executionStyle === 'agent' && testCase.agentOutput && (
+                    <details className="text-sm mt-2" open={testCase.status === 'running'}>
+                      <summary className="cursor-pointer text-violet-400 hover:text-violet-300">
+                        {testCase.status === 'running' ? '实时输出（流式）' : '查看 Agent 完整输出'}
+                      </summary>
+                      <pre className="mt-2 p-3 bg-black/40 border border-violet-500/20 rounded text-xs overflow-auto max-h-80 whitespace-pre-wrap break-words font-mono leading-relaxed">
+                        {testCase.agentOutput}
+                      </pre>
+                    </details>
+                  )}
+
+                  {/* 输入参数 / Agent 指令 */}
                   <details className="text-sm">
                     <summary className="cursor-pointer text-indigo-400 hover:text-indigo-300">
-                      查看参数
+                      {testCase.executionStyle === 'agent' ? '查看指令' : '查看参数'}
                     </summary>
-                    <pre className="mt-2 p-3 bg-black/30 rounded text-xs overflow-auto">
-                      {JSON.stringify(testCase.params, null, 2)}
+                    <pre className="mt-2 p-3 bg-black/30 rounded text-xs overflow-auto whitespace-pre-wrap break-words">
+                      {testCase.executionStyle === 'agent'
+                        ? (testCase.agentInstruction || '（未配置 agentInstruction）')
+                        : JSON.stringify(testCase.params, null, 2)}
                     </pre>
                   </details>
 
@@ -194,10 +240,11 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                     </details>
                   )}
 
-                  {/* HTML 报告操作 */}
-                  {(testCase.htmlUrl || testCase.htmlContent) && (
+                  {/* 文件输出操作 */}
+                  {(testCase.outputFileUrl || testCase.outputFileContent || testCase.htmlUrl || testCase.htmlContent) && (
                     <div className="flex items-center gap-2 mt-2">
-                      {testCase.htmlUrl && (
+                      {/* HTML 格式：显示打开和下载按钮 */}
+                      {testCase.outputFormat === 'html' && testCase.htmlUrl && (
                         <a
                           href={testCase.htmlUrl}
                           target="_blank"
@@ -208,7 +255,39 @@ export default function TestCaseRunner({ testCases, onRunTest, onRunAll }: TestC
                           打开 HTML 报告
                         </a>
                       )}
-                      {testCase.htmlContent && (
+                      {/* Markdown 格式：只显示下载按钮 */}
+                      {testCase.outputFormat === 'markdown' && (
+                        <button
+                          onClick={() => handleDownload(testCase)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                        >
+                          <Download size={14} />
+                          下载 Markdown
+                        </button>
+                      )}
+                      {/* PPTX 格式：只显示下载按钮 */}
+                      {testCase.outputFormat === 'pptx' && (
+                        <button
+                          onClick={() => handleDownload(testCase)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 text-orange-400 rounded-lg text-sm hover:bg-orange-500/30 transition-colors"
+                        >
+                          <Download size={14} />
+                          下载 PPTX
+                        </button>
+                      )}
+                      {/* 兼容旧的 HTML 输出（没有指定 outputFormat） */}
+                      {!testCase.outputFormat && testCase.htmlUrl && (
+                        <a
+                          href={testCase.htmlUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg text-sm hover:bg-indigo-500/30 transition-colors"
+                        >
+                          <ExternalLink size={14} />
+                          打开 HTML 报告
+                        </a>
+                      )}
+                      {!testCase.outputFormat && (testCase.htmlContent || testCase.outputFileContent) && (
                         <button
                           onClick={() => handleDownload(testCase)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-sm hover:bg-green-500/30 transition-colors"

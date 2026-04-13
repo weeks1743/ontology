@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "skills": {
+    "company-research": {
+      "source": "deanpeters/product-manager-skills",
+      "sourceType": "github",
+      "computedHash": "3d8fbcbb9c6f8b9f9066e0ff2a094d92c3ac7e27d1846231196596ff6e4a3448"
+    },
+    "company-research-pm": {
+      "source": "skills/external/company-research-pm",
+      "sourceType": "local",
+      "version": "1.1.0",
+      "lang": "zh",
+      "upstream": "https://skills.sh/deanpeters/product-manager-skills/company-research",
+      "note": "中文本地化版本，源自 deanpeters/product-manager-skills（产品经理高级版）"
+    },
+    "pptx": {
+      "source": "skills/external/pptx",
+      "sourceType": "local",
+      "version": "1.0.0-zh",
+      "lang": "zh",
+      "upstream": "skills-main/skills/pptx",
+      "license": "Proprietary (Anthropic, PBC)",
+      "note": "中文本地化版本，在 Claude Code 运行环境内合法加载，不用于第三方分发。"
+    }
+  }
+}

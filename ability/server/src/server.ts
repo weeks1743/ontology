@@ -85,6 +85,9 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Ability Layer Server running on http://localhost:${PORT}`);
 });
 
+// Set server timeout to 10 minutes for long-running LLM operations (e.g., PPTX generation with multiple continuations)
+server.timeout = 600000; // 10 minutes
+
 // 优雅关闭
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, closing server...');

@@ -20,6 +20,7 @@
     "nanoid": "^5.0.0",
     "neo4j-driver": "^5.15.0",
     "openai": "^4.104.0",
+    "pptxgenjs": "^4.0.1",
     "zod": "^3.22.0"
   },
   "devDependencies": {

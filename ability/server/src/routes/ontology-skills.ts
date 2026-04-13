@@ -443,4 +443,125 @@ router.post('/clear-runtime-data', async (req, res) => {
   }
 });
 
+// POST /api/ontology-skills/cleanup-customer
+router.post('/cleanup-customer', async (req, res) => {
+  try {
+    const { ontology_id = 'crm', customer_id, customer_name, dry_run = false } = req.body || {};
+    if (!customer_id && !customer_name) {
+      return res.status(400).json({ error: 'customer_id or customer_name is required' });
+    }
+
+    const { mongoClient, neo4jClient, chromaClient } = await import('../database/index.js');
+    const customerCollection = `${ontology_id}_customers`;
+    const customer =
+      (customer_id ? await mongoClient.findOne(customerCollection, { id: customer_id }) : null) ||
+      (customer_name ? await mongoClient.findOne(customerCollection, { customer_name }) : null);
+
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const customerId = customer.id;
+    const contacts = await mongoClient.findMany(`${ontology_id}_contacts`, { customer_id: customerId });
+    const opportunities = await mongoClient.findMany(`${ontology_id}_opportunities`, { customer_id: customerId });
+    const visitRecords = await mongoClient.findMany(`${ontology_id}_visit_records`, { customer_id: customerId });
+    const leads = await mongoClient.findMany(`${ontology_id}_leads`, { customer_id: customerId });
+    const quotes = await mongoClient.findMany(`${ontology_id}_quotes`, { customer_id: customerId });
+    const risks = await mongoClient.findMany(`${ontology_id}_risks`, { customer_id: customerId });
+    const needs = await mongoClient.findMany(`${ontology_id}_needs`, { customer_id: customerId });
+    const commitments = await mongoClient.findMany(`${ontology_id}_commitments`, { customer_id: customerId });
+
+    const summary = {
+      customer: { id: customerId, name: customer.customer_name || customer_name || customer.id },
+      mongodb: {
+        customers: 1,
+        contacts: contacts.length,
+        opportunities: opportunities.length,
+        visit_records: visitRecords.length,
+        leads: leads.length,
+        quotes: quotes.length,
+        risks: risks.length,
+        needs: needs.length,
+        commitments: commitments.length,
+      },
+      neo4j: {
+        customer_id: customerId,
+      },
+      chroma: {
+        opportunities: opportunities.map((item: any) => item.id),
+        visit_records: visitRecords.map((item: any) => item.id),
+      },
+    };
+
+    if (dry_run) {
+      return res.json({
+        success: true,
+        dry_run: true,
+        summary,
+      });
+    }
+
+    const deletedMongo = {
+      customers: await mongoClient.deleteManyByFilter(customerCollection, { id: customerId }),
+      contacts: await mongoClient.deleteManyByFilter(`${ontology_id}_contacts`, { customer_id: customerId }),
+      opportunities: await mongoClient.deleteManyByFilter(`${ontology_id}_opportunities`, { customer_id: customerId }),
+      visit_records: await mongoClient.deleteManyByFilter(`${ontology_id}_visit_records`, { customer_id: customerId }),
+      leads: await mongoClient.deleteManyByFilter(`${ontology_id}_leads`, { customer_id: customerId }),
+      quotes: await mongoClient.deleteManyByFilter(`${ontology_id}_quotes`, { customer_id: customerId }),
+      risks: await mongoClient.deleteManyByFilter(`${ontology_id}_risks`, { customer_id: customerId }),
+      needs: await mongoClient.deleteManyByFilter(`${ontology_id}_needs`, { customer_id: customerId }),
+      commitments: await mongoClient.deleteManyByFilter(`${ontology_id}_commitments`, { customer_id: customerId }),
+    };
+
+    let deletedNeo4j = 0;
+    if (neo4jClient.isOnline()) {
+      const result = await neo4jClient.runQuery(
+        `MATCH (c:Customer {id: $customerId})
+         OPTIONAL MATCH (c)-[:HAS_CONTACT]->(contact:Contact)
+         OPTIONAL MATCH (c)-[:HAS_VISIT_RECORD]->(visit:VisitRecord)
+         OPTIONAL MATCH (c)-[:HAS_OPPORTUNITY]->(opp:Opportunity)
+         WITH collect(DISTINCT c) + collect(DISTINCT contact) + collect(DISTINCT visit) + collect(DISTINCT opp) AS nodes
+         UNWIND nodes AS node
+         WITH DISTINCT node WHERE node IS NOT NULL
+         DETACH DELETE node
+         RETURN count(node) AS deleted`,
+        { customerId }
+      );
+      deletedNeo4j = result[0]?.deleted?.toNumber?.() || 0;
+    }
+
+    const deletedChroma = {
+      opportunities: await chromaClient.deleteDocuments('crm_opportunities', opportunities.map((item: any) => item.id)),
+      visit_records: await chromaClient.deleteDocuments('crm_visit_records', visitRecords.map((item: any) => item.id)),
+    };
+
+    let deletedAdvice = 0;
+    let deletedLogs = 0;
+    try {
+      deletedAdvice = db.prepare(`DELETE FROM operating_advice_artifacts WHERE customer_id = ?`).run(customerId).changes;
+    } catch {}
+    try {
+      deletedLogs = db.prepare(`DELETE FROM event_bus_logs WHERE input_params LIKE ?`).run(`%${customerId}%`).changes;
+    } catch {}
+
+    res.json({
+      success: true,
+      customer_id: customerId,
+      deleted: {
+        mongodb: deletedMongo,
+        neo4j: deletedNeo4j,
+        chroma: deletedChroma,
+        sqlite: {
+          advice_artifacts: deletedAdvice,
+          event_bus_logs: deletedLogs,
+        },
+      },
+      summary,
+    });
+  } catch (error) {
+    console.error('Error cleaning customer data:', error);
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
 export default router;

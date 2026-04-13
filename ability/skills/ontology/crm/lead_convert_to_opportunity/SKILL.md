@@ -37,6 +37,6 @@ metadata: { "openclaw": { "emoji": "⚙️", "requires": { "bins": ["node"], "en
 
 ## 写库计划
 
-- MongoDB: insert crm_leads, insert crm_opportunitys
+- MongoDB: insert crm_leads, insert crm_opportunities
 - Neo4j: upsert_node, upsert_node, upsert_edge
 - Chroma: upsert crm_opportunities

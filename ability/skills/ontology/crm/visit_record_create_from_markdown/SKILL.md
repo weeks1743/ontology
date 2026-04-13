@@ -44,6 +44,6 @@ metadata: { "openclaw": { "emoji": "⚙️", "requires": { "bins": ["node"], "en
 
 ## 写库计划
 
-- MongoDB: insert crm_visitrecords
+- MongoDB: insert crm_visit_records
 - Neo4j: upsert_node
 - Chroma: 不写入

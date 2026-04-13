@@ -185,7 +185,7 @@ async function loadTask(taskId) {
   state.keywordExpanded = false;
   state.keywordOverflow = false;
   state.profileResult = null;
-  state.globalSpeakerAliases = loadJsonStorage(GLOBAL_ALIAS_STORAGE_KEY);
+  state.globalSpeakerAliases = {};
   state.taskSpeakerAliases = loadJsonStorage(taskAliasStorageKey(taskId));
   state.internalSpeakers = {};
   state.profileScenario = "crm_visit";
@@ -988,17 +988,14 @@ async function saveSpeakerAliases() {
     const alias = input?.value.trim() || "";
     const isInternal = cb?.checked || false;
     if (alias) {
-      state.globalSpeakerAliases[speaker] = alias;
       state.taskSpeakerAliases[speaker] = alias;
     } else {
-      delete state.globalSpeakerAliases[speaker];
       delete state.taskSpeakerAliases[speaker];
     }
     state.internalSpeakers[speaker] = isInternal;
   });
 
   saveJsonStorage(taskAliasStorageKey(taskId), state.taskSpeakerAliases);
-  saveJsonStorage(GLOBAL_ALIAS_STORAGE_KEY, state.globalSpeakerAliases);
 
   // Save to DB
   try {
@@ -1048,10 +1045,6 @@ async function analyzeProfile() {
     Object.entries(state.taskSpeakerAliases).forEach(([k, v]) => {
       if (v) speakerAliases[k] = v;
     });
-    Object.entries(state.globalSpeakerAliases).forEach(([k, v]) => {
-      if (v && !speakerAliases[k]) speakerAliases[k] = v;
-    });
-
     const internalSpeakers = Object.entries(state.internalSpeakers)
       .filter(([, v]) => v)
       .map(([k]) => k);
@@ -1215,7 +1208,7 @@ function saveJsonStorage(key, value) {
 }
 
 function getStoredAlias(rawLabel) {
-  return state.taskSpeakerAliases[rawLabel] || state.globalSpeakerAliases[rawLabel] || "";
+  return state.taskSpeakerAliases[rawLabel] || "";
 }
 
 function getSpeakerDisplayName(rawLabel) {

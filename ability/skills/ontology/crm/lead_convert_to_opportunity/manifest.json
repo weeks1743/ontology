@@ -101,7 +101,7 @@
         },
         {
           "op": "insert",
-          "collection": "crm_opportunitys",
+          "collection": "crm_opportunities",
           "alias": "opportunity_id",
           "document": {
             "id": "$result.opportunity_id"

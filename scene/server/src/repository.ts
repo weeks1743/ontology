@@ -191,6 +191,23 @@ export function getScenarioById(db: SceneDb, id: number): Scenario | null {
   };
 }
 
+export function getScenarioByCode(db: SceneDb, ontologyId: string, code: string): Scenario | null {
+  const row = db.prepare(`
+    SELECT sc.*
+    FROM scene_scenarios sc
+    JOIN scene_industries si ON si.id = sc.industry_id
+    JOIN scene_ontologies so ON so.id = si.scene_ontology_id
+    WHERE so.ontology_id = ? AND sc.code = ?
+    LIMIT 1
+  `).get(ontologyId, code) as any;
+  if (!row) return null;
+
+  return {
+    ...row,
+    trigger_context: parseJson(row.trigger_context, null),
+  };
+}
+
 export function createScenario(db: SceneDb, data: Omit<Scenario, 'id' | 'created_at' | 'updated_at'>): Scenario {
   const now = new Date().toISOString();
   const result = db.prepare(`

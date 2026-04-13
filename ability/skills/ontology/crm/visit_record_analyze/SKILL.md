@@ -53,6 +53,6 @@ metadata: { "openclaw": { "emoji": "⚙️", "requires": { "bins": ["node"], "en
 
 ## 写库计划
 
-- MongoDB: update crm_visitrecords
+- MongoDB: update crm_visit_records
 - Neo4j: 读取（不写入）
 - Chroma: 读取（不写入）

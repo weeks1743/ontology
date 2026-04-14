@@ -8,12 +8,14 @@ import sys
 import threading
 import time
 import uuid
+import argparse
 from datetime import datetime
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from urllib.parse import urlparse
+from urllib import request as urllib_request
 
 
 CHAT_ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -914,7 +916,7 @@ def build_profile_prompt(scenario: str, transcript: str, speaker_aliases: dict[s
 {transcript}"""
 
 
-def build_profile_markdown(task_id: str, scenario: str, bundle: dict, speaker_aliases: dict[str, str], excluded_speakers: list[str] | None = None) -> tuple[str, list[str]]:
+def build_profile_markdown(task_id: str, scenario: str, bundle: dict, speaker_aliases: dict[str, str], excluded_speakers: Optional[List[str]] = None) -> Tuple[str, List[str]]:
     excluded = set(excluded_speakers or [])
     transcription = (bundle.get("assets") or {}).get("transcription") or {}
     paragraphs = transcription.get("paragraphs") or []
@@ -1058,6 +1060,25 @@ def get_profile_result_from_db(task_id: str, scenario: str) -> Optional[dict]:
                 "createdAt": row["created_at"],
             }
         return None
+
+
+def get_chat_server_base_url():
+    return os.environ.get("CHAT_SERVER_BASE_URL", "http://127.0.0.1:8123")
+
+
+def notify_chat_server_profile_ready(task_id: str):
+    payload = json.dumps({"source": "meeting_viewer"}).encode("utf-8")
+    req = urllib_request.Request(
+        f"{get_chat_server_base_url()}/api/chat/runtime/tingwu/{task_id}/speaker-profile-ready",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=3) as response:
+            response.read()
+    except Exception as exc:
+        print(f"[meeting-viewer] Failed to notify chat server: {exc}")
 
 
 class ViewerHandler(SimpleHTTPRequestHandler):
@@ -1316,6 +1337,7 @@ class ViewerHandler(SimpleHTTPRequestHandler):
             )
             # Save result to DB
             save_profile_result_db(task_id, scenario, markdown, internal_speakers)
+            notify_chat_server_profile_ready(task_id)
 
             return json_response(
                 self,
@@ -1524,6 +1546,11 @@ class ViewerHandler(SimpleHTTPRequestHandler):
 
 
 def main():
+    global PORT
+    parser = argparse.ArgumentParser(description="meeting viewer server")
+    parser.add_argument("--port", type=int, default=PORT)
+    args = parser.parse_args()
+    PORT = args.port
     os.chdir(CHAT_ROOT_DIR)
     bootstrap_environment()
     bootstrap_runtime_state()

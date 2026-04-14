@@ -10,7 +10,7 @@ import { executeExternalSkill } from './external-skills.js';
 import { writePlanExecutor } from './write-plan-executor.js';
 import { ExecutionResult } from '../types.js';
 import { BehaviorManifest, ScenarioManifest } from '../types/manifest.js';
-import { analyzeVisitRecord, createVisitRecord, generateOperatingAdvice } from './operating-advice.js';
+import { analyzeVisitRecord, createOpportunity, createVisitRecord, generateOperatingAdvice } from './operating-advice.js';
 import { eventBus } from './event-bus.js';
 
 export class RuleViolationError extends Error {
@@ -175,6 +175,10 @@ export class SkillExecutor {
 
     if (manifest.behavior_code === 'Customer.GenerateOperatingAdvice') {
       return this.executeCustomBehavior(manifest, params, startTime, () => generateOperatingAdvice(params, manifest.ontology_id));
+    }
+
+    if (manifest.behavior_code === 'Opportunity.Create') {
+      return this.executeCustomBehavior(manifest, params, startTime, () => createOpportunity(params, manifest.ontology_id));
     }
 
     const context: Record<string, any> = { input: params, reads: {}, result: {} };

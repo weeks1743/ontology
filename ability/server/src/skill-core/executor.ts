@@ -23,6 +23,21 @@ import { executeShellCommandsInPrompt, hasShellCommands } from './shell.js';
 import { getSkillById } from './discovery.js';
 import { getSkillConfig } from '../engine/external-skills.js';
 
+type PptSpecSlide = {
+  title: string;
+  summary?: string;
+  bullets?: string[];
+  footer?: string;
+  accent?: 'research' | 'assessment' | 'action' | string;
+  layout?: 'cover' | 'facts' | 'timeline' | 'quote' | 'matrix' | 'pillars' | 'table' | 'conclusion' | 'assessment' | 'action';
+};
+
+type PptSceneSpec = {
+  title: string;
+  subtitle?: string;
+  slides: PptSpecSlide[];
+};
+
 // ─── LLM 配置（延迟读取 .env，避免模块加载顺序问题）──────────
 
 let openaiClient: OpenAI | null = null;
@@ -188,6 +203,22 @@ async function executeInline(
         shellCommands,
         shellOutputs,
         spawnOutput: scriptResult,
+        durationMs: Date.now() - startTime,
+      };
+    }
+  }
+
+  if ((skill.id === 'pptx' || skill.frontmatter.name === 'pptx') && request.params) {
+    const pptSpec = buildScenePptSpec(request.params);
+    if (pptSpec) {
+      const output = await generatePptxFromSceneSpec(pptSpec);
+      return {
+        success: true,
+        executionMode: 'inline',
+        substitutedBody: body,
+        shellCommands,
+        shellOutputs,
+        spawnOutput: output,
         durationMs: Date.now() - startTime,
       };
     }
@@ -436,9 +467,9 @@ async function executeWithLLMBatched(
 
     console.log(`[skill-core] PPTX slide count detected: ${totalSlides} (match: ${slideCountMatch?.[0] || 'none'})`);
 
-    // 如果少于 8 页，使用普通模式
-    if (totalSlides < 8) {
-      console.log(`[skill-core] Using normal mode (slides < 8)`);
+    // 如果未检测到幻灯片数量（非生成任务），使用普通模式
+    if (totalSlides < 1) {
+      console.log(`[skill-core] No slide count detected, using normal mode`);
       return executeWithLLM(skill, processedBody, params);
     }
 
@@ -474,6 +505,17 @@ async function executeWithLLMBatched(
 - Any initialization or finalization code
 
 Output ONLY the slide blocks that will be inserted into the main code.
+
+## Available variables (already defined in wrapper):
+- pres: the PptxGenJS instance (use pres.addSlide(), pres.addChart(), pres.charts.BAR, etc.)
+- COLORS: { primary: '1E2761', secondary: 'CADCFC', accent: 'FFFFFF' }
+- mkShadow(color, opacity): factory for shadow options
+
+## Shape API (CRITICAL):
+- Use pres.shapes.RECTANGLE (NOT pptxgen.shapes, NOT PptxGenJS.shapes)
+- Use pres.shapes.OVAL, pres.shapes.LINE, pres.shapes.ROUNDED_RECTANGLE
+- Example: slide.addShape(pres.shapes.RECTANGLE, { x: 1, y: 1, w: 3, h: 2, fill: { color: 'FF0000' } })
+- Example: slide.addChart(pres.charts.BAR, data, { x: 0.5, y: 1, w: 9, h: 4 })
 
 ## CRITICAL LAYOUT RULES (violations cause overlap/misalignment bugs):
 
@@ -904,4 +946,509 @@ function failResult(
     error,
     durationMs: Date.now() - startTime,
   };
+}
+
+function buildScenePptSpec(params: Record<string, unknown>): PptSceneSpec | null {
+  const rawSpec = params.scene_ppt_spec;
+  if (rawSpec && typeof rawSpec === 'object' && !Array.isArray(rawSpec)) {
+    const typed = rawSpec as Record<string, unknown>;
+    const title = typeof typed.title === 'string' ? typed.title : '';
+    const subtitle = typeof typed.subtitle === 'string' ? typed.subtitle : undefined;
+    const slides = Array.isArray(typed.slides)
+      ? typed.slides
+          .map((slide) => {
+            if (!slide || typeof slide !== 'object') return null;
+            const record = slide as Record<string, unknown>;
+            const slideTitle = typeof record.title === 'string' ? record.title : '';
+            if (!slideTitle) return null;
+            return {
+              title: slideTitle,
+              summary: typeof record.summary === 'string' ? record.summary : '',
+              bullets: Array.isArray(record.bullets)
+                ? record.bullets.map((item) => String(item).trim()).filter(Boolean)
+                : [],
+              footer: typeof record.footer === 'string' ? record.footer : '',
+              accent: typeof record.accent === 'string' ? record.accent : undefined,
+              layout: typeof record.layout === 'string' ? (record.layout as PptSpecSlide['layout']) : undefined,
+            } satisfies PptSpecSlide;
+          })
+          .filter(Boolean) as PptSpecSlide[]
+      : [];
+
+    if (title && slides.length > 0) {
+      return { title, subtitle, slides };
+    }
+  }
+  return null;
+}
+
+async function generatePptxFromSceneSpec(spec: PptSceneSpec): Promise<string> {
+  const { default: PptxGenJS } = await import('pptxgenjs');
+
+  const pres = new PptxGenJS();
+  pres.layout = 'LAYOUT_16x9';
+  pres.author = 'AI Generated';
+  pres.company = 'Ontology';
+  pres.subject = spec.subtitle || spec.title;
+  pres.title = spec.title;
+  pres.theme = {
+    headFontFace: 'Microsoft YaHei',
+    bodyFontFace: 'Microsoft YaHei',
+  };
+
+  const paletteByAccent: Record<string, { banner: string; border: string; soft: string; ink: string }> = {
+    research: { banner: '1E3A5F', border: '7FB3D5', soft: 'EAF4FB', ink: '102132' },
+    assessment: { banner: '0E5A8A', border: '8CC3E8', soft: 'EDF7FD', ink: '102132' },
+    action: { banner: '8A4B08', border: 'F3C483', soft: 'FFF8EE', ink: '102132' },
+    default: { banner: '1E2761', border: 'B7C9E8', soft: 'F5F8FE', ink: '122235' },
+  };
+
+  const addSlideFrame = (slide: any, accentKey: string, index: number, slideTitle: string) => {
+    const palette = paletteByAccent[accentKey] || paletteByAccent.default;
+    slide.background = { color: 'F7FAFD' };
+    slide.addShape(pres.ShapeType.rect, {
+      x: 0,
+      y: 0,
+      w: 10,
+      h: 0.72,
+      line: { color: palette.banner, transparency: 100 },
+      fill: { color: palette.banner },
+    });
+    slide.addText(spec.title, {
+      x: 0.48,
+      y: 0.14,
+      w: 7.4,
+      h: 0.34,
+      fontSize: 24,
+      bold: true,
+      color: 'FFFFFF',
+      margin: 0,
+    });
+    slide.addText(`0${index + 1}`, {
+      x: 8.85,
+      y: 0.12,
+      w: 0.7,
+      h: 0.36,
+      align: 'right',
+      fontSize: 20,
+      bold: true,
+      color: 'DDE9F9',
+      margin: 0,
+    });
+    slide.addText(slideTitle, {
+      x: 0.55,
+      y: 0.95,
+      w: 6.7,
+      h: 0.45,
+      fontSize: 22,
+      bold: true,
+      color: palette.ink,
+      margin: 0,
+    });
+    slide.addShape(pres.ShapeType.roundRect, {
+      x: 7.85,
+      y: 0.92,
+      w: 1.55,
+      h: 0.42,
+      rectRadius: 0.06,
+      line: { color: palette.border, width: 1 },
+      fill: { color: palette.soft },
+    });
+    slide.addText(accentKey === 'research' ? '公司研究' : accentKey === 'assessment' ? '信息化评估' : '推进建议', {
+      x: 8.0,
+      y: 1.03,
+      w: 1.2,
+      h: 0.18,
+      fontSize: 11,
+      bold: true,
+      color: palette.banner,
+      align: 'center',
+      margin: 0,
+    });
+    return palette;
+  };
+
+  const renderFooter = (slide: any, footer?: string) => {
+    if (!footer) return;
+    slide.addText(footer, {
+      x: 0.6,
+      y: 5.08,
+      w: 8.8,
+      h: 0.22,
+      fontSize: 10,
+      color: '6B7D93',
+      italic: true,
+      margin: 0,
+    });
+  };
+
+  const renderBulletColumns = (slide: any, palette: any, bullets: string[]) => {
+    const leftBullets = bullets.slice(0, Math.ceil(bullets.length / 2));
+    const rightBullets = bullets.slice(Math.ceil(bullets.length / 2));
+    const renderBulletCard = (x: number, y: number, cardBullets: string[]) => {
+      if (cardBullets.length === 0) return;
+      slide.addShape(pres.ShapeType.roundRect, {
+        x,
+        y,
+        w: 4.25,
+        h: 2.15,
+        rectRadius: 0.08,
+        line: { color: palette.border, width: 1 },
+        fill: { color: 'FFFFFF' },
+      });
+      slide.addShape(pres.ShapeType.rect, {
+        x,
+        y,
+        w: 0.08,
+        h: 2.15,
+        line: { color: palette.banner, transparency: 100 },
+        fill: { color: palette.banner },
+      });
+      slide.addText(
+        cardBullets.map((bullet, bulletIndex) => ({
+          text: bullet,
+          options: {
+            bullet: true,
+            breakLine: bulletIndex < cardBullets.length - 1,
+          },
+        })),
+        {
+          x: x + 0.28,
+          y: y + 0.2,
+          w: 3.68,
+          h: 1.7,
+          fontSize: 14,
+          color: palette.ink,
+          margin: 0,
+          paraSpaceAfter: 10,
+        },
+      );
+    };
+    renderBulletCard(0.55, 2.65, leftBullets);
+    renderBulletCard(5.0, 2.65, rightBullets);
+  };
+
+  const renderSummaryBox = (slide: any, palette: any, summary: string) => {
+    if (!summary) return;
+    slide.addShape(pres.ShapeType.roundRect, {
+      x: 0.55,
+      y: 1.55,
+      w: 8.9,
+      h: 0.82,
+      rectRadius: 0.06,
+      line: { color: palette.border, width: 1 },
+      fill: { color: 'FFFFFF' },
+      shadow: { type: 'outer', color: '93A8C1', blur: 2, angle: 45, offset: 1, opacity: 0.08 },
+    });
+    slide.addText(summary, {
+      x: 0.78,
+      y: 1.78,
+      w: 8.45,
+      h: 0.36,
+      fontSize: 14,
+      color: palette.ink,
+      breakLine: false,
+      margin: 0,
+    });
+  };
+
+  spec.slides.forEach((slideSpec, index) => {
+    const slide = pres.addSlide();
+    const palette = addSlideFrame(slide, slideSpec.accent || 'default', index, slideSpec.title);
+    const bullets = (slideSpec.bullets || []).slice(0, 8);
+    const layout = slideSpec.layout || 'assessment';
+
+    if (layout === 'cover') {
+      slide.background = { color: palette.banner };
+      slide.addShape(pres.ShapeType.rect, {
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 5.625,
+        line: { color: palette.banner, transparency: 100 },
+        fill: { color: palette.banner },
+      });
+      slide.addText(spec.title, {
+        x: 0.7,
+        y: 1.0,
+        w: 8.6,
+        h: 0.9,
+        fontSize: 28,
+        bold: true,
+        color: 'FFFFFF',
+        align: 'center',
+        margin: 0,
+      });
+      slide.addText(slideSpec.title, {
+        x: 1.1,
+        y: 2.0,
+        w: 7.8,
+        h: 0.6,
+        fontSize: 22,
+        bold: true,
+        color: 'DDE9F9',
+        align: 'center',
+        margin: 0,
+      });
+      slide.addText(slideSpec.summary || spec.subtitle || '', {
+        x: 1.0,
+        y: 2.9,
+        w: 8.0,
+        h: 0.7,
+        fontSize: 15,
+        color: 'EAF2FF',
+        align: 'center',
+        margin: 0,
+      });
+      slide.addShape(pres.ShapeType.line, {
+        x: 2.6,
+        y: 4.15,
+        w: 4.8,
+        h: 0,
+        line: { color: '9BC0E7', width: 1.5 },
+      });
+      slide.addText(slideSpec.footer || '', {
+        x: 1.3,
+        y: 4.35,
+        w: 7.4,
+        h: 0.3,
+        fontSize: 11,
+        color: 'D7E6FA',
+        align: 'center',
+        margin: 0,
+      });
+      return;
+    }
+
+    renderSummaryBox(slide, palette, slideSpec.summary || '');
+
+    if (layout === 'facts') {
+      bullets.slice(0, 4).forEach((bullet, bulletIndex) => {
+        const x = 0.65 + (bulletIndex % 2) * 4.35;
+        const y = 2.65 + Math.floor(bulletIndex / 2) * 1.2;
+        slide.addShape(pres.ShapeType.roundRect, {
+          x,
+          y,
+          w: 4.0,
+          h: 0.95,
+          rectRadius: 0.08,
+          line: { color: palette.border, width: 1 },
+          fill: { color: 'FFFFFF' },
+        });
+        slide.addText(bullet, {
+          x: x + 0.2,
+          y: y + 0.18,
+          w: 3.55,
+          h: 0.55,
+          fontSize: 14,
+          color: palette.ink,
+          margin: 0,
+          bold: bulletIndex === 0,
+        });
+      });
+    } else if (layout === 'timeline') {
+      slide.addShape(pres.ShapeType.line, {
+        x: 1.0,
+        y: 3.55,
+        w: 8.0,
+        h: 0,
+        line: { color: palette.border, width: 1.5 },
+      });
+      bullets.slice(0, 4).forEach((bullet, bulletIndex) => {
+        const x = 1.05 + bulletIndex * 2.05;
+        slide.addShape(pres.ShapeType.ellipse, {
+          x,
+          y: 3.32,
+          w: 0.28,
+          h: 0.28,
+          line: { color: palette.banner, transparency: 100 },
+          fill: { color: palette.banner },
+        });
+        slide.addText(`0${bulletIndex + 1}`, {
+          x: x - 0.02,
+          y: 2.6,
+          w: 0.35,
+          h: 0.2,
+          fontSize: 10,
+          bold: true,
+          color: palette.banner,
+          align: 'center',
+          margin: 0,
+        });
+        slide.addText(bullet, {
+          x: x - 0.35,
+          y: 3.8,
+          w: 1.0,
+          h: 0.9,
+          fontSize: 11,
+          color: palette.ink,
+          align: 'center',
+          margin: 0,
+        });
+      });
+    } else if (layout === 'quote') {
+      slide.addShape(pres.ShapeType.roundRect, {
+        x: 0.7,
+        y: 2.45,
+        w: 5.5,
+        h: 2.1,
+        rectRadius: 0.08,
+        line: { color: palette.border, width: 1 },
+        fill: { color: 'FFFFFF' },
+      });
+      slide.addText(`“${bullets[0] || slideSpec.summary || ''}”`, {
+        x: 1.0,
+        y: 2.85,
+        w: 4.9,
+        h: 1.0,
+        fontSize: 20,
+        color: palette.ink,
+        italic: true,
+        bold: true,
+        margin: 0,
+      });
+      slide.addText((bullets.slice(1, 3) || []).join('\n'), {
+        x: 6.55,
+        y: 2.55,
+        w: 2.6,
+        h: 1.8,
+        fontSize: 13,
+        color: palette.ink,
+        margin: 0,
+      });
+    } else if (layout === 'matrix') {
+      bullets.slice(0, 4).forEach((bullet, bulletIndex) => {
+        const x = 0.7 + (bulletIndex % 2) * 4.35;
+        const y = 2.55 + Math.floor(bulletIndex / 2) * 1.35;
+        slide.addShape(pres.ShapeType.roundRect, {
+          x,
+          y,
+          w: 4.0,
+          h: 1.05,
+          rectRadius: 0.08,
+          line: { color: palette.border, width: 1 },
+          fill: { color: bulletIndex % 2 === 0 ? 'FFFFFF' : palette.soft },
+        });
+        slide.addText(bullet, {
+          x: x + 0.2,
+          y: y + 0.2,
+          w: 3.55,
+          h: 0.56,
+          fontSize: 13,
+          color: palette.ink,
+          margin: 0,
+          bold: true,
+        });
+      });
+    } else if (layout === 'pillars') {
+      bullets.slice(0, 3).forEach((bullet, bulletIndex) => {
+        const x = 0.75 + bulletIndex * 3.05;
+        slide.addShape(pres.ShapeType.roundRect, {
+          x,
+          y: 2.5,
+          w: 2.5,
+          h: 2.2,
+          rectRadius: 0.08,
+          line: { color: palette.border, width: 1 },
+          fill: { color: bulletIndex === 1 ? palette.soft : 'FFFFFF' },
+        });
+        slide.addText(`0${bulletIndex + 1}`, {
+          x: x + 0.2,
+          y: 2.72,
+          w: 0.45,
+          h: 0.2,
+          fontSize: 18,
+          bold: true,
+          color: palette.banner,
+          margin: 0,
+        });
+        slide.addText(bullet, {
+          x: x + 0.2,
+          y: 3.15,
+          w: 2.0,
+          h: 1.2,
+          fontSize: 13,
+          color: palette.ink,
+          margin: 0,
+        });
+      });
+    } else if (layout === 'table') {
+      bullets.slice(0, 5).forEach((bullet, bulletIndex) => {
+        const y = 2.45 + bulletIndex * 0.46;
+        slide.addShape(pres.ShapeType.rect, {
+          x: 0.7,
+          y,
+          w: 8.6,
+          h: 0.42,
+          line: { color: palette.border, width: 0.6 },
+          fill: { color: bulletIndex % 2 === 0 ? 'FFFFFF' : palette.soft },
+        });
+        slide.addText(bullet, {
+          x: 0.9,
+          y: y + 0.09,
+          w: 8.0,
+          h: 0.18,
+          fontSize: 12,
+          color: palette.ink,
+          margin: 0,
+        });
+      });
+    } else if (layout === 'conclusion') {
+      slide.background = { color: palette.banner };
+      slide.addShape(pres.ShapeType.rect, {
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 5.625,
+        line: { color: palette.banner, transparency: 100 },
+        fill: { color: palette.banner },
+      });
+      slide.addText(slideSpec.title, {
+        x: 0.75,
+        y: 0.85,
+        w: 8.5,
+        h: 0.5,
+        fontSize: 24,
+        bold: true,
+        color: 'FFFFFF',
+        margin: 0,
+      });
+      slide.addText(slideSpec.summary || '', {
+        x: 0.8,
+        y: 1.55,
+        w: 8.3,
+        h: 0.55,
+        fontSize: 15,
+        color: 'E5EEF9',
+        margin: 0,
+      });
+      slide.addText(
+        bullets.slice(0, 4).map((bullet, bulletIndex) => ({
+          text: bullet,
+          options: { bullet: true, breakLine: bulletIndex < Math.min(4, bullets.length) - 1 },
+        })),
+        {
+          x: 1.0,
+          y: 2.45,
+          w: 7.7,
+          h: 1.7,
+          fontSize: 15,
+          color: 'FFFFFF',
+          margin: 0,
+          paraSpaceAfter: 10,
+        },
+      );
+      renderFooter(slide, slideSpec.footer);
+      return;
+    } else {
+      renderBulletColumns(slide, palette, bullets);
+    }
+
+    renderFooter(slide, slideSpec.footer);
+  });
+
+  const timestamp = Date.now();
+  const fileName = `/Users/weeks/Desktop/workspaces-yzj/ontology/ability/tmp/output-${timestamp}.pptx`;
+  await pres.writeFile({ fileName });
+  return `PPTX saved to: ${fileName}`;
 }

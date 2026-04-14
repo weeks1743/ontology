@@ -53,7 +53,7 @@
       "ops": [
         {
           "op": "update",
-          "collection": "crm_visitrecords",
+          "collection": "crm_visit_records",
           "filter": {
             "id": "$input.visitrecord_id"
           },

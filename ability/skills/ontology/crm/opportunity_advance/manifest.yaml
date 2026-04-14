@@ -27,7 +27,7 @@ write_plan:
     required: true
     ops:
       - op: update
-        collection: crm_opportunitys
+        collection: crm_opportunities
         filter:
           id: $input.opportunity_id
         update: {}
@@ -38,7 +38,7 @@ write_plan:
     required: false
     ops:
       - op: upsert
-        collection: crm_opportunitys
+        collection: crm_opportunities
         id: $input.opportunity_id
         metadata:
           object_type: Opportunity

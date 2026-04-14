@@ -88,7 +88,7 @@ write_plan:
     required: true
     ops:
       - op: insert
-        collection: crm_visitrecords
+        collection: crm_visit_records
         alias: visitrecord_id
         document:
           id: $result.generated_id

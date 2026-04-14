@@ -7,8 +7,9 @@
     "dev:ability": "cd ability && npm run dev",
     "dev:scene": "cd scene && npm run dev",
     "dev:portal": "cd portal && npm run dev",
-    "dev:chat": "concurrently \"npm run dev:chat-api\" \"npm run dev:chat-ui\"",
-    "dev:chat-api": "cd chat && python3 meeting-viewer/server.py",
+    "dev:chat": "concurrently \"npm run dev:chat-server\" \"npm run dev:meeting-viewer\" \"npm run dev:chat-ui\"",
+    "dev:chat-server": "cd chat/server && npm run dev",
+    "dev:meeting-viewer": "cd chat && python3 meeting-viewer/server.py --port 8124",
     "dev:chat-ui": "cd chat/chat-ui && npm run dev"
   },
   "devDependencies": {

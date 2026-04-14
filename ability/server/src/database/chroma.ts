@@ -202,6 +202,21 @@ class ChromaDBClient {
     }
   }
 
+  async deleteDocuments(collectionName: string, ids: string[]): Promise<number> {
+    if (!this.isOnline() || !this.client || ids.length === 0) {
+      return 0;
+    }
+
+    try {
+      const collection = await this.client.getCollection({ name: collectionName, embeddingFunction: LocalEmbeddingFunction });
+      await collection.delete({ ids });
+      return ids.length;
+    } catch (error) {
+      console.error('ChromaDB deleteDocuments error:', error);
+      return 0;
+    }
+  }
+
   // 批量向量化待处理的商机
   async batchVectorize(opportunities: Array<{ id: string; data: any }>): Promise<number> {
     if (!this.isOnline() || !this.collection) {

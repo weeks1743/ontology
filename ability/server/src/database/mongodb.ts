@@ -77,6 +77,10 @@ class MongoDBClient {
     return this.db;
   }
 
+  getClient(): MongoClient | null {
+    return this.client;
+  }
+
   isOnline(): boolean {
     return this.status === 'online';
   }
@@ -285,6 +289,21 @@ class MongoDBClient {
     } catch (error) {
       console.error('MongoDB findMany error:', error);
       return [];
+    }
+  }
+
+  async deleteManyByFilter(collection: string, filter: Record<string, any>): Promise<number> {
+    if (!this.isOnline() || !this.db) {
+      return 0;
+    }
+
+    try {
+      const coll = this.db.collection(collection);
+      const result = await coll.deleteMany(filter);
+      return result.deletedCount;
+    } catch (error) {
+      console.error('MongoDB deleteManyByFilter error:', error);
+      return 0;
     }
   }
 

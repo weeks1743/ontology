@@ -35,7 +35,7 @@
       "ops": [
         {
           "op": "insert",
-          "collection": "crm_opportunitys",
+          "collection": "crm_opportunities",
           "alias": "opportunity_id",
           "document": {
             "id": "$result.generated_id"
@@ -68,7 +68,7 @@
       "ops": [
         {
           "op": "upsert",
-          "collection": "crm_opportunitys",
+          "collection": "crm_opportunities",
           "id": "$result.opportunity_id",
           "document": "$input.name",
           "metadata": {

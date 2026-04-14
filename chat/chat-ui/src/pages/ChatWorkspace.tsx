@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import type { FormEvent } from "react";
 import {
   AssistantRuntimeProvider,
@@ -11,7 +11,6 @@ import {
   type ThreadMessage,
 } from "@assistant-ui/react";
 import { useAuiState } from "@assistant-ui/store";
-import { ArrowLeft } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -50,12 +49,143 @@ type AnalysisCardPayload = {
   error: string | null;
 };
 
+type ClarificationCardPayload = {
+  taskId: string;
+  stepCode: "wait_customer_name" | "wait_opportunity_confirmation";
+  title: string;
+  question: string;
+  placeholder?: string;
+  status: "pending" | "resolved";
+};
+
+type ArtifactCardPayload = {
+  taskId: string;
+  artifactType:
+    | "company_research"
+    | "it_assessment_markdown"
+    | "company_analysis_pptx"
+    | "it_assessment_pptx";
+  title: string;
+  fileName: string;
+  filePath: string;
+  downloadUrl: string;
+  status: "ready" | "failed";
+  subtitle?: string;
+};
+
+type ProfileCardPayload = {
+  taskId: string;
+  profileId: string;
+  name: string;
+  role: string;
+  influence?: string;
+  attitude?: string;
+  tags: string[];
+  traits?: string[];
+  focus?: string;
+  summary: string;
+};
+
+type GraphCardPayload = {
+  taskId: string;
+  title: string;
+  summary: string;
+  nodes?: Array<{
+    id: string;
+    label: string;
+    kind: "customer" | "visit_record" | "contact" | "opportunity";
+    meta?: Record<string, string>;
+  }>;
+  edges?: Array<{
+    id: string;
+    source: string;
+    target: string;
+    label: string;
+  }>;
+  company?: {
+    name: string;
+    businessType?: string;
+    industry?: string;
+    headquarters?: string;
+    founded?: string;
+    scale?: string;
+    revenue?: string;
+    businesses: string[];
+    characteristics: string[];
+    researchSummary?: string;
+  };
+  people?: Array<{
+    id: string;
+    name: string;
+    role: string;
+    influence?: string;
+    attitude?: string;
+    traits: string[];
+    focus?: string;
+    summary: string;
+  }>;
+  peopleRelations?: Array<{
+    id: string;
+    from: string;
+    to: string;
+    label: string;
+    description?: string;
+  }>;
+  visit?: {
+    id: string;
+    summary?: string;
+  };
+  opportunity?: {
+    id: string;
+    summary?: string;
+  } | null;
+};
+
+type GraphPerson = {
+  id: string;
+  name: string;
+  role: string;
+  influence?: string;
+  attitude?: string;
+  traits: string[];
+  focus?: string;
+  summary: string;
+};
+
+type GraphCompany = NonNullable<GraphCardPayload["company"]>;
+
+type TaskStatusCardPayload = {
+  taskId: string;
+  title: string;
+  status: "info" | "success" | "warning" | "error";
+  body: string;
+  actionLabel?: string;
+  actionUrl?: string;
+  openInNewTab?: boolean;
+};
+
 type PersistedMessage = {
   id: string;
   threadId: string;
   role: "user" | "assistant";
-  kind: "user-entry" | "assistant-text" | "analysis-card";
-  payload: UserEntryPayload | AssistantTextPayload | AnalysisCardPayload;
+  kind:
+    | "user-entry"
+    | "assistant-text"
+    | "analysis-card"
+    | "clarification-card"
+    | "artifact-card"
+    | "profile-card"
+    | "graph-card"
+    | "task-status-card";
+  payload:
+    | UserEntryPayload
+    | AssistantTextPayload
+    | AnalysisCardPayload
+    | ClarificationCardPayload
+    | ArtifactCardPayload
+    | ProfileCardPayload
+    | GraphCardPayload
+    | TaskStatusCardPayload;
   createdAt: string;
   updatedAt: string;
 };
@@ -87,67 +217,40 @@ type PendingAttachment = {
 // ─── Ontology-specific configs ───────────────────────────────────────
 
 type OntologyConfig = {
-  assistants: Array<{ id: string; name: string; subtitle: string }>;
-  quickActions: Array<{ id: string; label: string }>;
+  defaultAssistantId: string;
   suggestionCards: Array<{ title: string; description: string; prompt: string }>;
-  draftPresets: Record<string, string>;
-  landingKicker: string;
   landingTitle: string;
   landingDesc: string;
 };
 
 const ONTOLOGY_CONFIGS: Record<string, OntologyConfig> = {
   crm: {
-    assistants: [
-      { id: "crm-copilot", name: "CRM Copilot", subtitle: "线索到商机推进" },
-      { id: "sales-coach", name: "Sales Coach", subtitle: "销售话术与推进建议" },
-      { id: "meeting-analyst", name: "Meeting Analyst", subtitle: "录音洞察与复盘" },
-    ],
-    quickActions: [
-      { id: "create_lead", label: "新增线索" },
-      { id: "advance_opportunity", label: "推进商机" },
-      { id: "customer_profile", label: "客户画像" },
-      { id: "upload_files", label: "上传文件" },
-    ],
+    defaultAssistantId: "crm-copilot",
     suggestionCards: [
       {
-        title: "新增制造业线索",
-        description: "一句话创建线索并补全关键字段",
-        prompt: "新增线索：江苏某制造企业，预算 50 万，需求是销售流程数字化。",
-      },
-      {
-        title: "本周高风险商机",
-        description: "快速识别停滞机会与建议动作",
-        prompt: "帮我查看本周高风险商机，并给每个商机一条可执行建议。",
-      },
-      {
-        title: "拜访复盘提炼",
-        description: "生成客户关注点和跟进清单",
-        prompt: "整理今天客户拜访纪要，提炼关注点、风险和下一步跟进动作。",
-      },
-      {
         title: "上传客户录音",
-        description: "将 m4a/mp3 音频作为附件发送，生成分析卡片",
+        description: "将 m4a/mp3 音频作为附件发送",
         prompt: "我会上传一段拜访录音，请帮我分析并跟踪进度。",
       },
+      {
+        title: "继续补客户名",
+        description: "补充客户名称后继续任务",
+        prompt: "东港投资发展集团有限公司",
+      },
+      {
+        title: "录入商机信息",
+        description: "输入产品和金额",
+        prompt: "轻云、融合中心，10万",
+      },
     ],
-    draftPresets: {
-      create_lead: "新增线索：客户是华东制造企业，预算 80 万，当前希望 3 个月内试点上线。",
-      advance_opportunity: "帮我梳理商机 OP-2026-032 的推进阻塞点，并给出下周行动计划。",
-      customer_profile: "基于最近拜访记录，生成\u201C江苏某制造集团\u201D的客户画像与关键决策链。",
-    },
-    landingKicker: "AI Native CRM",
-    landingTitle: "开始一条真正可落地的业务对话",
-    landingDesc: "在这里，线索创建、商机推进、客户画像和录音分析都进入同一条 CRM 工作流，而不是分散在多个孤立工具里。",
+    landingTitle: "AI原生CRM",
+    landingDesc: "上传录音、补充客户名称、修正发言人并确认商机信息，系统会沿同一条对话自动推进。",
   },
 };
 
 const DEFAULT_CONFIG: OntologyConfig = {
-  assistants: [{ id: "default-assistant", name: "智能助手", subtitle: "通用 AI 助手" }],
-  quickActions: [],
+  defaultAssistantId: "default-assistant",
   suggestionCards: [],
-  draftPresets: {},
-  landingKicker: "AI Chat",
   landingTitle: "开始对话",
   landingDesc: "选择一个本体以开始使用专业对话功能。",
 };
@@ -172,6 +275,20 @@ const STATUS_CLASS: Record<JobStatus, string> = {
 };
 
 const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const decodeMaybeLatin1FileName = (input: string) => {
+  try {
+    const mojibakeLike = /[ÃÂäåæçèéêëìíîïðñòóôõöøùúûüýþÿ]/.test(input);
+    if (!mojibakeLike) return input;
+    return decodeURIComponent(
+      Array.from(input)
+        .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, "0")}`)
+        .join(""),
+    );
+  } catch {
+    return input;
+  }
+};
 
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -262,23 +379,25 @@ const toThreadMessage = (message: PersistedMessage): ThreadMessage => {
     };
   }
 
-  const payload = message.payload as AnalysisCardPayload;
+  const payload = message.payload;
   const status =
-    payload.status === "succeeded"
-      ? { type: "complete" as const, reason: "stop" as const }
-      : payload.status === "failed"
-        ? {
-            type: "incomplete" as const,
-            reason: "error" as const,
-            error: payload.error ?? "analysis failed",
-          }
-        : { type: "running" as const };
+    message.kind === "analysis-card"
+      ? (payload as AnalysisCardPayload).status === "succeeded"
+        ? { type: "complete" as const, reason: "stop" as const }
+        : (payload as AnalysisCardPayload).status === "failed"
+          ? {
+              type: "incomplete" as const,
+              reason: "error" as const,
+              error: (payload as AnalysisCardPayload).error ?? "analysis failed",
+            }
+          : { type: "running" as const }
+      : { type: "complete" as const, reason: "stop" as const };
 
   return {
     id: message.id,
     role: "assistant",
     createdAt,
-    content: [{ type: "data", name: "analysis-card", data: payload }],
+    content: [{ type: "data", name: message.kind, data: payload }],
     status,
     metadata: {
       unstable_state: null,
@@ -312,6 +431,7 @@ function Composer({
   busy,
   onDraftChange,
   onSubmit,
+  onKeyDown,
   onUploadClick,
   onRemoveAttachment,
 }: {
@@ -320,6 +440,7 @@ function Composer({
   busy: boolean;
   onDraftChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onUploadClick: () => void;
   onRemoveAttachment: (attachmentId: string) => void;
 }) {
@@ -332,7 +453,7 @@ function Composer({
           {attachments.map((attachment) => (
             <div key={attachment.id} className="pending-chip">
               <div>
-                <div className="pending-chip-name">{attachment.file.name}</div>
+                <div className="pending-chip-name">{decodeMaybeLatin1FileName(attachment.file.name)}</div>
                 <div className="pending-chip-meta">
                   {attachment.file.type || "未知类型"} · {formatFileSize(attachment.file.size)}
                 </div>
@@ -352,14 +473,18 @@ function Composer({
       <textarea
         value={draft}
         onChange={(event) => onDraftChange(event.target.value)}
+        onKeyDown={onKeyDown}
         className="composer-input"
         placeholder="从任何想法开始... 例如：新增线索、推进商机，或上传录音后发送"
       />
 
       <div className="composer-actions">
-        <button className="tool-btn" type="button" onClick={onUploadClick} disabled={busy}>
-          上传文件
-        </button>
+        <div className="composer-hint-row">
+          <button className="tool-btn" type="button" onClick={onUploadClick} disabled={busy}>
+            上传文件
+          </button>
+          <span className="composer-shortcut">⌘ + Enter 发送</span>
+        </div>
         <button className="send-btn" type="submit" disabled={!canSubmit || busy}>
           {busy ? "处理中..." : "发送"}
         </button>
@@ -380,7 +505,7 @@ function UserEntryMessageView({ message }: { message: MessageState }) {
           <div className="message-attachments">
             {payload.attachments.map((attachment) => (
               <div key={attachment.id} className="message-attachment-chip">
-                <div className="message-attachment-name">{attachment.fileName}</div>
+                <div className="message-attachment-name">{decodeMaybeLatin1FileName(attachment.fileName)}</div>
                 <div className="message-attachment-meta">
                   {attachment.mimeType || "未知类型"} · {formatFileSize(attachment.size)}
                 </div>
@@ -424,7 +549,7 @@ function AnalysisCard({ message }: { message: MessageState }) {
         <div className="analysis-card-top">
           <div>
             <div className="analysis-card-label">录音分析</div>
-            <div className="analysis-card-file">{payload.fileName}</div>
+            <div className="analysis-card-file">{decodeMaybeLatin1FileName(payload.fileName)}</div>
           </div>
           <span className={`status-pill ${STATUS_CLASS[payload.status]}`}>
             {STATUS_TEXT[payload.status]}
@@ -438,8 +563,285 @@ function AnalysisCard({ message }: { message: MessageState }) {
           <div className="analysis-card-progress">正在解析录音、提炼关键词与章节，请稍候...</div>
         ) : null}
         {payload.status === "succeeded" && payload.taskId ? (
-          <a className="analysis-card-link" href={`/meeting-viewer/?task=${payload.taskId}`}>
+          <a className="analysis-card-link" href={`/meeting-viewer/?task=${payload.taskId}`} target="_blank" rel="noreferrer">
             查看详情
+          </a>
+        ) : null}
+        <div className="message-time">{formatTime(message.createdAt.toISOString())}</div>
+      </div>
+    </article>
+  );
+}
+
+function ClarificationCard({ message }: { message: MessageState }) {
+  const meta = getMessageMeta(message);
+  const payload = (meta.payload || {
+    title: "",
+    question: "",
+    status: "pending",
+  }) as ClarificationCardPayload;
+
+  return (
+    <article className="message-row assistant">
+      <div className="detail-card">
+        <div className="detail-card-header">
+          <div className="detail-card-title">{payload.title}</div>
+          <span className={`status-pill ${payload.status === "resolved" ? "succeeded" : "queued"}`}>
+            {payload.status === "resolved" ? "已完成" : "待处理"}
+          </span>
+        </div>
+        <div className="detail-card-body">{payload.question}</div>
+        {payload.placeholder ? <div className="detail-card-subtle">输入示例：{payload.placeholder}</div> : null}
+        <div className="message-time">{formatTime(message.createdAt.toISOString())}</div>
+      </div>
+    </article>
+  );
+}
+
+function ArtifactCard({ message }: { message: MessageState }) {
+  const meta = getMessageMeta(message);
+  const payload = (meta.payload || {
+    title: "",
+    fileName: "",
+    downloadUrl: "#",
+    status: "ready",
+  }) as ArtifactCardPayload;
+
+  return (
+    <article className="message-row assistant">
+      <div className="detail-card artifact-card">
+        <div className="detail-card-header">
+          <div>
+            <div className="detail-card-title">{payload.title}</div>
+            <div className="artifact-file-name">{decodeMaybeLatin1FileName(payload.fileName)}</div>
+          </div>
+          <span className={`status-pill ${payload.status === "ready" ? "succeeded" : "failed"}`}>
+            {payload.status === "ready" ? "已生成" : "失败"}
+          </span>
+        </div>
+        {payload.subtitle ? <div className="detail-card-subtle">{payload.subtitle}</div> : null}
+        <a className="analysis-card-link" href={payload.downloadUrl}>
+          下载 / 查看
+        </a>
+        <div className="message-time">{formatTime(message.createdAt.toISOString())}</div>
+      </div>
+    </article>
+  );
+}
+
+function ProfileCard({ message }: { message: MessageState }) {
+  const meta = getMessageMeta(message);
+  const payload = (meta.payload || {
+    name: "",
+    role: "",
+    tags: [],
+    traits: [],
+    summary: "",
+  }) as ProfileCardPayload;
+  const chips = (payload.tags && payload.tags.length > 0 ? payload.tags : payload.traits) || [];
+
+  return (
+    <article className="message-row assistant">
+      <div className="detail-card profile-card">
+        <div className="detail-card-header">
+          <div className="detail-card-title">{payload.name}</div>
+          <span className="status-pill queued">联系人画像</span>
+        </div>
+        <div className="detail-card-body">{payload.role}</div>
+        <div className="detail-card-subtle">{payload.summary}</div>
+        {payload.focus ? <div className="people-focus">关注：{payload.focus}</div> : null}
+        <div className="tag-list">
+          {chips.map((tag) => (
+            <span key={tag} className="tag-chip">
+              {tag}
+            </span>
+          ))}
+        </div>
+        {payload.influence || payload.attitude ? (
+          <div className="profile-meta-row">
+            {payload.influence ? <span>影响力：{payload.influence}</span> : null}
+            {payload.attitude ? <span>态度：{payload.attitude}</span> : null}
+          </div>
+        ) : null}
+        <div className="message-time">{formatTime(message.createdAt.toISOString())}</div>
+      </div>
+    </article>
+  );
+}
+
+function GraphCard({ message }: { message: MessageState }) {
+  const meta = getMessageMeta(message);
+  const payload = (meta.payload || {
+    title: "",
+    summary: "",
+    company: undefined,
+    people: [],
+    peopleRelations: [],
+    visit: undefined,
+    opportunity: null,
+  }) as GraphCardPayload;
+
+  const fallbackCompany: GraphCompany | undefined =
+    payload.company ||
+    (() => {
+      const customerNode = payload.nodes?.find((node) => node.kind === "customer");
+      if (!customerNode) return undefined;
+      return {
+        name: customerNode.label,
+        industry: customerNode.meta?.行业,
+        headquarters: customerNode.meta?.总部,
+        founded: customerNode.meta?.成立时间,
+        scale: customerNode.meta?.规模,
+        revenue: customerNode.meta?.营收,
+        businessType: customerNode.meta?.业态,
+        businesses: [],
+        characteristics: [],
+        researchSummary: customerNode.meta?.研究,
+      };
+    })();
+
+  const fallbackPeople: GraphPerson[] =
+    payload.people && payload.people.length > 0
+      ? payload.people
+      : (payload.nodes || [])
+          .filter((node) => node.kind === "contact")
+          .map((node) => ({
+            id: node.id,
+            name: node.label,
+            role: node.meta?.角色 || "客户侧关键参与人",
+            traits: [],
+            summary: node.meta?.画像 || "已生成联系人画像",
+          }));
+
+  const company = fallbackCompany;
+  const people = fallbackPeople;
+  const relations = payload.peopleRelations || [];
+
+  return (
+    <article className="message-row assistant">
+      <div className="detail-card graph-card">
+        <div className="detail-card-header">
+          <div className="detail-card-title">{payload.title}</div>
+          <span className="status-pill succeeded">已建立</span>
+        </div>
+        <div className="detail-card-body">{payload.summary}</div>
+        <div className="business-graph-shell">
+          <section className="company-portrait-card">
+            <div className="portrait-kicker">企业画像</div>
+            <h3>{company?.name || "客户"}</h3>
+            <div className="portrait-meta-grid">
+              {company?.businessType ? <div><span>业态</span><strong>{company.businessType}</strong></div> : null}
+              {company?.industry ? <div><span>行业</span><strong>{company.industry}</strong></div> : null}
+              {company?.headquarters ? <div><span>总部</span><strong>{company.headquarters}</strong></div> : null}
+              {company?.founded ? <div><span>成立时间</span><strong>{company.founded}</strong></div> : null}
+              {company?.scale ? <div><span>规模</span><strong>{company.scale}</strong></div> : null}
+              {company?.revenue ? <div><span>营收 / 资产</span><strong>{company.revenue}</strong></div> : null}
+            </div>
+            {company?.researchSummary ? <p className="portrait-summary">{company.researchSummary}</p> : null}
+            <div className="portrait-chip-group">
+              {(company?.businesses || []).map((item) => (
+                <span key={item} className="portrait-chip portrait-chip-business">{item}</span>
+              ))}
+            </div>
+            <div className="portrait-chip-group">
+              {(company?.characteristics || []).map((item) => (
+                <span key={item} className="portrait-chip portrait-chip-trait">{item}</span>
+              ))}
+            </div>
+          </section>
+
+          <section className="people-portrait-section">
+            <div className="portrait-kicker">人物画像</div>
+            <div className="people-card-grid">
+              {people.map((person) => (
+                <div key={person.id} className="people-card">
+                  <div className="people-card-top">
+                    <div className="people-avatar">{person.name.slice(0, 1)}</div>
+                    <div>
+                      <div className="people-name">{person.name}</div>
+                      <div className="people-role">{person.role}</div>
+                    </div>
+                  </div>
+                  <div className="people-badges">
+                    {person.influence ? <span className="mini-badge">影响力 {person.influence}</span> : null}
+                    {person.attitude ? <span className="mini-badge">{person.attitude}</span> : null}
+                  </div>
+                  <div className="portrait-chip-group compact">
+                    {person.traits.map((trait) => (
+                      <span key={trait} className="portrait-chip portrait-chip-trait">
+                        {trait}
+                      </span>
+                    ))}
+                  </div>
+                  {person.focus ? <div className="people-focus">关注：{person.focus}</div> : null}
+                  <div className="people-summary">{person.summary}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {relations.length > 0 ? (
+            <section className="people-relation-section">
+              <div className="portrait-kicker">人物关系</div>
+              <div className="relation-list">
+                {relations.map((relation) => {
+                  const from = people.find((item) => item.id === relation.from)?.name || relation.from;
+                  const to = people.find((item) => item.id === relation.to)?.name || relation.to;
+                  return (
+                    <div key={relation.id} className="relation-card">
+                      <div className="relation-main">
+                        <strong>{from}</strong>
+                        <span className="relation-arrow">↔</span>
+                        <strong>{to}</strong>
+                      </div>
+                      <div className="relation-label">{relation.label}</div>
+                      {relation.description ? <div className="relation-desc">{relation.description}</div> : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          {payload.opportunity ? (
+            <section className="business-footer-strip">
+              <div className="footer-card">
+                <span>商机状态</span>
+                <strong>{payload.opportunity.id}</strong>
+                {payload.opportunity.summary ? <p>{payload.opportunity.summary}</p> : null}
+              </div>
+            </section>
+          ) : null}
+        </div>
+        <div className="message-time">{formatTime(message.createdAt.toISOString())}</div>
+      </div>
+    </article>
+  );
+}
+
+function TaskStatusCard({ message }: { message: MessageState }) {
+  const meta = getMessageMeta(message);
+  const payload = (meta.payload || {
+    title: "",
+    body: "",
+    status: "info",
+  }) as TaskStatusCardPayload;
+
+  return (
+    <article className="message-row assistant">
+      <div className={`detail-card task-status-card task-status-${payload.status}`}>
+        <div className="detail-card-header">
+          <div className="detail-card-title">{payload.title}</div>
+        </div>
+        <div className="detail-card-body">{payload.body}</div>
+        {payload.actionUrl ? (
+          <a
+            className="analysis-card-link"
+            href={payload.actionUrl}
+            target={payload.openInNewTab ? "_blank" : undefined}
+            rel={payload.openInNewTab ? "noreferrer" : undefined}
+          >
+            {payload.actionLabel || "查看详情"}
           </a>
         ) : null}
         <div className="message-time">{formatTime(message.createdAt.toISOString())}</div>
@@ -452,18 +854,11 @@ function AnalysisCard({ message }: { message: MessageState }) {
 
 function WorkspaceUI({
   config,
-  activeAssistantId,
-  setActiveAssistantId,
   submitDraft,
-  onSetDraftFromPreset,
 }: {
   config: OntologyConfig;
-  activeAssistantId: string;
-  setActiveAssistantId: React.Dispatch<React.SetStateAction<string>>;
   submitDraft: (input: string, attachments: PendingAttachment[]) => Promise<void>;
-  onSetDraftFromPreset: (actionId: string) => string | undefined;
 }) {
-  const navigate = useNavigate();
   const runtime = useAssistantRuntime();
   const threadsState = useAuiState((state) => state.threads);
   const messages = useAuiState((state) => state.thread.messages);
@@ -475,13 +870,27 @@ function WorkspaceUI({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageStageRef = useRef<HTMLDivElement>(null);
+  const autoScrollRef = useRef(true);
+
+  const activeThreadTitle = useMemo(() => {
+    const activeId = threadsState.mainThreadId;
+    const activeThread = threadsState.threadItems.find((item) => item.id === activeId);
+    return activeThread?.title || config.landingTitle;
+  }, [config.landingTitle, threadsState.mainThreadId, threadsState.threadItems]);
 
   // 滚动到底部
   useEffect(() => {
-    if (messageStageRef.current && !isEmpty) {
+    if (messageStageRef.current && !isEmpty && autoScrollRef.current) {
       messageStageRef.current.scrollTop = messageStageRef.current.scrollHeight;
     }
   }, [messages, isEmpty]);
+
+  const onMessageStageScroll = () => {
+    if (!messageStageRef.current) return;
+    const el = messageStageRef.current;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    autoScrollRef.current = distanceToBottom < 80;
+  };
 
   const onFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -503,6 +912,7 @@ function WorkspaceUI({
     event.preventDefault();
     setSubmitBusy(true);
     try {
+      autoScrollRef.current = true;
       await submitDraft(draft, pendingAttachments);
       setDraft("");
       setPendingAttachments([]);
@@ -511,19 +921,19 @@ function WorkspaceUI({
     }
   };
 
-  const handleQuickAction = (actionId: string) => {
-    if (actionId === "upload_files") {
-      fileInputRef.current?.click();
+  const onComposerKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter") {
       return;
     }
-    const preset = onSetDraftFromPreset(actionId);
-    if (preset) {
-      setDraft(preset);
+    if (!(event.metaKey || event.ctrlKey)) {
+      return;
     }
+    event.preventDefault();
+    void onSubmitComposer(event as unknown as FormEvent<HTMLFormElement>);
   };
 
   return (
-    <div className="crm-shell">
+    <div className="chat-shell">
       <input
         ref={fileInputRef}
         className="hidden-file-input"
@@ -532,44 +942,26 @@ function WorkspaceUI({
         onChange={onFilesSelected}
       />
 
-      <aside className="crm-sidebar">
-        <div className="sidebar-user">
-          <div className="avatar">SC</div>
-          <div className="sidebar-user-meta">
-            <div className="user-name">Sven Chen</div>
-            <div className="user-role">AI Native CRM</div>
+      <aside className="chat-sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-mark">AI</div>
+          <div className="brand-meta">
+            <div className="brand-name">AI原生CRM</div>
           </div>
         </div>
 
-        <div className="sidebar-search">搜索会话 / 助手</div>
-
-        <div className="sidebar-section-title">助手</div>
-        <div className="assistant-list">
-          {config.assistants.map((assistant) => (
-            <button
-              key={assistant.id}
-              className={`assistant-item ${assistant.id === activeAssistantId ? "active" : ""}`}
-              onClick={() => setActiveAssistantId(assistant.id)}
-              type="button"
-            >
-              <div className="assistant-name">{assistant.name}</div>
-              <div className="assistant-subtitle">{assistant.subtitle}</div>
-            </button>
-          ))}
-        </div>
-
-        <div className="thread-toolbar">
-          <div className="sidebar-section-title">会话</div>
+        <div className="sidebar-toolbar">
           <button
             type="button"
-            className="new-thread-btn"
+            className="sidebar-primary-btn"
             onClick={() => void runtime.threads.switchToNewThread()}
           >
             新建会话
           </button>
         </div>
 
-        <div className="thread-list">
+        <div className="sidebar-history-title">历史对话</div>
+        <div className="sidebar-thread-list">
           {threadsState.threadIds.length === 0 ? (
             <div className="thread-empty">还没有会话，发送第一条消息开始。</div>
           ) : (
@@ -585,7 +977,10 @@ function WorkspaceUI({
                   type="button"
                   onClick={() => void runtime.threads.switchToThread(threadId)}
                 >
-                  {item.title || DEFAULT_THREAD_TITLE}
+                  <span className="thread-item-label">{item.title || DEFAULT_THREAD_TITLE}</span>
+                  {threadsState.mainThreadId === threadId ? (
+                    <span className="thread-item-badge">当前</span>
+                  ) : null}
                 </button>
               );
             })
@@ -593,47 +988,15 @@ function WorkspaceUI({
         </div>
       </aside>
 
-      <main className="crm-workspace">
-        <header className="workspace-head">
-          <div className="workspace-head-main">
-            <button
-              type="button"
-              className="back-to-ontologies"
-              onClick={() => navigate("/ontologies")}
-            >
-              <ArrowLeft size={16} />
-              返回
-            </button>
-            <div className="workspace-title">
-              {config.assistants.find((a) => a.id === activeAssistantId)?.name ||
-                config.assistants[0]?.name ||
-                "助手"}
-            </div>
-            <div className="workspace-subtitle">
-              {config.assistants.find((a) => a.id === activeAssistantId)?.subtitle ||
-                config.assistants[0]?.subtitle ||
-                ""}
-            </div>
-          </div>
-          <div className="workspace-tools" aria-label="快捷动作">
-            {config.quickActions.map((action) => (
-              <button
-                key={action.id}
-                className="quick-action"
-                type="button"
-                onClick={() => handleQuickAction(action.id)}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
+      <main className="chat-main">
+        <header className="chat-main-head">
+          <div className="chat-main-title">{activeThreadTitle}</div>
         </header>
 
         {isEmpty ? (
           <section className="landing">
             <div className="landing-hero">
-              <div className="landing-kicker">{config.landingKicker}</div>
-              <h1>{config.landingTitle}</h1>
+              <h1>有什么我能帮你的吗？</h1>
               <p>{config.landingDesc}</p>
             </div>
             <div className="landing-composer">
@@ -643,37 +1006,50 @@ function WorkspaceUI({
                 busy={submitBusy}
                 onDraftChange={setDraft}
                 onSubmit={onSubmitComposer}
+                onKeyDown={onComposerKeyDown}
                 onUploadClick={() => fileInputRef.current?.click()}
                 onRemoveAttachment={onRemoveAttachment}
               />
             </div>
-            <div className="suggestion-grid">
+            <div className="suggestion-chip-list">
               {config.suggestionCards.map((card) => (
                 <button
                   key={card.title}
-                  className="suggestion-card"
+                  className="suggestion-chip"
                   type="button"
                   onClick={() => setDraft(card.prompt)}
                 >
-                  <div className="suggestion-title">{card.title}</div>
-                  <div className="suggestion-desc">{card.description}</div>
+                  <span>{card.title}</span>
+                  <small>{card.description}</small>
                 </button>
               ))}
             </div>
           </section>
         ) : (
           <section className="conversation">
-            <div className="message-stage" ref={messageStageRef}>
+            <div className="message-stage" ref={messageStageRef} onScroll={onMessageStageScroll}>
               <div className="message-list">
                 {messages.map((message) => {
                   const meta = getMessageMeta(message);
                   if (message.role === "user" && meta.kind === "user-entry") {
                     return <UserEntryMessageView key={message.id} message={message} />;
                   }
-                  if (meta.kind === "analysis-card") {
-                    return <AnalysisCard key={message.id} message={message} />;
+                  switch (meta.kind) {
+                    case "analysis-card":
+                      return <AnalysisCard key={message.id} message={message} />;
+                    case "clarification-card":
+                      return <ClarificationCard key={message.id} message={message} />;
+                    case "artifact-card":
+                      return <ArtifactCard key={message.id} message={message} />;
+                    case "profile-card":
+                      return <ProfileCard key={message.id} message={message} />;
+                    case "graph-card":
+                      return <GraphCard key={message.id} message={message} />;
+                    case "task-status-card":
+                      return <TaskStatusCard key={message.id} message={message} />;
+                    default:
+                      return <AssistantTextMessageView key={message.id} message={message} />;
                   }
-                  return <AssistantTextMessageView key={message.id} message={message} />;
                 })}
               </div>
             </div>
@@ -684,6 +1060,7 @@ function WorkspaceUI({
                 busy={submitBusy}
                 onDraftChange={setDraft}
                 onSubmit={onSubmitComposer}
+                onKeyDown={onComposerKeyDown}
                 onUploadClick={() => fileInputRef.current?.click()}
                 onRemoveAttachment={onRemoveAttachment}
               />
@@ -704,7 +1081,7 @@ function WorkspaceProvider({
   ontologyId: string;
   config: OntologyConfig;
 }) {
-  const [activeAssistantId, setActiveAssistantId] = useState(config.assistants[0]?.id || "");
+  const [activeAssistantId, setActiveAssistantId] = useState(config.defaultAssistantId || "");
   const [threads, setThreads] = useState<PersistedThread[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(undefined);
   const [persistedMessages, setPersistedMessages] = useState<PersistedMessage[]>([]);
@@ -723,11 +1100,17 @@ function WorkspaceProvider({
       setSelectedThreadId(threadId);
       setPersistedMessages(payload.messages);
       setThreads((prev) => upsertThread(prev, payload.thread));
-      setActiveAssistantId((preferredThread || payload.thread).assistantId || config.assistants[0]?.id || "");
+      setActiveAssistantId((preferredThread || payload.thread).assistantId || config.defaultAssistantId || "");
       window.localStorage.setItem(ACTIVE_THREAD_STORAGE_KEY, threadId);
     } finally {
       setThreadLoading(false);
     }
+  };
+
+  const refreshSelectedThread = async (threadId: string) => {
+    const payload = await fetchJson<ThreadDetailResponse>(`/api/chat/threads/${threadId}`);
+    setPersistedMessages(payload.messages);
+    setThreads((prev) => upsertThread(prev, payload.thread));
   };
 
   const switchToNewThread = async () => {
@@ -854,6 +1237,18 @@ function WorkspaceProvider({
     return () => window.clearInterval(timer);
   }, [activeAnalysisCards, selectedThreadId]);
 
+  useEffect(() => {
+    if (!selectedThreadId) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void refreshSelectedThread(selectedThreadId);
+    }, 2500);
+
+    return () => window.clearInterval(timer);
+  }, [selectedThreadId]);
+
   const runtimeStore = useMemo<ExternalStoreAdapter<ThreadMessage>>(
     () => ({
       isLoading: threadLoading,
@@ -918,18 +1313,11 @@ function WorkspaceProvider({
     window.localStorage.setItem(ACTIVE_THREAD_STORAGE_KEY, response.thread.id);
   };
 
-  const onSetDraftFromPreset = (actionId: string): string | undefined => {
-    return config.draftPresets[actionId];
-  };
-
   return (
     <AssistantRuntimeProvider runtime={runtimeInstance}>
       <WorkspaceUI
         config={config}
-        activeAssistantId={activeAssistantId}
-        setActiveAssistantId={setActiveAssistantId}
         submitDraft={submitDraft}
-        onSetDraftFromPreset={onSetDraftFromPreset}
       />
     </AssistantRuntimeProvider>
   );

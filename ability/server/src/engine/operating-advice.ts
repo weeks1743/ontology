@@ -3,7 +3,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { nanoid } from 'nanoid';
 import { db } from '../db.js';
-import { mongoClient } from '../database/index.js';
+import { mongoClient, neo4jClient } from '../database/index.js';
 import { buildCustomerContext, formatGraphContext, buildVisitAnalysisContext } from './graph-context-service.js';
 import { getLLMClient, getLLMConfig, isLLMConfigured } from './llm-client.js';
 import { executeSkill as executeSkillCore } from '../skill-core/executor.js';
@@ -65,6 +65,108 @@ function toChineseLabel(val: string, type: 'influence' | 'attitude'): string {
   // attitude
   const map: Record<string, string> = { positive: '积极', neutral: '中性', cautious: '谨慎', negative: '消极', 积极: '积极', 中性: '中性', 谨慎: '谨慎', 消极: '消极' };
   return map[val.toLowerCase()] || val;
+}
+
+function buildCustomerNodeProperties(customerId: string, customerName: string, params: any, ontologyId: string) {
+  return {
+    id: customerId,
+    ontology_id: ontologyId,
+    customer_name: customerName,
+    name: customerName,
+    industry: params.industry || '',
+    region: params.region || '',
+    owner_sales: params.owner_sales || params.ownerSales || '',
+  };
+}
+
+function normalizeProfileMap(items: any[] = []) {
+  const map = new Map<string, any>();
+  for (const item of items) {
+    if (item?.name) map.set(String(item.name).trim(), item);
+    if (item?.raw_speaker) map.set(String(item.raw_speaker).trim(), item);
+  }
+  return map;
+}
+
+async function syncContactsForCustomer(params: {
+  ontologyId: string;
+  customerId: string;
+  customerName: string;
+  contacts?: any[];
+  speakerProfiles?: any[];
+}) {
+  const contactCollection = `${params.ontologyId}_contacts`;
+  const customerCollection = `${params.ontologyId}_customers`;
+  const profileMap = normalizeProfileMap(params.speakerProfiles);
+  const contacts = (params.contacts || [])
+    .filter((item: any) => item && String(item.name || '').trim())
+    .map((item: any) => {
+      const name = String(item.name).trim();
+      const profile = profileMap.get(name) || profileMap.get(String(item.raw_speaker || '').trim()) || {};
+      return {
+        raw_speaker: item.raw_speaker || profile.raw_speaker || '',
+        name,
+        role: item.role || profile.role || profile.职能 || '客户侧关键参与人',
+        notes: item.notes || profile.summary || profile.画像 || '',
+        influence_level: item.influence_level || profile.influence || '',
+        attitude: item.attitude || profile.attitude || '',
+        tags: item.tags || profile.tags || [],
+      };
+    });
+
+  if (contacts.length === 0) {
+    return [];
+  }
+
+  const syncedIds: string[] = [];
+  for (const contact of contacts) {
+    const existing = await mongoClient.findOne(contactCollection, {
+      customer_id: params.customerId,
+      name: contact.name,
+    });
+
+    const contactId = existing?.id || `contact_${nanoid(10)}`;
+    const document = {
+      id: contactId,
+      customer_id: params.customerId,
+      customer_name: params.customerName,
+      name: contact.name,
+      role: contact.role,
+      raw_speaker: contact.raw_speaker,
+      notes: contact.notes,
+      influence_level: contact.influence_level,
+      attitude: contact.attitude,
+      tags: contact.tags,
+      profile_summary: contact.notes,
+      ontology_id: params.ontologyId,
+    };
+
+    if (existing) {
+      await mongoClient.updateByFilter(contactCollection, { id: contactId }, document);
+    } else {
+      await mongoClient.insertDocument(contactCollection, document);
+    }
+
+    if (neo4jClient.isOnline()) {
+      await neo4jClient.upsertNode('Contact', contactId, {
+        id: contactId,
+        ontology_id: params.ontologyId,
+        name: contact.name,
+        role: contact.role,
+        influence_level: contact.influence_level,
+        attitude: contact.attitude,
+        profile_summary: contact.notes,
+      });
+      await neo4jClient.createRelationship(params.customerId, 'Customer', contactId, 'Contact', 'HAS_CONTACT');
+    }
+
+    syncedIds.push(contactId);
+  }
+
+  const customer = await mongoClient.findOne(customerCollection, { id: params.customerId });
+  const nextContactIds = Array.from(new Set([...(customer?.contact_ids || []), ...syncedIds]));
+  await mongoClient.updateByFilter(customerCollection, { id: params.customerId }, { contact_ids: nextContactIds });
+  return syncedIds;
 }
 
 export function analyzeVisitMarkdown(contentMarkdown: string) {
@@ -492,11 +594,41 @@ async function renderAdviceHtml(markdownPath: string, markdownContent: string, c
 
 export async function createVisitRecord(params: any, ontologyId = 'crm') {
   const now = new Date().toISOString();
-  const visitRecordId = params.visit_record_id || `visit_${nanoid(10)}`;
-  const customerId = params.customer_id;
-  const customerName = params.customer_name || params.customerName || '未命名客户';
   const customerCollection = `${ontologyId}_customers`;
   const visitCollection = `${ontologyId}_visit_records`;
+  const visitRecordId = params.visit_record_id || `visit_${nanoid(10)}`;
+  const customerName = params.customer_name || params.customerName || '未命名客户';
+
+  if (params.sync_mode === 'contacts_only') {
+    const existingVisit = params.visit_record_id
+      ? await mongoClient.findOne(visitCollection, { id: params.visit_record_id })
+      : null;
+    const customerId = params.customer_id || existingVisit?.customer_id;
+    if (!customerId) {
+      throw new Error('联系人同步缺少 customer_id');
+    }
+
+    const customer = await mongoClient.findOne(customerCollection, { id: customerId });
+    if (!customer) {
+      throw new Error(`Customer not found: ${customerId}`);
+    }
+
+    const contactIds = await syncContactsForCustomer({
+      ontologyId,
+      customerId,
+      customerName: customer.customer_name || customerName,
+      contacts: params.contacts,
+      speakerProfiles: params.speaker_profiles,
+    });
+
+    return {
+      visit_record_id: params.visit_record_id || null,
+      customer_id: customerId,
+      customer_name: customer.customer_name || customerName,
+      contact_ids: contactIds,
+      success: true,
+    };
+  }
 
   if (!params.content_markdown || !String(params.content_markdown).trim()) {
     throw new Error('拜访记录内容不能为空');
@@ -506,8 +638,12 @@ export async function createVisitRecord(params: any, ontologyId = 'crm') {
     throw new Error('拜访记录轮次必须从 1 开始且可排序');
   }
 
-  const customer = await mongoClient.findOne(customerCollection, { id: customerId });
-  if (!customer) {
+  const existingCustomer =
+    (params.customer_id ? await mongoClient.findOne(customerCollection, { id: params.customer_id }) : null) ||
+    (customerName ? await mongoClient.findOne(customerCollection, { customer_name: customerName }) : null);
+  const customerId = existingCustomer?.id || params.customer_id || `cust_${nanoid(10)}`;
+
+  if (!existingCustomer) {
     await mongoClient.insertDocument(customerCollection, {
       id: customerId,
       customer_name: customerName,
@@ -515,10 +651,25 @@ export async function createVisitRecord(params: any, ontologyId = 'crm') {
       region: params.region || '',
       owner_sales: params.owner_sales || '',
       visit_record_ids: [],
+      contact_ids: [],
+      opportunity_ids: [],
+      ontology_id: ontologyId,
+    });
+  } else {
+    await mongoClient.updateByFilter(customerCollection, { id: customerId }, {
+      customer_name: customerName,
+      industry: params.industry || existingCustomer.industry || '',
+      region: params.region || existingCustomer.region || '',
+      owner_sales: params.owner_sales || existingCustomer.owner_sales || '',
+      ontology_id: ontologyId,
     });
   }
 
-  await mongoClient.insertDocument(visitCollection, {
+  if (neo4jClient.isOnline()) {
+    await neo4jClient.upsertNode('Customer', customerId, buildCustomerNodeProperties(customerId, customerName, params, ontologyId));
+  }
+
+  const visitDocument = {
     id: visitRecordId,
     customer_id: customerId,
     customer_name: customerName,
@@ -532,13 +683,48 @@ export async function createVisitRecord(params: any, ontologyId = 'crm') {
     summary: '',
     key_signals: [],
     sentiment: '中性',
+    stakeholders: [],
+    next_step_suggestion: '',
     ontology_id: ontologyId,
+    task_output_id: params.task_output_id || null,
     created_at: now,
-  });
+  };
+
+  const existingVisit = await mongoClient.findOne(visitCollection, { id: visitRecordId });
+  if (existingVisit) {
+    await mongoClient.updateByFilter(visitCollection, { id: visitRecordId }, visitDocument);
+  } else {
+    await mongoClient.insertDocument(visitCollection, visitDocument);
+  }
+
+  if (neo4jClient.isOnline()) {
+    await neo4jClient.upsertNode('VisitRecord', visitRecordId, {
+      id: visitRecordId,
+      ontology_id: ontologyId,
+      customer_id: customerId,
+      customer_name: customerName,
+      title: params.title,
+      sequence_no: params.sequence_no,
+      visit_type: params.visit_type,
+      visit_at: params.visit_at,
+      source_channel: params.source_channel || 'uploaded_audio',
+    });
+    await neo4jClient.createRelationship(customerId, 'Customer', visitRecordId, 'VisitRecord', 'HAS_VISIT_RECORD');
+  }
 
   const latestCustomer = await mongoClient.findOne(customerCollection, { id: customerId });
   const nextIds = Array.from(new Set([...(latestCustomer?.visit_record_ids || []), visitRecordId]));
   await mongoClient.updateByFilter(customerCollection, { id: customerId }, { visit_record_ids: nextIds });
+
+  if (Array.isArray(params.contacts) && params.contacts.length > 0) {
+    await syncContactsForCustomer({
+      ontologyId,
+      customerId,
+      customerName,
+      contacts: params.contacts,
+      speakerProfiles: params.speaker_profiles,
+    });
+  }
 
   return {
     visit_record_id: visitRecordId,
@@ -576,6 +762,10 @@ export async function analyzeVisitRecord(params: any, ontologyId = 'crm') {
     summary: analysis.summary,
     key_signals: analysis.key_signals,
     sentiment: analysis.sentiment,
+    stakeholders: analysis.keyStakeholders || [],
+    next_step_suggestion: analysis.nextStepSuggestion || '',
+    urgency: toChineseUrgency(analysis.urgency || '中'),
+    opportunity_signals: analysis.opportunitySignals || [],
     status: '已分析',
   });
 
@@ -584,10 +774,79 @@ export async function analyzeVisitRecord(params: any, ontologyId = 'crm') {
     summary: analysis.summary,
     key_signals: analysis.key_signals,
     sentiment: analysis.sentiment,
+    stakeholders: analysis.keyStakeholders || [],
+    next_step_suggestion: analysis.nextStepSuggestion || '',
     keyStakeholders: analysis.keyStakeholders || [],
     nextStepSuggestion: analysis.nextStepSuggestion || '',
     urgency: toChineseUrgency(analysis.urgency || '中'),
     opportunitySignals: analysis.opportunitySignals || [],
+    success: true,
+  };
+}
+
+export async function createOpportunity(params: any, ontologyId = 'crm') {
+  const customerCollection = `${ontologyId}_customers`;
+  const opportunityCollection = `${ontologyId}_opportunities`;
+
+  if (!params.customer_id) {
+    throw new Error('缺少 customer_id');
+  }
+  if (!params.name || !String(params.name).trim()) {
+    throw new Error('商机名称不能为空');
+  }
+
+  const customer = await mongoClient.findOne(customerCollection, { id: params.customer_id });
+  if (!customer) {
+    throw new Error(`Customer not found: ${params.customer_id}`);
+  }
+
+  const opportunityId = params.opportunity_id || `opp_${nanoid(10)}`;
+  const document = {
+    id: opportunityId,
+    customer_id: customer.id,
+    customer_name: customer.customer_name || customer.name || '',
+    name: String(params.name).trim(),
+    amount: Number(params.amount || 0),
+    product_notes: params.product_notes || '',
+    source_task_id: params.source_task_id || '',
+    stage: params.stage || '需求分析',
+    probability: Number(params.probability || 50),
+    close_date: params.closeDate || params.close_date || null,
+    owner_sales_id: customer.owner_sales_id || '',
+    ontology_id: ontologyId,
+  };
+
+  const existing = await mongoClient.findOne(opportunityCollection, { id: opportunityId });
+  if (existing) {
+    await mongoClient.updateByFilter(opportunityCollection, { id: opportunityId }, document);
+  } else {
+    await mongoClient.insertDocument(opportunityCollection, document);
+  }
+
+  const nextOpportunityIds = Array.from(new Set([...(customer.opportunity_ids || []), opportunityId]));
+  await mongoClient.updateByFilter(customerCollection, { id: customer.id }, {
+    opportunity_ids: nextOpportunityIds,
+  });
+
+  if (neo4jClient.isOnline()) {
+    await neo4jClient.upsertNode('Opportunity', opportunityId, {
+      id: opportunityId,
+      ontology_id: ontologyId,
+      customer_id: customer.id,
+      name: document.name,
+      amount: document.amount,
+      stage: document.stage,
+      probability: document.probability,
+      product_notes: document.product_notes,
+      source_task_id: document.source_task_id,
+      close_date: document.close_date,
+    });
+    await neo4jClient.createRelationship(customer.id, 'Customer', opportunityId, 'Opportunity', 'HAS_OPPORTUNITY');
+  }
+
+  return {
+    opportunity_id: opportunityId,
+    customer_id: customer.id,
     success: true,
   };
 }

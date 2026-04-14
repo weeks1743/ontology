@@ -3,6 +3,7 @@ import express from "express";
 import { createSceneDb } from "./db.js";
 import { seedMockData } from "./seed.js";
 import * as repo from "./repository.js";
+import { executeScenarioRuntime } from "./runtime.js";
 
 const PORT = Number(process.env.PORT ?? "3003");
 const app = express();
@@ -335,6 +336,38 @@ app.post("/api/test-cases/:id/run", async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(400).json({ error: (error as Error).message });
+  }
+});
+
+app.post("/api/runtime/scenarios/:code/execute", async (req, res) => {
+  try {
+    const scenarioCode = req.params.code;
+    const {
+      ontology_id,
+      customer_name,
+      visit_record_id,
+      tingwu_task_id,
+      artifact_root,
+      task_id,
+    } = req.body || {};
+
+    if (!ontology_id || !customer_name || !visit_record_id || !tingwu_task_id || !artifact_root || !task_id) {
+      return res.status(400).json({ error: "Missing required runtime params" });
+    }
+
+    const result = await executeScenarioRuntime(db, {
+      ontologyId: String(ontology_id),
+      scenarioCode,
+      customerName: String(customer_name),
+      visitRecordId: String(visit_record_id),
+      tingwuTaskId: String(tingwu_task_id),
+      artifactRoot: String(artifact_root),
+      taskId: String(task_id),
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 

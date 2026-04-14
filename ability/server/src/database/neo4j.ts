@@ -224,7 +224,9 @@ class Neo4jClient {
     try {
       await session.run(
         `MATCH (a:${fromLabel} {id: $fromId}), (b:${toLabel} {id: $toId})
-         CREATE (a)-[r:${relType} {created_at: $created_at}]->(b)`,
+         MERGE (a)-[r:${relType}]->(b)
+         ON CREATE SET r.created_at = $created_at
+         ON MATCH SET r.updated_at = $created_at`,
         {
           fromId,
           toId,

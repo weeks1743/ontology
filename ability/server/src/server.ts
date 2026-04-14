@@ -26,8 +26,8 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = 3002;
 
-// 确保 tmp 目录存在
-const TMP_DIR = join(__dirname, '../tmp');
+// 确保 tmp 目录存在（项目根目录的 tmp，与 executor.ts 输出路径一致）
+const TMP_DIR = join(__dirname, '../../tmp');
 if (!existsSync(TMP_DIR)) mkdirSync(TMP_DIR, { recursive: true });
 
 // 中间件

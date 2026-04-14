@@ -35,6 +35,6 @@ metadata: { "openclaw": { "emoji": "⚙️", "requires": { "bins": ["node"], "en
 
 ## 写库计划
 
-- MongoDB: update crm_opportunitys
+- MongoDB: update crm_opportunities
 - Neo4j: 
-- Chroma: upsert crm_opportunitys
+- Chroma: upsert crm_opportunities

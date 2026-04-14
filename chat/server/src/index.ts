@@ -6,17 +6,14 @@ import { join } from "node:path";
 import http from "node:http";
 import { nanoid } from "nanoid";
 
-import { cleanupCustomerData, executeOntologySkill } from "./ability-client.js";
-import { getDb, getLatestActiveTaskByThread, getLatestTaskByThread, getTask, getTaskByTingwuTaskId, getThread, insertMessage, listArtifacts, listThreads, updateMessagePayload, updateTask, createTask, createThread, updateThreadTitle, deleteTaskCascade, deleteThreadCascade, getAudioJob, listAudioJobs } from "./db.js";
+import { cleanupCustomerData } from "./ability-client.js";
+import { getDb, getTask, getTaskByTingwuTaskId, getThread, insertMessage, listArtifacts, listThreads, updateMessagePayload, createThread, updateThreadTitle, deleteTaskCascade, deleteThreadCascade, getAudioJob, listAudioJobs, getLatestActiveTaskByThread } from "./db.js";
 import { loadEnvFiles } from "./env.js";
-import { createAudioAnalysisJob, queueResumeTask, queueStartTask, startAudioWorker, triggerSpeakerProfileWorkflow } from "./graph.js";
+import { queueResumeTask, triggerSpeakerProfileWorkflow } from "./graph.js";
 import { ARTIFACTS_DIR, CHAT_ROOT_DIR, CHAT_SERVER_PORT, MEETING_VIEWER_PORT, OUTPUTS_DIR, TONGYI_ROOT_DIR, UPLOADS_DIR } from "./paths.js";
-import type {
-  AnalysisCardPayload,
-  AssistantTextPayload,
-  MessageAttachment,
-} from "./types.js";
-import { decodeMaybeLatin1FileName, deriveThreadTitle, ensureDir, isSupportedAudioFile, nowIso, parseOpportunityInput } from "./utils.js";
+import { finalizeThreadQueryAnswer, generateThreadQueryAnswer, runThreadAssistantTurn } from "./thread-assistant.js";
+import type { MessageAttachment } from "./types.js";
+import { decodeMaybeLatin1FileName, deriveThreadTitle, ensureDir, isSupportedAudioFile } from "./utils.js";
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
@@ -73,6 +70,25 @@ function normalizeUploadedFile(file: Express.Multer.File) {
   };
 }
 
+function streamTextChunks(text: string) {
+  const chunks: string[] = [];
+  const paragraphs = text.split("\n");
+  for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
+    if (!paragraph) {
+      chunks.push("\n");
+      continue;
+    }
+    const trimmed = paragraph;
+    for (let index = 0; index < trimmed.length; index += 24) {
+      chunks.push(trimmed.slice(index, index + 24));
+    }
+    if (paragraphIndex < paragraphs.length - 1) {
+      chunks.push("\n");
+    }
+  }
+  return chunks;
+}
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true, service: "chat-server", port: CHAT_SERVER_PORT, meeting_viewer_port: MEETING_VIEWER_PORT });
 });
@@ -127,6 +143,100 @@ app.patch("/api/chat/threads/:threadId/messages/:messageId", (req, res) => {
   res.json({ message });
 });
 
+app.post("/api/chat/threads/:threadId/query-stream", async (req, res) => {
+  const threadId = String(req.params.threadId);
+  const threadPayload = getThread(threadId);
+  if (!threadPayload) {
+    res.status(404).json({ error: "Thread not found" });
+    return;
+  }
+
+  const activeTask = getLatestActiveTaskByThread(threadId);
+  if (activeTask || threadPayload.thread.activeMode !== "query_mode") {
+    res.status(409).json({ error: "Thread is not in query mode" });
+    return;
+  }
+
+  const text = String(req.body?.text || "").trim();
+  if (!text) {
+    res.status(400).json({ error: "Query text is empty" });
+    return;
+  }
+
+  const userMessage = insertMessage({
+    id: nanoid(16),
+    threadId,
+    role: "user",
+    kind: "user-entry",
+    payload: {
+      text,
+      attachments: [],
+    },
+  });
+
+  if (threadPayload.messages.length === 0) {
+    updateThreadTitle(threadId, deriveThreadTitle(text, []));
+  }
+
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+
+  const writeEvent = (payload: Record<string, unknown>) => {
+    res.write(`${JSON.stringify(payload)}\n`);
+  };
+
+  try {
+    writeEvent({
+      type: "user_message",
+      message: userMessage,
+      thread: getThread(threadId)?.thread,
+    });
+
+    const tempMessageId = `stream-${nanoid(12)}`;
+    writeEvent({
+      type: "assistant_begin",
+      messageId: tempMessageId,
+    });
+
+    const answer = await generateThreadQueryAnswer({
+      threadId,
+      text,
+    });
+
+    for (const chunk of streamTextChunks(answer.text)) {
+      writeEvent({
+        type: "assistant_delta",
+        messageId: tempMessageId,
+        delta: chunk,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 12));
+    }
+
+    const assistantMessage = finalizeThreadQueryAnswer({
+      threadId,
+      text,
+      answer,
+    });
+
+    writeEvent({
+      type: "assistant_complete",
+      message: assistantMessage,
+      thread: getThread(threadId)?.thread,
+    });
+    writeEvent({ type: "done" });
+    res.end();
+  } catch (error) {
+    writeEvent({
+      type: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    res.end();
+  }
+});
+
 app.post("/api/chat/threads/:threadId/messages", upload.array("files"), async (req, res) => {
   const threadId = String(req.params.threadId);
   const threadPayload = getThread(threadId);
@@ -163,159 +273,35 @@ app.post("/api/chat/threads/:threadId/messages", upload.array("files"), async (r
   if (threadPayload.messages.length === 0) {
     updateThreadTitle(threadId, deriveThreadTitle(text, attachments));
   }
-
-  const activeTask = getLatestActiveTaskByThread(threadId);
   const firstAudio = files.find((file) => isSupportedAudioFile(file.originalname));
 
-  if (firstAudio) {
-    if (activeTask) {
-      insertMessage({
-        id: nanoid(16),
-        threadId,
-        role: "assistant",
-        kind: "assistant-text",
-        payload: {
-          text: "当前会话已有进行中的录音任务。请新建会话后再上传新的录音。",
-        } satisfies AssistantTextPayload,
-      });
-      const payload = getThread(threadId)!;
-      res.status(201).json({ thread: payload.thread, messages: payload.messages, createdMessages: [userMessage] });
-      return;
-    }
+  const beforeMessageIds = new Set(threadPayload.messages.map((message) => message.id));
+  beforeMessageIds.add(userMessage.id);
 
-    const taskId = nanoid(16);
-    const artifactRoot = join(ARTIFACTS_DIR, taskId);
-    ensureDir(artifactRoot);
-    const ext = firstAudio.originalname.split(".").pop() || "m4a";
-    const uploadPath = join(UPLOADS_DIR, `${taskId}-${Date.now()}.${ext}`);
-    writeFileSync(uploadPath, firstAudio.buffer);
+  const uploadPath = firstAudio
+    ? (() => {
+        const ext = firstAudio.originalname.split(".").pop() || "m4a";
+        const nextPath = join(UPLOADS_DIR, `${nanoid(12)}-${Date.now()}.${ext}`);
+        writeFileSync(nextPath, firstAudio.buffer);
+        return nextPath;
+      })()
+    : null;
 
-    const analysisCard = insertMessage({
-      id: nanoid(16),
-      threadId,
-      role: "assistant",
-      kind: "analysis-card",
-      payload: {
-        fileName: firstAudio.originalname,
-        status: "queued",
-        jobId: null,
-        taskId: null,
-        error: null,
-      } satisfies AnalysisCardPayload,
-    });
-
-    const task = createTask({
-      id: taskId,
-      threadId,
-      capabilityCode: "crm.visit_audio_intake",
-      artifactRoot,
-      status: "queued",
-      analysisMessageId: analysisCard.id,
-      payload: {
-        ontologyId: threadPayload.thread.ontologyId,
-      },
-    });
-    if (!task) {
-      res.status(500).json({ error: "Failed to create task" });
-      return;
-    }
-
-    const jobId = createAudioAnalysisJob(taskId, firstAudio.originalname, uploadPath);
-    updateMessagePayload(threadId, analysisCard.id, { jobId, taskId });
-    startAudioWorker(taskId);
-    queueStartTask({
-      taskId,
-      threadId,
-      ontologyId: threadPayload.thread.ontologyId,
-      capabilityCode: "crm.visit_audio_intake",
-      audioPath: uploadPath,
-      audioFileName: firstAudio.originalname,
-      analysisMessageId: analysisCard.id,
-    });
-
-    const payload = getThread(threadId)!;
-    res.status(201).json({
-      thread: payload.thread,
-      messages: payload.messages,
-      createdMessages: [userMessage, getThread(threadId)!.messages.at(-1)],
-    });
-    return;
-  }
-
-  if (activeTask && activeTask.currentInterrupt === "wait_customer_name" && text.trim()) {
-    updateTask(activeTask.taskId, { status: "running" });
-    queueResumeTask(activeTask.taskId, text.trim());
-    const payload = getThread(threadId)!;
-    res.status(201).json({ thread: payload.thread, messages: payload.messages, createdMessages: [userMessage] });
-    return;
-  }
-
-  if (activeTask && activeTask.currentInterrupt === "wait_opportunity_confirmation" && text.trim()) {
-    updateTask(activeTask.taskId, { status: "running" });
-    queueResumeTask(activeTask.taskId, text.trim());
-    const payload = getThread(threadId)!;
-    res.status(201).json({ thread: payload.thread, messages: payload.messages, createdMessages: [userMessage] });
-    return;
-  }
-
-  const latestTask = getLatestTaskByThread(threadId);
-  const pendingOpportunityClarification = threadPayload.messages.find((message) => {
-    if (message.kind !== "clarification-card") return false;
-    const payload = message.payload as Record<string, unknown>;
-    return payload.stepCode === "wait_opportunity_confirmation" && payload.status === "pending";
-  });
-
-  if (!activeTask && latestTask && pendingOpportunityClarification && latestTask.customerId && text.trim()) {
-    const parsed = parseOpportunityInput(text.trim());
-    const result = await executeOntologySkill<{ success: boolean; data?: { opportunity_id?: string }; error?: string }>(
-      "ont.crm.opportunity_create",
-      {
-        customer_id: latestTask.customerId,
-        name: `${latestTask.customerName ?? "客户"} 拜访商机`,
-        amount: parsed.amount ?? 0,
-        product_notes: parsed.productNotes,
-        source_task_id: latestTask.taskId,
-        stage: "需求分析",
-        probability: 50,
-      },
-    );
-    if (result.success) {
-      updateMessagePayload(threadId, pendingOpportunityClarification.id, { status: "resolved" });
-      updateTask(latestTask.taskId, {
-        opportunityStatus: "completed",
-        status: "completed",
-      });
-      insertMessage({
-        id: nanoid(16),
-        threadId,
-        role: "assistant",
-        kind: "task-status-card",
-        payload: {
-          taskId: latestTask.taskId,
-          title: "商机已保存",
-          status: "success",
-          body: `已保存客户意向产品：${parsed.productNotes || "未填写"}；金额：${parsed.amount ?? 0} 元。`,
-        },
-      });
-      const payload = getThread(threadId)!;
-      res.status(201).json({ thread: payload.thread, messages: payload.messages, createdMessages: [userMessage] });
-      return;
-    }
-  }
-
-  insertMessage({
-    id: nanoid(16),
+  await runThreadAssistantTurn({
     threadId,
-    role: "assistant",
-    kind: "assistant-text",
-    payload: {
-      text: activeTask?.currentInterrupt === "wait_speaker_fix"
-        ? "当前任务正在等待发言人修正。请先到录音详情页完成姓名修正与“我司成员”标记。"
-        : "当前主会话仅处理录音拜访任务。请上传 m4a/mp3 音频，或在任务提示下继续填写客户名称 / 商机信息。",
-    } satisfies AssistantTextPayload,
+    ontologyId: threadPayload.thread.ontologyId,
+    text,
+    audioPath: uploadPath,
+    audioFileName: firstAudio?.originalname ?? null,
   });
+
   const payload = getThread(threadId)!;
-  res.status(201).json({ thread: payload.thread, messages: payload.messages, createdMessages: [userMessage] });
+  const createdMessages = payload.messages.filter((message) => !beforeMessageIds.has(message.id));
+  res.status(201).json({
+    thread: payload.thread,
+    messages: payload.messages,
+    createdMessages: [userMessage, ...createdMessages],
+  });
 });
 
 app.get("/api/chat/tasks/:taskId", (req, res) => {

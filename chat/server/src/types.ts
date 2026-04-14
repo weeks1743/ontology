@@ -1,5 +1,7 @@
 export type ThreadStatus = "regular" | "archived";
 
+export type ThreadMode = "query_mode" | "recording_task";
+
 export type JobStatus = "queued" | "analyzing" | "succeeded" | "failed";
 
 export type ConversationTaskStatus =
@@ -28,6 +30,13 @@ export type PersistedThread = {
   title: string;
   status: ThreadStatus;
   ontologyId: string;
+  activeMode: ThreadMode;
+  activeTaskId: string | null;
+  lastCompletedTaskId: string | null;
+  focusCustomerId: string | null;
+  focusVisitRecordId: string | null;
+  focusOpportunityId: string | null;
+  threadSummary: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 };

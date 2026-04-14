@@ -24,6 +24,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+export async function getAbilityJson<T>(path: string, init?: RequestInit) {
+  return requestJson<T>(path, init);
+}
+
 export async function executeOntologySkill<T>(skillId: string, params: Record<string, unknown>) {
   return requestJson<T>(`/api/ontology-skills/${encodeURIComponent(skillId)}/execute`, {
     method: "POST",
@@ -43,4 +47,20 @@ export async function cleanupCustomerData<T>(payload: Record<string, unknown>) {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function listCrmCustomers<T>() {
+  return requestJson<T>("/api/mock-data/customers");
+}
+
+export async function getCrmCustomerContext<T>(customerId: string) {
+  return requestJson<T>(`/api/mock-data/customers/${encodeURIComponent(customerId)}/context`);
+}
+
+export async function getCrmCustomerAdvice<T>(customerId: string) {
+  return requestJson<T>(`/api/mock-data/customers/${encodeURIComponent(customerId)}/advice`);
+}
+
+export async function getCrmVisitRecord<T>(visitRecordId: string) {
+  return requestJson<T>(`/api/mock-data/visit-records/${encodeURIComponent(visitRecordId)}`);
 }

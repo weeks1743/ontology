@@ -16,6 +16,7 @@ import {
   updateAudioJob,
   updateMessagePayload,
   updateTask,
+  updateThreadProjection,
   upsertArtifact,
 } from "./db.js";
 import { executeOntologySkill, executeSkillCore } from "./ability-client.js";
@@ -132,6 +133,10 @@ function ensureTask(taskId: string) {
 
 function updateTaskNode(taskId: string, graphNode: string, status: ConversationTaskState["status"] = "running") {
   updateTask(taskId, { graphNode, status });
+}
+
+function syncThreadProjection(task: ConversationTaskState, patch: Parameters<typeof updateThreadProjection>[1]) {
+  updateThreadProjection(task.threadId, patch);
 }
 
 function insertClarificationMessage(
@@ -729,6 +734,16 @@ const graph = new StateGraph(GraphAnnotation)
         transcriptSummary: bundle.summaryText,
       },
     });
+    syncThreadProjection(task, {
+      activeMode: "recording_task",
+      activeTaskId: task.taskId,
+      focusCustomerId: result.data?.customer_id ?? null,
+      focusVisitRecordId: result.data?.visit_record_id ?? visitRecordId,
+      threadSummary: {
+        customerName: state.customerName,
+        transcriptSummary: bundle.summaryText,
+      },
+    });
     return {
       customerId: result.data?.customer_id ?? null,
       visitRecordId: result.data?.visit_record_id ?? visitRecordId,
@@ -965,6 +980,18 @@ const graph = new StateGraph(GraphAnnotation)
       currentInterrupt: null,
       interruptPayload: null,
     });
+    syncThreadProjection(task, {
+      activeMode: "recording_task",
+      activeTaskId: task.taskId,
+      focusCustomerId: task.customerId,
+      focusVisitRecordId: task.visitRecordId,
+      focusOpportunityId: result.data?.opportunity_id ?? null,
+      threadSummary: {
+        customerName: task.customerName,
+        latestOpportunityAmount: parsed.amount ?? 0,
+        latestOpportunityProducts: parsed.productNotes,
+      },
+    });
     return {
       opportunityId: result.data?.opportunity_id ?? null,
     };
@@ -974,6 +1001,20 @@ const graph = new StateGraph(GraphAnnotation)
     updateTask(state.taskId, {
       graphNode: "complete_task",
       status: "completed",
+    });
+    const task = ensureTask(state.taskId);
+    syncThreadProjection(task, {
+      activeMode: "query_mode",
+      activeTaskId: null,
+      lastCompletedTaskId: task.taskId,
+      focusCustomerId: task.customerId,
+      focusVisitRecordId: task.visitRecordId,
+      focusOpportunityId: state.opportunityId ?? null,
+      threadSummary: {
+        customerName: task.customerName,
+        completedTaskId: task.taskId,
+        mode: "query_mode",
+      },
     });
     return {};
   })
@@ -1025,6 +1066,14 @@ async function runAudioWorker(taskId: string, analysisMessageId: string) {
     updateTask(task.taskId, {
       tingwuTaskId: result.outputTaskId,
     });
+    syncThreadProjection(task, {
+      activeMode: "recording_task",
+      activeTaskId: task.taskId,
+      threadSummary: {
+        latestTingwuTaskId: result.outputTaskId,
+        audioStatus: "succeeded",
+      },
+    });
     updateMessagePayload(task.threadId, analysisMessageId, {
       status: "succeeded",
       taskId: result.outputTaskId,
@@ -1057,6 +1106,16 @@ async function runAudioWorker(taskId: string, analysisMessageId: string) {
       graphNode: "ingest_audio",
       currentInterrupt: null,
       interruptPayload: null,
+    });
+    syncThreadProjection(task, {
+      activeMode: "query_mode",
+      activeTaskId: null,
+      focusCustomerId: task.customerId,
+      focusVisitRecordId: task.visitRecordId,
+      threadSummary: {
+        audioStatus: "failed",
+        lastError: message,
+      },
     });
     updateMessagePayload(task.threadId, analysisMessageId, {
       status: "failed",
@@ -1107,6 +1166,15 @@ async function handleGraphResult(taskId: string, result: Record<string, unknown>
       interruptPayload: interruptPayload,
       graphNode: state.next[0] ?? task.graphNode,
     });
+    syncThreadProjection(task, {
+      activeMode: "recording_task",
+      activeTaskId: task.taskId,
+      focusCustomerId: task.customerId,
+      focusVisitRecordId: task.visitRecordId,
+      threadSummary: {
+        pendingInterrupt: kind,
+      },
+    });
     return;
   }
 
@@ -1116,6 +1184,13 @@ async function handleGraphResult(taskId: string, result: Record<string, unknown>
       currentInterrupt: null,
       interruptPayload: null,
       graphNode: "complete_task",
+    });
+    syncThreadProjection(task, {
+      activeMode: "query_mode",
+      activeTaskId: null,
+      lastCompletedTaskId: task.taskId,
+      focusCustomerId: task.customerId,
+      focusVisitRecordId: task.visitRecordId,
     });
   }
 }
@@ -1134,6 +1209,15 @@ export async function runTaskGraph(taskId: string, input: GraphState | Command) 
       status: "failed",
       currentInterrupt: null,
       interruptPayload: null,
+    });
+    syncThreadProjection(task, {
+      activeMode: "query_mode",
+      activeTaskId: null,
+      focusCustomerId: task.customerId,
+      focusVisitRecordId: task.visitRecordId,
+      threadSummary: {
+        lastError: message,
+      },
     });
     insertTaskStatus(task.taskId, task.threadId, {
       title: "任务执行失败",
@@ -1172,6 +1256,15 @@ export async function triggerSpeakerProfileWorkflow(taskId: string) {
     speakerSyncStatus: "pending",
     payload: {
       ...(task.payload || {}),
+      speakerProfileReady: true,
+    },
+  });
+  syncThreadProjection(task, {
+    activeMode: "recording_task",
+    activeTaskId: task.taskId,
+    focusCustomerId: task.customerId,
+    focusVisitRecordId: task.visitRecordId,
+    threadSummary: {
       speakerProfileReady: true,
     },
   });

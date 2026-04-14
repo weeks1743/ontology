@@ -21,6 +21,13 @@ type PersistedThread = {
   assistantId: string;
   title: string;
   status: "regular" | "archived";
+  activeMode: "query_mode" | "recording_task";
+  activeTaskId: string | null;
+  lastCompletedTaskId: string | null;
+  focusCustomerId: string | null;
+  focusVisitRecordId: string | null;
+  focusOpportunityId: string | null;
+  threadSummary: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 };
@@ -39,6 +46,14 @@ type UserEntryPayload = {
 
 type AssistantTextPayload = {
   text: string;
+};
+
+type ParsedStructuredAnswer = {
+  directAnswer: string;
+  evidence: string[];
+  unknowns: string[];
+  suggestedNext: string[];
+  confidence: string;
 };
 
 type AnalysisCardPayload = {
@@ -189,6 +204,8 @@ type PersistedMessage = {
   createdAt: string;
   updatedAt: string;
 };
+
+type StreamingAssistantMessage = PersistedMessage;
 
 type ThreadDetailResponse = {
   thread: PersistedThread;
@@ -423,6 +440,122 @@ const getMessageMeta = (message: MessageState) => {
   };
 };
 
+const splitListItems = (raw: string) =>
+  raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^[-•]\s*/, ""));
+
+const normalizeConfidence = (raw: string) => {
+  const value = raw.trim();
+  if (!value) return "";
+  const normalized = value.toLowerCase();
+  if (normalized === "high" || value === "高") return "高";
+  if (normalized === "medium" || value === "中") return "中";
+  if (normalized === "low" || value === "低") return "低";
+  return value;
+};
+
+function parseStructuredAnswer(text: string): ParsedStructuredAnswer | null {
+  const content = text.replace(/\r\n/g, "\n");
+  const markerRegex = /^\s*(直接答案|证据来源|参考来源|当前未知项|建议下一问|confidence|置信度)\s*[:：]\s*(.*)$/gim;
+
+  const markers: Array<{
+    key: "answer" | "evidence" | "unknowns" | "next" | "confidence";
+    index: number;
+    length: number;
+    inline: string;
+  }> = [];
+
+  let match: RegExpExecArray | null;
+  while ((match = markerRegex.exec(content))) {
+    const title = match[1].toLowerCase();
+    let key: "answer" | "evidence" | "unknowns" | "next" | "confidence" | null = null;
+    if (title === "直接答案") key = "answer";
+    if (title === "证据来源" || title === "参考来源") key = "evidence";
+    if (title === "当前未知项") key = "unknowns";
+    if (title === "建议下一问") key = "next";
+    if (title === "confidence" || title === "置信度") key = "confidence";
+    if (!key) continue;
+    markers.push({
+      key,
+      index: match.index,
+      length: match[0].length,
+      inline: match[2].trim(),
+    });
+  }
+
+  if (markers.length === 0) {
+    return null;
+  }
+
+  const hasStructuredSections = markers.some((item) => item.key === "evidence" || item.key === "unknowns" || item.key === "next");
+  if (!hasStructuredSections) {
+    return null;
+  }
+
+  const sectionText = (idx: number) => {
+    const marker = markers[idx];
+    const nextMarker = markers[idx + 1];
+    const sectionBody = content
+      .slice(marker.index + marker.length, nextMarker?.index ?? content.length)
+      .trim();
+    return [marker.inline, sectionBody].filter(Boolean).join("\n").trim();
+  };
+
+  let directAnswer = "";
+  let evidence: string[] = [];
+  let unknowns: string[] = [];
+  let suggestedNext: string[] = [];
+  let confidence = "";
+
+  for (let idx = 0; idx < markers.length; idx += 1) {
+    const marker = markers[idx];
+    const body = sectionText(idx);
+    if (marker.key === "answer") {
+      directAnswer = body;
+      continue;
+    }
+    if (marker.key === "evidence") {
+      evidence = splitListItems(body);
+      continue;
+    }
+    if (marker.key === "unknowns") {
+      unknowns = splitListItems(body);
+      continue;
+    }
+    if (marker.key === "next") {
+      suggestedNext = splitListItems(body);
+      continue;
+    }
+    if (marker.key === "confidence") {
+      const firstLine = body.split("\n").map((line) => line.trim()).find(Boolean) ?? "";
+      confidence = normalizeConfidence(firstLine);
+    }
+  }
+
+  if (!directAnswer) {
+    const firstMarkerIndex = markers[0]?.index ?? 0;
+    directAnswer = content.slice(0, firstMarkerIndex).trim();
+  }
+
+  const resolvedEvidence = evidence.length > 0 ? evidence : ["暂无明确证据"];
+  const resolvedConfidence = confidence || "中";
+
+  if (!directAnswer) {
+    return null;
+  }
+
+  return {
+    directAnswer,
+    evidence: resolvedEvidence,
+    unknowns,
+    suggestedNext,
+    confidence: resolvedConfidence,
+  };
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────
 
 function Composer({
@@ -519,14 +652,77 @@ function UserEntryMessageView({ message }: { message: MessageState }) {
   );
 }
 
-function AssistantTextMessageView({ message }: { message: MessageState }) {
+function AssistantTextMessageView({
+  message,
+  busy,
+  onOpenReferences,
+  onQuickAsk,
+}: {
+  message: MessageState;
+  busy: boolean;
+  onOpenReferences: (references: string[]) => void;
+  onQuickAsk: (question: string) => Promise<void>;
+}) {
   const meta = getMessageMeta(message);
   const payload = (meta.payload || { text: "" }) as AssistantTextPayload;
+  const parsed = parseStructuredAnswer(payload.text);
+
+  if (!parsed) {
+    return (
+      <article className="message-row assistant">
+        <div className="message-bubble assistant-bubble">
+          <div className="message-content">{payload.text}</div>
+          <div className="message-time">{formatTime(message.createdAt.toISOString())}</div>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article className="message-row assistant">
-      <div className="message-bubble assistant-bubble">
-        <div className="message-content">{payload.text}</div>
+      <div className="message-bubble assistant-bubble query-answer-bubble">
+        <div className="message-content">{parsed.directAnswer}</div>
+
+        <button
+          type="button"
+          className="reference-toggle-btn"
+          onClick={() => onOpenReferences(parsed.evidence)}
+        >
+          <span>参考来源：</span>
+          <span className="reference-toggle-count">【参考来源{parsed.evidence.length}篇内容】</span>
+        </button>
+
+        {parsed.unknowns.length > 0 ? (
+          <section className="query-section-block">
+            <div className="query-section-title">当前未知项：</div>
+            <ul className="query-section-list">
+              {parsed.unknowns.map((item, idx) => (
+                <li key={`${message.id}-unknown-${idx}`}>{item}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {parsed.suggestedNext.length > 0 ? (
+          <section className="query-section-block">
+            <div className="query-section-title">建议下一问：</div>
+            <div className="query-next-list">
+              {parsed.suggestedNext.map((item, idx) => (
+                <button
+                  key={`${message.id}-next-${idx}`}
+                  className="query-next-chip"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void onQuickAsk(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <div className="query-confidence">置信度：{parsed.confidence}</div>
         <div className="message-time">{formatTime(message.createdAt.toISOString())}</div>
       </div>
     </article>
@@ -855,9 +1051,11 @@ function TaskStatusCard({ message }: { message: MessageState }) {
 function WorkspaceUI({
   config,
   submitDraft,
+  activeThread,
 }: {
   config: OntologyConfig;
   submitDraft: (input: string, attachments: PendingAttachment[]) => Promise<void>;
+  activeThread: PersistedThread | null;
 }) {
   const runtime = useAssistantRuntime();
   const threadsState = useAuiState((state) => state.threads);
@@ -867,6 +1065,10 @@ function WorkspaceUI({
   const [draft, setDraft] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [submitBusy, setSubmitBusy] = useState(false);
+  const [referencePanel, setReferencePanel] = useState<{ open: boolean; resources: string[] }>({
+    open: false,
+    resources: [],
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageStageRef = useRef<HTMLDivElement>(null);
@@ -884,6 +1086,13 @@ function WorkspaceUI({
       messageStageRef.current.scrollTop = messageStageRef.current.scrollHeight;
     }
   }, [messages, isEmpty]);
+
+  useEffect(() => {
+    setReferencePanel({
+      open: false,
+      resources: [],
+    });
+  }, [threadsState.mainThreadId]);
 
   const onMessageStageScroll = () => {
     if (!messageStageRef.current) return;
@@ -930,6 +1139,36 @@ function WorkspaceUI({
     }
     event.preventDefault();
     void onSubmitComposer(event as unknown as FormEvent<HTMLFormElement>);
+  };
+
+  const onOpenReferences = (resources: string[]) => {
+    setReferencePanel({
+      open: true,
+      resources: resources.length > 0 ? resources : ["暂无明确证据"],
+    });
+  };
+
+  const onCloseReferences = () => {
+    setReferencePanel((prev) => ({
+      ...prev,
+      open: false,
+    }));
+  };
+
+  const onQuickAsk = async (question: string) => {
+    const nextQuestion = question.trim();
+    if (!nextQuestion || submitBusy) {
+      return;
+    }
+    setSubmitBusy(true);
+    try {
+      autoScrollRef.current = true;
+      await submitDraft(nextQuestion, []);
+      setDraft("");
+      setPendingAttachments([]);
+    } finally {
+      setSubmitBusy(false);
+    }
   };
 
   return (
@@ -991,6 +1230,11 @@ function WorkspaceUI({
       <main className="chat-main">
         <header className="chat-main-head">
           <div className="chat-main-title">{activeThreadTitle}</div>
+          {activeThread ? (
+            <div className={`chat-main-mode ${activeThread.activeMode === "recording_task" ? "task" : "query"}`}>
+              {activeThread.activeMode === "recording_task" ? "任务推进中" : "查询模式"}
+            </div>
+          ) : null}
         </header>
 
         {isEmpty ? (
@@ -1027,43 +1271,79 @@ function WorkspaceUI({
           </section>
         ) : (
           <section className="conversation">
-            <div className="message-stage" ref={messageStageRef} onScroll={onMessageStageScroll}>
-              <div className="message-list">
-                {messages.map((message) => {
-                  const meta = getMessageMeta(message);
-                  if (message.role === "user" && meta.kind === "user-entry") {
-                    return <UserEntryMessageView key={message.id} message={message} />;
-                  }
-                  switch (meta.kind) {
-                    case "analysis-card":
-                      return <AnalysisCard key={message.id} message={message} />;
-                    case "clarification-card":
-                      return <ClarificationCard key={message.id} message={message} />;
-                    case "artifact-card":
-                      return <ArtifactCard key={message.id} message={message} />;
-                    case "profile-card":
-                      return <ProfileCard key={message.id} message={message} />;
-                    case "graph-card":
-                      return <GraphCard key={message.id} message={message} />;
-                    case "task-status-card":
-                      return <TaskStatusCard key={message.id} message={message} />;
-                    default:
-                      return <AssistantTextMessageView key={message.id} message={message} />;
-                  }
-                })}
+            <div className={`conversation-layout ${referencePanel.open ? "with-reference-panel" : ""}`}>
+              <div className="conversation-main-column">
+                <div className="message-stage" ref={messageStageRef} onScroll={onMessageStageScroll}>
+                  <div className="message-list">
+                    {messages.map((message) => {
+                      const meta = getMessageMeta(message);
+                      if (message.role === "user" && meta.kind === "user-entry") {
+                        return <UserEntryMessageView key={message.id} message={message} />;
+                      }
+                      switch (meta.kind) {
+                        case "analysis-card":
+                          return <AnalysisCard key={message.id} message={message} />;
+                        case "clarification-card":
+                          return <ClarificationCard key={message.id} message={message} />;
+                        case "artifact-card":
+                          return <ArtifactCard key={message.id} message={message} />;
+                        case "profile-card":
+                          return <ProfileCard key={message.id} message={message} />;
+                        case "graph-card":
+                          return <GraphCard key={message.id} message={message} />;
+                        case "task-status-card":
+                          return <TaskStatusCard key={message.id} message={message} />;
+                        default:
+                          return (
+                            <AssistantTextMessageView
+                              key={message.id}
+                              message={message}
+                              busy={submitBusy}
+                              onOpenReferences={onOpenReferences}
+                              onQuickAsk={onQuickAsk}
+                            />
+                          );
+                      }
+                    })}
+                  </div>
+                </div>
+
+                <div className="composer-dock">
+                  <Composer
+                    draft={draft}
+                    attachments={pendingAttachments}
+                    busy={submitBusy}
+                    onDraftChange={setDraft}
+                    onSubmit={onSubmitComposer}
+                    onKeyDown={onComposerKeyDown}
+                    onUploadClick={() => fileInputRef.current?.click()}
+                    onRemoveAttachment={onRemoveAttachment}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="composer-dock">
-              <Composer
-                draft={draft}
-                attachments={pendingAttachments}
-                busy={submitBusy}
-                onDraftChange={setDraft}
-                onSubmit={onSubmitComposer}
-                onKeyDown={onComposerKeyDown}
-                onUploadClick={() => fileInputRef.current?.click()}
-                onRemoveAttachment={onRemoveAttachment}
-              />
+
+              {referencePanel.open ? (
+                <aside className="reference-panel">
+                  <div className="reference-panel-head">
+                    <div className="reference-panel-title">参考资料</div>
+                    <button
+                      type="button"
+                      className="reference-panel-close"
+                      onClick={onCloseReferences}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="reference-panel-list">
+                    {referencePanel.resources.map((item, idx) => (
+                      <article key={`reference-${idx}`} className="reference-item">
+                        <div className="reference-item-index">{idx + 1}</div>
+                        <div className="reference-item-content">{item}</div>
+                      </article>
+                    ))}
+                  </div>
+                </aside>
+              ) : null}
             </div>
           </section>
         )}
@@ -1085,12 +1365,19 @@ function WorkspaceProvider({
   const [threads, setThreads] = useState<PersistedThread[]>([]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>(undefined);
   const [persistedMessages, setPersistedMessages] = useState<PersistedMessage[]>([]);
+  const [streamingAssistantMessage, setStreamingAssistantMessage] = useState<StreamingAssistantMessage | null>(null);
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [threadLoading, setThreadLoading] = useState(false);
 
+  const displayMessages = useMemo(() => {
+    if (!streamingAssistantMessage) return persistedMessages;
+    const alreadyPersisted = persistedMessages.some((message) => message.id === streamingAssistantMessage.id);
+    return alreadyPersisted ? persistedMessages : [...persistedMessages, streamingAssistantMessage];
+  }, [persistedMessages, streamingAssistantMessage]);
+
   const threadMessages = useMemo<ThreadMessage[]>(
-    () => persistedMessages.map((message) => toThreadMessage(message)),
-    [persistedMessages],
+    () => displayMessages.map((message) => toThreadMessage(message)),
+    [displayMessages],
   );
 
   const loadThread = async (threadId: string, preferredThread?: PersistedThread) => {
@@ -1099,6 +1386,7 @@ function WorkspaceProvider({
       const payload = await fetchJson<ThreadDetailResponse>(`/api/chat/threads/${threadId}`);
       setSelectedThreadId(threadId);
       setPersistedMessages(payload.messages);
+      setStreamingAssistantMessage(null);
       setThreads((prev) => upsertThread(prev, payload.thread));
       setActiveAssistantId((preferredThread || payload.thread).assistantId || config.defaultAssistantId || "");
       window.localStorage.setItem(ACTIVE_THREAD_STORAGE_KEY, threadId);
@@ -1110,12 +1398,14 @@ function WorkspaceProvider({
   const refreshSelectedThread = async (threadId: string) => {
     const payload = await fetchJson<ThreadDetailResponse>(`/api/chat/threads/${threadId}`);
     setPersistedMessages(payload.messages);
+    setStreamingAssistantMessage((current) => (current && payload.messages.some((message) => message.id === current.id) ? null : current));
     setThreads((prev) => upsertThread(prev, payload.thread));
   };
 
   const switchToNewThread = async () => {
     setSelectedThreadId(undefined);
     setPersistedMessages([]);
+    setStreamingAssistantMessage(null);
     window.localStorage.removeItem(ACTIVE_THREAD_STORAGE_KEY);
   };
 
@@ -1273,6 +1563,10 @@ function WorkspaceProvider({
   );
 
   const runtimeInstance = useExternalStoreRuntime(runtimeStore);
+  const activeThread = useMemo(
+    () => threads.find((item) => item.id === selectedThreadId) ?? null,
+    [selectedThreadId, threads],
+  );
 
   const submitDraft = async (input: string, attachments: PendingAttachment[]) => {
     const text = input.trim();
@@ -1281,6 +1575,7 @@ function WorkspaceProvider({
     }
 
     let threadId = selectedThreadId;
+    let createdThread: PersistedThread | null = null;
     if (!threadId) {
       const created = await fetchJson<CreateThreadResponse>("/api/chat/threads", {
         method: "POST",
@@ -1288,9 +1583,97 @@ function WorkspaceProvider({
         body: JSON.stringify({ assistantId: activeAssistantId, ontologyId }),
       });
       threadId = created.thread.id;
+      createdThread = created.thread;
       setSelectedThreadId(threadId);
       setThreads((prev) => upsertThread(prev, created.thread));
       window.localStorage.setItem(ACTIVE_THREAD_STORAGE_KEY, threadId);
+    }
+
+    const activeThreadForSubmit = createdThread ?? threads.find((item) => item.id === threadId) ?? activeThread;
+
+    const shouldTryQueryStream =
+      attachments.length === 0 &&
+      text &&
+      activeThreadForSubmit?.activeMode === "query_mode" &&
+      !activeThreadForSubmit?.activeTaskId;
+
+    if (shouldTryQueryStream) {
+      const response = await fetch(`/api/chat/threads/${threadId}/query-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (response.status === 409) {
+        await refreshSelectedThread(threadId);
+      } else if (!response.ok || !response.body) {
+        const payload = await response.json().catch(() => ({ error: "Failed to stream query" }));
+        throw new Error((payload as { error?: string }).error || "Failed to stream query");
+      } else {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line) as Record<string, unknown>;
+            if (event.type === "user_message" && event.message) {
+              const message = event.message as PersistedMessage;
+              setPersistedMessages((prev) => (prev.some((item) => item.id === message.id) ? prev : [...prev, message]));
+              if (event.thread) {
+                setThreads((prev) => upsertThread(prev, event.thread as PersistedThread));
+              }
+            }
+            if (event.type === "assistant_begin") {
+              setStreamingAssistantMessage({
+                id: String(event.messageId || `stream-${Date.now()}`),
+                threadId,
+                role: "assistant",
+                kind: "assistant-text",
+                payload: { text: "" },
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+            }
+            if (event.type === "assistant_delta") {
+              const delta = String(event.delta || "");
+              setStreamingAssistantMessage((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      payload: {
+                        text: `${((prev.payload as AssistantTextPayload).text || "")}${delta}`,
+                      },
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : prev,
+              );
+            }
+            if (event.type === "assistant_complete") {
+              if (event.thread) {
+                setThreads((prev) => upsertThread(prev, event.thread as PersistedThread));
+              }
+              setStreamingAssistantMessage(null);
+              await refreshSelectedThread(threadId);
+            }
+            if (event.type === "error") {
+              setStreamingAssistantMessage(null);
+              throw new Error(String(event.error || "Failed to stream query"));
+            }
+          }
+
+          if (done) {
+            break;
+          }
+        }
+        return;
+      }
     }
 
     const formData = new FormData();
@@ -1318,6 +1701,7 @@ function WorkspaceProvider({
       <WorkspaceUI
         config={config}
         submitDraft={submitDraft}
+        activeThread={activeThread}
       />
     </AssistantRuntimeProvider>
   );

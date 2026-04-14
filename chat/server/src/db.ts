@@ -47,6 +47,13 @@ function initSchema(database: Database.Database) {
       title TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'regular',
       ontology_id TEXT NOT NULL DEFAULT 'crm',
+      thread_mode TEXT NOT NULL DEFAULT 'query_mode',
+      active_task_id TEXT,
+      last_completed_task_id TEXT,
+      focus_customer_id TEXT,
+      focus_visit_record_id TEXT,
+      focus_opportunity_id TEXT,
+      thread_summary_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -162,9 +169,20 @@ function initSchema(database: Database.Database) {
   `);
 
   const threadColumns = database.prepare(`PRAGMA table_info(chat_threads)`).all() as Array<{ name: string }>;
-  if (!threadColumns.some((column) => column.name === "ontology_id")) {
-    database.exec(`ALTER TABLE chat_threads ADD COLUMN ontology_id TEXT NOT NULL DEFAULT 'crm'`);
-  }
+  const ensureThreadColumn = (name: string, sql: string) => {
+    if (!threadColumns.some((column) => column.name === name)) {
+      database.exec(sql);
+    }
+  };
+
+  ensureThreadColumn("ontology_id", `ALTER TABLE chat_threads ADD COLUMN ontology_id TEXT NOT NULL DEFAULT 'crm'`);
+  ensureThreadColumn("thread_mode", `ALTER TABLE chat_threads ADD COLUMN thread_mode TEXT NOT NULL DEFAULT 'query_mode'`);
+  ensureThreadColumn("active_task_id", `ALTER TABLE chat_threads ADD COLUMN active_task_id TEXT`);
+  ensureThreadColumn("last_completed_task_id", `ALTER TABLE chat_threads ADD COLUMN last_completed_task_id TEXT`);
+  ensureThreadColumn("focus_customer_id", `ALTER TABLE chat_threads ADD COLUMN focus_customer_id TEXT`);
+  ensureThreadColumn("focus_visit_record_id", `ALTER TABLE chat_threads ADD COLUMN focus_visit_record_id TEXT`);
+  ensureThreadColumn("focus_opportunity_id", `ALTER TABLE chat_threads ADD COLUMN focus_opportunity_id TEXT`);
+  ensureThreadColumn("thread_summary_json", `ALTER TABLE chat_threads ADD COLUMN thread_summary_json TEXT NOT NULL DEFAULT '{}'`);
 }
 
 function threadRowToDto(row: any): PersistedThread {
@@ -174,6 +192,13 @@ function threadRowToDto(row: any): PersistedThread {
     title: row.title,
     status: row.status,
     ontologyId: row.ontology_id,
+    activeMode: row.thread_mode ?? "query_mode",
+    activeTaskId: row.active_task_id ?? null,
+    lastCompletedTaskId: row.last_completed_task_id ?? null,
+    focusCustomerId: row.focus_customer_id ?? null,
+    focusVisitRecordId: row.focus_visit_record_id ?? null,
+    focusOpportunityId: row.focus_opportunity_id ?? null,
+    threadSummary: parseJson<Record<string, unknown>>(row.thread_summary_json, {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -261,8 +286,10 @@ export function createThread(params: { id: string; assistantId: string; ontology
   const timestamp = nowIso();
   database
     .prepare(
-      `INSERT INTO chat_threads (id, assistant_id, title, status, ontology_id, created_at, updated_at)
-       VALUES (?, ?, ?, 'regular', ?, ?, ?)`,
+      `INSERT INTO chat_threads (
+        id, assistant_id, title, status, ontology_id, thread_mode, thread_summary_json, created_at, updated_at
+      )
+       VALUES (?, ?, ?, 'regular', ?, 'query_mode', '{}', ?, ?)`,
     )
     .run(params.id, params.assistantId, params.title ?? DEFAULT_THREAD_TITLE, params.ontologyId, timestamp, timestamp);
   return getThread(params.id)?.thread ?? null;
@@ -276,6 +303,50 @@ export function touchThread(threadId: string) {
 export function updateThreadTitle(threadId: string, title: string) {
   const database = getDb();
   database.prepare(`UPDATE chat_threads SET title = ?, updated_at = ? WHERE id = ?`).run(title, nowIso(), threadId);
+}
+
+export function updateThreadProjection(threadId: string, patch: Partial<{
+  activeMode: PersistedThread["activeMode"];
+  activeTaskId: string | null;
+  lastCompletedTaskId: string | null;
+  focusCustomerId: string | null;
+  focusVisitRecordId: string | null;
+  focusOpportunityId: string | null;
+  threadSummary: Record<string, unknown>;
+}>) {
+  const database = getDb();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  const mapping: Record<string, string> = {
+    activeMode: "thread_mode",
+    activeTaskId: "active_task_id",
+    lastCompletedTaskId: "last_completed_task_id",
+    focusCustomerId: "focus_customer_id",
+    focusVisitRecordId: "focus_visit_record_id",
+    focusOpportunityId: "focus_opportunity_id",
+  };
+
+  for (const [key, column] of Object.entries(mapping)) {
+    const value = (patch as Record<string, unknown>)[key];
+    if (value !== undefined) {
+      fields.push(`${column} = ?`);
+      values.push(value);
+    }
+  }
+
+  if (patch.threadSummary !== undefined) {
+    fields.push(`thread_summary_json = ?`);
+    values.push(JSON.stringify(patch.threadSummary ?? {}));
+  }
+
+  if (fields.length === 0) {
+    return getThread(threadId)?.thread ?? null;
+  }
+
+  fields.push(`updated_at = ?`);
+  values.push(nowIso(), threadId);
+  database.prepare(`UPDATE chat_threads SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+  return getThread(threadId)?.thread ?? null;
 }
 
 export function insertMessage(params: {
@@ -377,6 +448,25 @@ export function getTaskByTingwuTaskId(tingwuTaskId: string) {
   const row = database
     .prepare(`SELECT * FROM chat_tasks WHERE tingwu_task_id = ? ORDER BY updated_at DESC LIMIT 1`)
     .get(tingwuTaskId) as any;
+  return row ? taskRowToDto(row) : null;
+}
+
+export function getLatestTaskByCustomer(customerId?: string | null, customerName?: string | null) {
+  const database = getDb();
+  let row: any = null;
+
+  if (customerId) {
+    row = database
+      .prepare(`SELECT * FROM chat_tasks WHERE customer_id = ? ORDER BY updated_at DESC LIMIT 1`)
+      .get(customerId);
+  }
+
+  if (!row && customerName) {
+    row = database
+      .prepare(`SELECT * FROM chat_tasks WHERE customer_name = ? ORDER BY updated_at DESC LIMIT 1`)
+      .get(customerName);
+  }
+
   return row ? taskRowToDto(row) : null;
 }
 

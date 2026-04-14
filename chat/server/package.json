@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "cleanup-customer": "tsx scripts/cleanup-customer.ts"
+    "cleanup-customer": "tsx scripts/cleanup-customer.ts",
+    "test": "node --import tsx --test src/query-engine.test.ts"
   },
   "dependencies": {
     "@langchain/langgraph": "^1.2.8",
